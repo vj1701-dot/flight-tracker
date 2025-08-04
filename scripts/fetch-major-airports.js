@@ -6,7 +6,13 @@ const path = require('path');
  * Uses known major airport codes to avoid rate limiting issues
  */
 
-const FLIGHTAWARE_API_KEY = process.env.FLIGHTAWARE_API_KEY || '7kV9GnO2seq9fMY0p1pgQM800BLoRPX6';
+const FLIGHTAWARE_API_KEY = process.env.FLIGHTAWARE_API_KEY;
+
+if (!FLIGHTAWARE_API_KEY) {
+  console.error('❌ ERROR: FLIGHTAWARE_API_KEY environment variable is required');
+  console.log('Usage: FLIGHTAWARE_API_KEY=your_key_here node scripts/fetch-major-airports.js');
+  process.exit(1);
+}
 const BASE_URL = 'https://aeroapi.flightaware.com/aeroapi';
 
 class MajorAirportFetcher {

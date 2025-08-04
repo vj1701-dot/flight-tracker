@@ -6,13 +6,15 @@ const TimezoneService = require('./timezone-service');
  */
 class FlightInfoService {
   constructor() {
-    this.apiKey = process.env.FLIGHTAWARE_API_KEY || '7kV9GnO2seq9fMY0p1pgQM800BLoRPX6';
+    this.apiKey = process.env.FLIGHTAWARE_API_KEY;
     this.baseUrl = 'https://aeroapi.flightaware.com/aeroapi';
     this.timezoneService = new TimezoneService();
     
-    // Warn if using fallback API key in production
-    if (process.env.NODE_ENV === 'production' && this.apiKey === '7kV9GnO2seq9fMY0p1pgQM800BLoRPX6') {
-      console.warn('⚠️  WARNING: Using fallback FlightAware API key in production! Set FLIGHTAWARE_API_KEY environment variable.');
+    // Warn if API key is not configured
+    if (!this.apiKey) {
+      console.warn('⚠️  WARNING: FLIGHTAWARE_API_KEY environment variable not set. Flight tracking features will be disabled.');
+    } else if (process.env.NODE_ENV === 'production') {
+      console.log('✅ FlightAware API configured for production');
     }
   }
 
