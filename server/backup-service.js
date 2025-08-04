@@ -8,8 +8,13 @@ class BackupService {
   constructor() {
     // Initialize Google Cloud Storage
     this.storage = new Storage();
-    this.bucketName = process.env.BACKUP_BUCKET_NAME || 'flight-tracker-backups';
+    
+    // Use project-specific bucket name if available
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'flight-tracker';
+    this.bucketName = process.env.BACKUP_BUCKET_NAME || `${projectId}-backups`;
+    
     console.log(`✅ Using Google Cloud Storage for backups: ${this.bucketName}`);
+    console.log(`Project ID: ${projectId}`);
     
     this.dataFiles = [
       'flights.json',
@@ -22,19 +27,36 @@ class BackupService {
 
   async initializeStorage() {
     try {
-      const [exists] = await this.storage.bucket(this.bucketName).exists();
+      const bucket = this.storage.bucket(this.bucketName);
+      const [exists] = await bucket.exists();
+      
       if (!exists) {
         console.log(`Creating backup bucket: ${this.bucketName}`);
-        await this.storage.createBucket(this.bucketName, {
-          location: 'US',
-          storageClass: 'STANDARD',
-          uniformBucketLevelAccess: true
-        });
-        console.log(`✅ Backup bucket created: ${this.bucketName}`);
+        try {
+          await this.storage.createBucket(this.bucketName, {
+            location: 'US',
+            storageClass: 'STANDARD',
+            uniformBucketLevelAccess: true
+          });
+          console.log(`✅ Backup bucket created: ${this.bucketName}`);
+        } catch (createError) {
+          if (createError.code === 409) {
+            console.log(`Bucket ${this.bucketName} already exists (created by another process)`);
+          } else {
+            throw createError;
+          }
+        }
+      } else {
+        console.log(`✅ Backup bucket already exists: ${this.bucketName}`);
       }
+      
+      // Test bucket access
+      await bucket.getMetadata();
       return true;
     } catch (error) {
       console.error('Error initializing backup bucket:', error.message);
+      console.error('Make sure your Google Cloud credentials are properly configured.');
+      console.error('You may need to set GOOGLE_APPLICATION_CREDENTIALS or run gcloud auth application-default login');
       return false;
     }
   }
@@ -161,27 +183,65 @@ class BackupService {
 
   async listBackups() {
     try {
+      console.log(`Attempting to list backups from bucket: ${this.bucketName}`);
       return await this.listGCSBackups();
     } catch (error) {
       console.error('Failed to list backups:', error.message);
-      return { success: false, error: error.message };
+      console.error('Full error:', error);
+      
+      // Provide more helpful error messages
+      let userMessage = error.message;
+      if (error.code === 403) {
+        userMessage = 'Access denied to backup bucket. Please check Google Cloud permissions.';
+      } else if (error.code === 404) {
+        userMessage = 'Backup bucket not found. It will be created automatically on first backup.';
+      } else if (error.message.includes('credentials')) {
+        userMessage = 'Google Cloud credentials not configured properly.';
+      }
+      
+      return { success: false, error: userMessage };
     }
   }
 
   async listGCSBackups() {
-    const bucket = this.storage.bucket(this.bucketName);
-    const [files] = await bucket.getFiles({ prefix: '', delimiter: '/' });
-    
-    const backups = new Set();
-    files.forEach(file => {
-      const parts = file.name.split('/');
-      if (parts.length > 1) {
-        backups.add(parts[0]);
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      
+      // Check if bucket exists first
+      const [exists] = await bucket.exists();
+      if (!exists) {
+        console.log(`Backup bucket ${this.bucketName} does not exist, creating...`);
+        await this.initializeStorage();
+        return { success: true, backups: [] };
       }
-    });
+      
+      const [files] = await bucket.getFiles({ prefix: '', delimiter: '/' });
+      
+      const backups = new Set();
+      files.forEach(file => {
+        const parts = file.name.split('/');
+        if (parts.length > 1 && (parts[0].startsWith('auto-') || parts[0].startsWith('manual-'))) {
+          backups.add(parts[0]);
+        }
+      });
 
-    const backupList = Array.from(backups).sort().reverse();
-    return { success: true, backups: backupList };
+      const backupList = Array.from(backups).sort().reverse();
+      console.log(`Found ${backupList.length} backups in GCS bucket`);
+      return { success: true, backups: backupList };
+    } catch (error) {
+      console.error('Error listing GCS backups:', error.message);
+      
+      // If it's a permission or bucket issue, try to initialize
+      if (error.code === 'ENOENT' || error.code === 403 || error.code === 404) {
+        console.log('Attempting to initialize backup storage...');
+        const initialized = await this.initializeStorage();
+        if (initialized) {
+          return { success: true, backups: [] };
+        }
+      }
+      
+      throw error;
+    }
   }
 
 
