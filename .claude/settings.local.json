@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm run dev:*)",
+      "Bash(rm:*)",
+      "Bash(sudo rm:*)",
+      "Bash(sudo npm install bcrypt jsonwebtoken)",
+      "Bash(npm install:*)",
+      "Bash(sudo npm install react-router-dom)",
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(gcloud:*)",
+      "Bash(docker:*)",
+      "Bash(/dev/null)",
+      "Bash(chmod:*)",
+      "Bash(./deploy.sh:*)",
+      "Bash(sudo chown:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(python3:*)",
+      "Bash(cp:*)",
+      "Bash(./pre-deploy-check.sh:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:www.flightaware.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(openssl rand:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(FLIGHTAWARE_API_KEY=7kV9GnO2seq9fMY0p1pgQM800BLoRPX6 node scripts/fetch-airports.js)",
+      "Bash(FLIGHTAWARE_API_KEY=7kV9GnO2seq9fMY0p1pgQM800BLoRPX6 node scripts/fetch-major-airports.js)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

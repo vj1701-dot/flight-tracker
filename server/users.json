@@ -1,0 +1,39 @@
+[
+  {
+    "id": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
+    "username": "superadmin",
+    "name": "Super Admin",
+    "email": "superadmin@flighttracker.com",
+    "password": "$2b$10$eL7qocDlG2JYfzas2lh6AO0HUbiL3sb0eSURK9hQkAI/uRTMpPljC",
+    "role": "superadmin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-02T03:03:00.774Z",
+    "updatedAt": "2025-08-02T03:03:00.775Z"
+  },
+  {
+    "id": "1cdea2d9-3f5d-49e1-8caf-ec2545692825",
+    "username": "user",
+    "name": "Regular User",
+    "email": "user@gmail.com",
+    "password": "$2b$10$JSy87a3C9K7m7z4Gju6sfO/rlhKOvJZNWGdEsViFO/OX8m0D7TQ8S",
+    "role": "user",
+    "allowedAirports": [
+      "SJC",
+      "SFO",
+      "OAK"
+    ],
+    "createdAt": "2025-08-02T03:16:26.784Z",
+    "updatedAt": "2025-08-02T03:16:26.784Z"
+  },
+  {
+    "id": "0ed10152-19ec-4d5b-8299-a643c0b5eee5",
+    "username": "admin",
+    "name": "Administrator",
+    "email": "admin@gmail.com",
+    "password": "$2b$10$tI5ktuzgW.ZKeVkm8gkP8eOOOvOsR1HvW3LoD5yQYkmqmTkhQdFZC",
+    "role": "admin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-02T07:08:56.580Z",
+    "updatedAt": "2025-08-02T07:08:56.580Z"
+  }
+]

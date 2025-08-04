@@ -1,0 +1,61 @@
+# This file specifies files that are *not* uploaded to Google Cloud Platform
+
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Development files
+client/node_modules/
+client/dist/
+server/node_modules/
+
+# Log files
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+jspm_packages/
+
+# Build outputs
+build/
+dist/
+
+# Temporary folders
+tmp/
+temp/
+
+# Docker files (if any)
+docker-compose.yml
