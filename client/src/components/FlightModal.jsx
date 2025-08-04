@@ -117,8 +117,31 @@ export default function FlightModal({ flight, onSave, onClose, currentUser }) {
     if (!formData.arrivalDateTime) newErrors.arrivalDateTime = 'Arrival time is required'
     
     if (formData.departureDateTime && formData.arrivalDateTime) {
-      if (new Date(formData.departureDateTime) >= new Date(formData.arrivalDateTime)) {
-        newErrors.arrivalDateTime = 'Arrival time must be after departure time'
+      const depTime = new Date(formData.departureDateTime);
+      const arrTime = new Date(formData.arrivalDateTime);
+      const durationMs = arrTime - depTime;
+      
+      if (durationMs < 0) {
+        // Allow negative durations up to 12 hours for timezone differences
+        const hours = Math.abs(durationMs) / (1000 * 60 * 60);
+        if (hours > 12) {
+          newErrors.arrivalDateTime = 'Flight times seem incorrect. Please verify departure and arrival times.'
+        } else if (formData.from && formData.to) {
+          // If airports are selected, allow timezone crossing
+          // Add a note instead of an error
+          console.log('Note: Flight appears to cross timezones - this is normal for international flights');
+        } else {
+          newErrors.arrivalDateTime = 'Arrival time appears to be before departure time. Please verify your times.'
+        }
+      } else {
+        // Validate maximum flight duration (20 hours)
+        const hours = durationMs / (1000 * 60 * 60);
+        const minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60);
+        if (hours > 20) {
+          newErrors.arrivalDateTime = 'Flight duration exceeds 20 hours. Please verify departure and arrival times.'
+        } else if (hours === 0 && minutes < 5) {
+          newErrors.arrivalDateTime = 'Flight duration is less than 5 minutes. Please verify departure and arrival times.'
+        }
       }
     }
 

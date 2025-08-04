@@ -12,17 +12,20 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 - Archive completed flights
 - Real-time flight status updates via FlightAware API
 
-### 🚨 Automated Monitoring System
-- **Fully Automated Delay Detection**: Monitors all flights starting 6 hours before departure
-- **Real-time Alerts**: Automatic notifications for delays over 15 minutes
-- **24/7 Operation**: No manual intervention required
-- **Comprehensive Coverage**: Alerts sent to passengers, volunteers, and dashboard users
-- **FlightAware Integration**: Live flight data and status updates
+### 🚨 Smart Flight Information & Monitoring System
+- **Auto-population**: Flight details automatically fetched using FlightAware API
+- **Real-time monitoring**: Automated flight status monitoring with admin dashboard
+- **Telegram alerts**: Instant delay notifications sent to passengers, volunteers, and users
+- **Backend automation**: 24/7 monitoring starting 6 hours before each departure
+- **Superadmin control**: Exclusive frontend monitoring dashboard to manage alerts and settings
+- **Timezone-aware validation**: Handles international flights crossing timezones
+- **FlightAware Integration**: Advanced flight data and status updates
 
 ### 👥 User Management
-- Role-based access control (Super Admin, Admin, User, Volunteer)
-- Airport-specific permissions for regional coordinators
+- Role-based access control (Super Admin, Admin, User)
+- Airport-specific permissions with smart selector (IATA code input and auto-population)
 - Secure authentication with JWT tokens
+- Streamlined user creation (no email required)
 - Comprehensive audit trail for all user actions
 
 ### 🚗 Volunteer Coordination
@@ -33,17 +36,28 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 
 ### 🤖 Advanced Telegram Bot Integration
 - **Multi-User Support**: Passengers, volunteers, and dashboard users
-- **Automatic Flight Notifications**: Flight confirmations, changes, and delays
-- **Real-time Flight Info**: Live flight status and delay information
+- **Automated Monitoring**: Backend system monitors flights with admin dashboard control
+- **Real-time Flight Info**: Live flight status and delay information via bot commands
 - **Smart Registration**: Role-based registration with validation
 - **Comprehensive Commands**: Flight queries, status checks, and help
 - **Airport-based Notifications**: Dashboard users get alerts for their airports
+- **24/7 Monitoring**: Continuous backend monitoring with frontend management interface
+- **Superadmin Controls**: Exclusive dashboard interface for managing monitoring settings and manual checks
 
-### 📱 Responsive Design
-- Mobile-friendly interface
-- Sidebar navigation
-- Real-time updates
-- Clean, intuitive UI
+### 📱 Enhanced User Experience
+- Mobile-friendly responsive interface
+- Sidebar navigation with clean design
+- **Enhanced shareable flight form** with auto-population and user instructions
+- **Smart airport selector** with IATA code search
+- **Timezone-aware flight validation** for international travel
+- Real-time updates and intuitive UI
+
+### 💾 Automated Backup System
+- **Pre-deployment backups**: Automatic data backup before each deployment
+- **Post-deployment restore**: Seamless data restoration after deployment
+- **Cross-deployment continuity**: Passenger, volunteer, user, and flight data persists
+- **Google Cloud Storage integration**: Secure, durable backup storage
+- **Manual backup management**: On-demand backup creation and restoration
 
 ## Technology Stack
 
@@ -56,9 +70,16 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 - **Flight Data**: FlightAware AeroAPI
 - **Monitoring**: Automated flight status tracking
 
-## Quick Start
+## 🚀 Quick Start
 
-### Development Setup
+### Production Deployment (Recommended)
+
+Deploy with automatic backup and restore:
+```bash
+./deploy-backup.sh deploy
+```
+
+### Simple Development Setup
 
 1. **Clone the repository**
    ```bash
@@ -91,8 +112,8 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed Google Cloud Platform deployme
 Flight Tracker/
 ├── client/                 # React frontend
 │   ├── src/
-│   │   ├── components/     # Reusable React components
-│   │   ├── pages/         # Main application pages
+│   │   ├── components/     # Reusable React components (includes FlightMonitoring)
+│   │   ├── pages/         # Main application pages (Dashboard with monitoring tab)
 │   │   └── utils/         # Utility functions
 ├── server/                # Node.js backend
 │   ├── index.js          # Main server file
@@ -112,12 +133,14 @@ Flight Tracker/
 - User management
 - Flight-specific audit trail access
 - All flight operations
-- Monitoring system oversight
+- **Exclusive monitoring system control** (dashboard access, settings management)
+- **Exclusive backup management system access**
 
 ### Admin
 - User management (limited)
 - All flight operations
-- Flight monitoring dashboard access
+- No monitoring dashboard access (superadmin exclusive)
+- No backup management access (superadmin exclusive)
 - No audit trail access
 
 ### User
@@ -150,10 +173,10 @@ Flight Tracker/
 - `GET /api/passengers/search` - Search passengers
 - `GET /api/volunteers/search` - Search volunteers
 
-### Monitoring
-- `GET /api/monitoring/status` - Get monitoring system status
-- `POST /api/monitoring/check-now` - Manual flight status check
-- `POST /api/monitoring/interval` - Update check interval
+### Flight Monitoring
+- `GET /api/monitoring/status` - Get monitoring system status and statistics
+- `POST /api/monitoring/check-now` - Trigger manual flight status check
+- `POST /api/monitoring/interval` - Update automatic check interval (admin+)
 
 ### Audit Trail
 - `GET /api/audit-logs` - List all audit logs (superadmin only)

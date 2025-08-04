@@ -307,6 +307,30 @@ function Dashboard() {
 
           {currentUser?.role === 'superadmin' && (
             <button
+              onClick={() => { setActiveTab('monitoring'); setSidebarOpen(false) }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                background: activeTab === 'monitoring' ? '#e0f2fe' : 'transparent',
+                color: activeTab === 'monitoring' ? '#0369a1' : '#374151',
+                border: 'none',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left',
+                fontSize: '0.875rem',
+                fontWeight: '500'
+              }}
+            >
+              <Bell size={18} />
+              Flight Monitoring
+            </button>
+          )}
+
+          {currentUser?.role === 'superadmin' && (
+            <button
               onClick={() => { setActiveTab('audit'); setSidebarOpen(false) }}
               style={{
                 display: 'flex',
@@ -329,29 +353,6 @@ function Dashboard() {
             </button>
           )}
 
-          {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
-            <button
-              onClick={() => { setActiveTab('monitoring'); setSidebarOpen(false) }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem',
-                background: activeTab === 'monitoring' ? '#e0f2fe' : 'transparent',
-                color: activeTab === 'monitoring' ? '#0369a1' : '#374151',
-                border: 'none',
-                borderRadius: '0.5rem',
-                cursor: 'pointer',
-                width: '100%',
-                textAlign: 'left',
-                fontSize: '0.875rem',
-                fontWeight: '500'
-              }}
-            >
-              <Bell size={18} />
-              Flight Monitoring
-            </button>
-          )}
 
           {currentUser?.role === 'superadmin' && (
             <button
@@ -531,12 +532,12 @@ function Dashboard() {
 
         {activeTab === 'users' ? (
           <UserManagement />
+        ) : activeTab === 'monitoring' ? (
+          <FlightMonitoring />
         ) : activeTab === 'audit' ? (
           <AuditTrail />
         ) : activeTab === 'backup' ? (
           <BackupManagement />
-        ) : activeTab === 'monitoring' ? (
-          <FlightMonitoring />
         ) : activeTab === 'archive' ? (
           <ArchiveComponent />
         ) : activeTab === 'addFlight' ? (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plane } from 'lucide-react'
 import PassengerAutocomplete from '../components/PassengerAutocomplete'
+import SearchableSelect from '../components/SearchableSelect'
 
 const API_BASE = '/api'
 
@@ -21,6 +22,9 @@ export default function StandaloneAddFlight() {
   const [loadingData, setLoadingData] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [fetchingFlightInfo, setFetchingFlightInfo] = useState(false)
+  const [flightInfoFetched, setFlightInfoFetched] = useState(false)
+  const [flightInfoMessage, setFlightInfoMessage] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,8 +50,88 @@ export default function StandaloneAddFlight() {
     fetchData()
   }, [])
 
+  // Auto-fetch flight information when flight number and departure date are provided
+  useEffect(() => {
+    const shouldFetchFlightInfo = () => {
+      if (!formData.flightNumber || !formData.departureDateTime) return false
+      if (fetchingFlightInfo || flightInfoFetched) return false
+      if (formData.flightNumber.length < 3) return false // Minimum flight number length
+      
+      // Extract date from datetime-local format
+      const departureDate = formData.departureDateTime.split('T')[0]
+      if (!departureDate || departureDate.length !== 10) return false
+      
+      return true
+    }
+
+    if (shouldFetchFlightInfo()) {
+      fetchFlightInformation()
+    }
+  }, [formData.flightNumber, formData.departureDateTime])
+
+  const fetchFlightInformation = async () => {
+    if (fetchingFlightInfo) return
+    
+    setFetchingFlightInfo(true)
+    try {
+      const departureDate = formData.departureDateTime.split('T')[0] // Extract date part
+      
+      const response = await fetch(`${API_BASE}/flights/info/${formData.flightNumber}/${departureDate}`)
+      
+      if (response.ok) {
+        const flightInfo = await response.json()
+        
+        if (flightInfo.success && flightInfo.data) {
+          const flight = flightInfo.data
+          
+          // Auto-populate form data
+          setFormData(prev => ({
+            ...prev,
+            airline: flight.airline || prev.airline,
+            from: flight.departure?.airport || prev.from,
+            to: flight.arrival?.airport || prev.to,
+            departureDateTime: flight.departure?.scheduledForInput || prev.departureDateTime,
+            arrivalDateTime: flight.arrival?.scheduledForInput || prev.arrivalDateTime
+          }))
+          
+          setFlightInfoFetched(true)
+          setFlightInfoMessage('Flight details auto-populated successfully! Please verify the information matches your booking.')
+          console.log('✅ Flight information auto-populated from API')
+        } else if (flightInfo.fallback) {
+          // Handle API limitations gracefully with suggestions
+          const fallback = flightInfo.fallback
+          
+          // Auto-populate at least the airline if we can determine it
+          setFormData(prev => ({
+            ...prev,
+            airline: fallback.airline || prev.airline
+          }))
+          
+          setFlightInfoFetched(true)
+          setFlightInfoMessage(fallback.message || 'Please enter flight details manually and verify with your booking')
+          console.log(`💡 ${fallback.message}`)
+        } else {
+          setFlightInfoMessage('Flight information not found, please enter manually and verify with your booking')
+          console.log('⚠️ Flight information not found in API, manual entry required')
+        }
+      } else {
+        console.log('⚠️ Could not fetch flight information from API')
+      }
+    } catch (error) {
+      console.log('⚠️ Error fetching flight information:', error.message)
+    } finally {
+      setFetchingFlightInfo(false)
+    }
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
+    
+    // Reset flight info fetched state if user changes flight number or departure date
+    if (name === 'flightNumber' || name === 'departureDateTime') {
+      setFlightInfoFetched(false)
+      setFlightInfoMessage('')
+    }
     
     setFormData(prev => ({
       ...prev,
@@ -73,8 +157,31 @@ export default function StandaloneAddFlight() {
     if (!formData.arrivalDateTime) newErrors.arrivalDateTime = 'Arrival time is required'
     
     if (formData.departureDateTime && formData.arrivalDateTime) {
-      if (new Date(formData.departureDateTime) >= new Date(formData.arrivalDateTime)) {
-        newErrors.arrivalDateTime = 'Arrival time must be after departure time'
+      const depTime = new Date(formData.departureDateTime);
+      const arrTime = new Date(formData.arrivalDateTime);
+      const durationMs = arrTime - depTime;
+      
+      if (durationMs < 0) {
+        // Allow negative durations up to 12 hours for timezone differences
+        const hours = Math.abs(durationMs) / (1000 * 60 * 60);
+        if (hours > 12) {
+          newErrors.arrivalDateTime = 'Flight times seem incorrect. Please verify departure and arrival times.'
+        } else if (formData.from && formData.to) {
+          // If airports are selected, allow timezone crossing
+          // Add a note instead of an error
+          console.log('Note: Flight appears to cross timezones - this is normal for international flights');
+        } else {
+          newErrors.arrivalDateTime = 'Arrival time appears to be before departure time. Please verify your times.'
+        }
+      } else {
+        // Validate maximum flight duration (20 hours)
+        const hours = durationMs / (1000 * 60 * 60);
+        const minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60);
+        if (hours > 20) {
+          newErrors.arrivalDateTime = 'Flight duration exceeds 20 hours. Please verify departure and arrival times.'
+        } else if (hours === 0 && minutes < 5) {
+          newErrors.arrivalDateTime = 'Flight duration is less than 5 minutes. Please verify departure and arrival times.'
+        }
       }
     }
 
@@ -174,8 +281,30 @@ export default function StandaloneAddFlight() {
             ✈️ West Sant Transportation - Add Flight
           </h1>
           <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>
-            Enter flight details and passenger information
+            Enter flight number and departure date to auto-populate flight details, then add passenger information
           </p>
+          
+          {/* Instructions */}
+          <div style={{
+            background: '#f0f9ff',
+            border: '1px solid #0ea5e9',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginTop: '1rem',
+            fontSize: '0.875rem',
+            color: '#075985'
+          }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 0.5rem 0', color: '#0c4a6e' }}>
+              📋 How to Use This Form:
+            </h4>
+            <ol style={{ margin: '0', paddingLeft: '1.25rem' }}>
+              <li style={{ marginBottom: '0.25rem' }}><strong>Enter your flight number</strong> (e.g., AA123, UA456)</li>
+              <li style={{ marginBottom: '0.25rem' }}><strong>Select your departure date and time</strong></li>
+              <li style={{ marginBottom: '0.25rem' }}><strong>Wait for auto-population</strong> - Flight details will be filled automatically</li>
+              <li style={{ marginBottom: '0.25rem' }}><strong>Verify the information</strong> matches your booking confirmation</li>
+              <li><strong>Add passenger names</strong> and submit</li>
+            </ol>
+          </div>
         </div>
 
 
@@ -228,26 +357,16 @@ export default function StandaloneAddFlight() {
                 }}>
                   Airline *
                 </label>
-                <select
+                <SearchableSelect
                   name="airline"
                   value={formData.airline}
                   onChange={handleChange}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: `1px solid ${errors.airline ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  <option value="">Select an airline</option>
-                  {airlines.map(airline => (
-                    <option key={airline} value={airline}>{airline}</option>
-                  ))}
-                </select>
-                {errors.airline && (
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.airline}</span>
-                )}
+                  options={airlines}
+                  placeholder="Type to search airlines..."
+                  error={errors.airline}
+                  getOptionValue={(option) => option}
+                  getOptionLabel={(option) => option}
+                />
               </div>
 
               {/* Flight Number */}
@@ -260,11 +379,31 @@ export default function StandaloneAddFlight() {
                   marginBottom: '0.5rem'
                 }}>
                   Flight Number *
+                  {fetchingFlightInfo && (
+                    <span style={{ 
+                      marginLeft: '0.5rem', 
+                      fontSize: '0.75rem', 
+                      color: '#3b82f6',
+                      fontWeight: 'normal'
+                    }}>
+                      🔄 Fetching flight info...
+                    </span>
+                  )}
+                  {flightInfoFetched && (
+                    <span style={{ 
+                      marginLeft: '0.5rem', 
+                      fontSize: '0.75rem', 
+                      color: '#059669',
+                      fontWeight: 'normal'
+                    }}>
+                      ✅ Info fetched
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
                   name="flightNumber"
-                  placeholder="e.g., AA123"
+                  placeholder="e.g., AA123, UA456"
                   value={formData.flightNumber}
                   onChange={handleChange}
                   style={{ 
@@ -277,6 +416,28 @@ export default function StandaloneAddFlight() {
                 />
                 {errors.flightNumber && (
                   <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.flightNumber}</span>
+                )}
+                {!fetchingFlightInfo && !flightInfoFetched && formData.flightNumber && formData.departureDateTime && (
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#6b7280', 
+                    marginTop: '0.25rem' 
+                  }}>
+                    💡 Flight details will be auto-populated when both flight number and date are provided
+                  </div>
+                )}
+                {flightInfoMessage && (
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: flightInfoMessage.includes('auto-populated') ? '#059669' : '#f59e0b',
+                    marginTop: '0.25rem',
+                    padding: '0.5rem',
+                    backgroundColor: flightInfoMessage.includes('auto-populated') ? '#ecfdf5' : '#fef3c7',
+                    borderRadius: '0.25rem',
+                    border: `1px solid ${flightInfoMessage.includes('auto-populated') ? '#d1fae5' : '#fde68a'}`
+                  }}>
+                    {flightInfoMessage.includes('auto-populated') ? '✅' : '💡'} {flightInfoMessage}
+                  </div>
                 )}
               </div>
 
@@ -291,28 +452,22 @@ export default function StandaloneAddFlight() {
                 }}>
                   From *
                 </label>
-                <select
+                <SearchableSelect
                   name="from"
                   value={formData.from}
                   onChange={handleChange}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: `1px solid ${errors.from ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  <option value="">Select departure airport</option>
-                  {airports.map(airport => (
-                    <option key={airport.code} value={airport.code}>
-                      {airport.code} - {airport.name} ({airport.city}, {airport.country})
-                    </option>
-                  ))}
-                </select>
-                {errors.from && (
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.from}</span>
-                )}
+                  options={airports}
+                  placeholder="Type to search departure airport..."
+                  error={errors.from}
+                  getOptionValue={(airport) => airport.code}
+                  getOptionLabel={(airport) => airport.display || `${airport.code} - ${airport.name} (${airport.city}, ${airport.country})`}
+                  renderOption={(airport) => (
+                    <div style={{ fontSize: '0.875rem' }}>
+                      <div style={{ fontWeight: '600' }}>{airport.display || `${airport.code} - ${airport.name}`}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{airport.city}, {airport.country}</div>
+                    </div>
+                  )}
+                />
               </div>
 
               {/* To */}
@@ -326,28 +481,22 @@ export default function StandaloneAddFlight() {
                 }}>
                   To *
                 </label>
-                <select
+                <SearchableSelect
                   name="to"
                   value={formData.to}
                   onChange={handleChange}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: `1px solid ${errors.to ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  <option value="">Select destination airport</option>
-                  {airports.map(airport => (
-                    <option key={airport.code} value={airport.code}>
-                      {airport.code} - {airport.name} ({airport.city}, {airport.country})
-                    </option>
-                  ))}
-                </select>
-                {errors.to && (
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.to}</span>
-                )}
+                  options={airports}
+                  placeholder="Type to search destination airport..."
+                  error={errors.to}
+                  getOptionValue={(airport) => airport.code}
+                  getOptionLabel={(airport) => airport.display || `${airport.code} - ${airport.name} (${airport.city}, ${airport.country})`}
+                  renderOption={(airport) => (
+                    <div style={{ fontSize: '0.875rem' }}>
+                      <div style={{ fontWeight: '600' }}>{airport.display || `${airport.code} - ${airport.name}`}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{airport.city}, {airport.country}</div>
+                    </div>
+                  )}
+                />
               </div>
 
               {/* Departure DateTime */}

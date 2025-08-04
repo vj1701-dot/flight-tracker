@@ -30,12 +30,13 @@ Your West Sant Transportation system implements multiple layers of security to p
 
 ---
 
-### 🗄️ Backup System
+### 🗄️ Automated Backup System
 
-#### **Automatic Backups**
-- **Frequency**: Every 24 hours in production
+#### **Production Deployment Backups**
+- **Pre-deployment**: Automatic backup before each deployment
+- **Post-deployment**: Automatic data restoration after deployment
+- **Cross-deployment continuity**: Passenger, volunteer, user, and flight data persists
 - **Storage**: Google Cloud Storage with enterprise-grade security
-- **Retention**: 90-day automatic deletion policy for storage efficiency
 - **Files Backed Up**:
   - `flights.json` - All flight data and passenger information
   - `users.json` - User accounts and permissions (passwords encrypted)
@@ -44,7 +45,8 @@ Your West Sant Transportation system implements multiple layers of security to p
   - `audit_log.json` - Complete audit trail history
 
 #### **Manual Backups**
-- **On-Demand**: Super admins can create manual backups anytime
+- **On-Demand**: Admins can create manual backups via web interface
+- **Deployment Script**: Command-line backup management via `./deploy-backup.sh`
 - **Permanent Retention**: Manual backups are preserved until manually deleted
 - **Pre-Restore Backup**: System automatically creates backup before any restore operation
 - **Naming Convention**: 
@@ -93,10 +95,13 @@ Your West Sant Transportation system implements multiple layers of security to p
 3. Click "Create Backup"
 4. Backup will be created with timestamp
 
-**Via Command Line:**
+**Via Deployment Script:**
 ```bash
-# From project root directory
-node scripts/backup.js create
+# Create manual backup
+./deploy-backup.sh backup
+
+# Deploy with automatic backup and restore
+./deploy-backup.sh deploy
 ```
 
 #### **Restoring Backups**
@@ -109,22 +114,20 @@ node scripts/backup.js create
 5. Current data will be backed up first
 6. Selected backup will be restored
 
-**Via Command Line:**
+**Via Deployment Script:**
 ```bash
 # List available backups
-node scripts/backup.js list
+./deploy-backup.sh list
 
 # Restore specific backup
-node scripts/backup.js restore manual-2024-01-15T10-30-00-000Z
+./deploy-backup.sh restore manual-2024-01-15T10-30-00-000Z
 ```
 
 #### **Backup Monitoring**
 
 **Check Backup Status:**
-```bash
-# View backup statistics
-node scripts/backup.js stats
-```
+- View backup statistics via web interface (Backup Management)
+- Monitor deployment backup/restore via deployment script logs
 
 **Monitor via Web Interface:**
 - Backup Management dashboard shows:

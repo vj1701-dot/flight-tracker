@@ -190,7 +190,7 @@ export default function BackupManagement() {
       )}
 
       {/* Backup Statistics */}
-      {stats && (
+      {stats && !stats.error ? (
         <div style={{
           background: '#f8fafc',
           border: '1px solid #e2e8f0',
@@ -230,11 +230,33 @@ export default function BackupManagement() {
               <strong>Latest Backup:</strong> {stats.latestBackup !== 'None' ? formatBackupName(stats.latestBackup).date : 'None'}
             </div>
             <div>
-              <strong>Storage Bucket:</strong> {stats.bucketName}
+              <strong>Storage:</strong> {stats.storageType}
+            </div>
+            <div>
+              <strong>Bucket:</strong> {stats.bucketName}
             </div>
           </div>
         </div>
-      )}
+      ) : stats && stats.error ? (
+        <div style={{
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          color: '#dc2626',
+          padding: '1rem',
+          borderRadius: '0.5rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Backup Service Error:</strong> {stats.error}
+            <br />
+            <small>Please check Google Cloud Storage credentials and bucket configuration.</small>
+          </div>
+        </div>
+      ) : null}
 
       {/* Actions */}
       <div style={{ 

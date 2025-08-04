@@ -2,7 +2,17 @@
 
 ## Quick Start Options
 
-### Option 1: Automated Script Deployment (Recommended)
+### Option 1: Production Deployment with Backup (Recommended)
+```bash
+./deploy-backup.sh deploy
+```
+This script will:
+- ✅ Create automatic backup before deployment
+- ✅ Deploy to Cloud Run with all environment variables
+- ✅ Restore data from backup after deployment
+- ✅ Provide deployment summary with data continuity
+
+### Option 2: Simple Automated Deployment
 ```bash
 ./deploy-gcp.sh
 ```
@@ -61,6 +71,37 @@ This script will:
 openssl rand -hex 32
 ```
 
+## Backup Management
+
+### Automated Backup Commands
+```bash
+# Create manual backup
+./deploy-backup.sh backup
+
+# List all available backups
+./deploy-backup.sh list
+
+# Restore from specific backup
+./deploy-backup.sh restore manual-2024-01-15T10-30-00-000Z
+
+# Deploy with automatic backup and restore
+./deploy-backup.sh deploy
+```
+
+### Backup Features
+- ✅ **Automatic pre-deployment backups** - Data is backed up before each deployment
+- ✅ **Automatic post-deployment restore** - Data is restored after successful deployment
+- ✅ **Manual backup creation** - Create backups on-demand
+- ✅ **Cross-deployment data continuity** - Passenger, volunteer, user, and flight data persists
+- ✅ **Google Cloud Storage integration** - Secure, durable backup storage
+- ✅ **Service health verification** - Ensures service is ready before restore operations
+- ✅ **Automatic credential setup** - Configures GCS bucket and permissions automatically
+
+### Prerequisites for Backup System
+- **Google Cloud CLI** installed and authenticated (`gcloud auth login`)
+- **Project permissions** to create storage buckets and manage IAM
+- The script automatically handles bucket creation and service account permissions
+
 ## Post-Deployment
 
 1. **Access your application** at the provided URL
@@ -68,6 +109,8 @@ openssl rand -hex 32
 3. **Change password immediately!**
 4. **Test Telegram bot functionality**
 5. **Set up users and permissions**
+6. **Configure Flight Monitoring dashboard** (superadmin exclusive access)
+7. **Verify backup functionality** using `./deploy-backup.sh list`
 
 ## Security Features
 
@@ -99,9 +142,9 @@ chmod +x deploy-gcp.sh generate-env.sh
 
 - ✅ **Complete Flight Tracking System**
 - ✅ **Timezone-aware flight times**
-- ✅ **Automated monitoring system**
-- ✅ **Multi-user Telegram bot**
-- ✅ **Responsive web interface**
+- ✅ **Automated monitoring system with superadmin dashboard**
+- ✅ **Multi-user Telegram bot with smart notifications**
+- ✅ **Responsive web interface with superadmin monitoring controls**
 - ✅ **Production security hardening**
 
 ---

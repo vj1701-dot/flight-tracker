@@ -172,6 +172,9 @@ app.yaml
 .env.generated
 deployment-info.txt
 
+# Deployment backup files
+.last-backup-id
+
 # Temporary files
 *.tmp
 *.temp

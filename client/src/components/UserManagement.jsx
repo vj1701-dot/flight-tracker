@@ -12,7 +12,6 @@ export default function UserManagement() {
   const [formData, setFormData] = useState({
     username: '',
     name: '',
-    email: '',
     password: '',
     role: 'user',
     allowedAirports: [],
@@ -20,6 +19,8 @@ export default function UserManagement() {
   })
   const [editingUser, setEditingUser] = useState(null)
   const [errors, setErrors] = useState({})
+  const [airportInput, setAirportInput] = useState('')
+  const [filteredAirports, setFilteredAirports] = useState([])
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -80,11 +81,44 @@ export default function UserManagement() {
     }))
   }
 
+  const handleAirportInputChange = (e) => {
+    const value = e.target.value.toLowerCase()
+    setAirportInput(value)
+    
+    if (value.length >= 2) {
+      const filtered = airports.filter(airport => 
+        airport.code.toLowerCase().includes(value) ||
+        airport.name.toLowerCase().includes(value) ||
+        airport.city.toLowerCase().includes(value)
+      ).slice(0, 10) // Limit to 10 results
+      setFilteredAirports(filtered)
+    } else {
+      setFilteredAirports([])
+    }
+  }
+
+  const addAirportFromInput = (airport) => {
+    if (!formData.allowedAirports.includes(airport.code)) {
+      setFormData(prev => ({
+        ...prev,
+        allowedAirports: [...prev.allowedAirports, airport.code]
+      }))
+    }
+    setAirportInput('')
+    setFilteredAirports([])
+  }
+
+  const removeAirport = (airportCode) => {
+    setFormData(prev => ({
+      ...prev,
+      allowedAirports: prev.allowedAirports.filter(code => code !== airportCode)
+    }))
+  }
+
   const validateForm = () => {
     const newErrors = {}
     if (!formData.username.trim()) newErrors.username = 'Username is required'
     if (!formData.name.trim()) newErrors.name = 'Name is required'
-    if (!formData.email.trim()) newErrors.email = 'Email is required'
     // Password is required for new users, optional for updates
     if (!editingUser && !formData.password.trim()) {
       newErrors.password = 'Password is required'
@@ -134,7 +168,6 @@ export default function UserManagement() {
     setFormData({
       username: '',
       name: '',
-      email: '',
       password: '',
       role: 'user',
       allowedAirports: [],
@@ -143,13 +176,14 @@ export default function UserManagement() {
     setEditingUser(null)
     setShowAddUser(false)
     setErrors({})
+    setAirportInput('')
+    setFilteredAirports([])
   }
 
   const handleEditUser = (user) => {
     setFormData({
       username: user.username,
       name: user.name || '',
-      email: user.email || '',
       password: '', // Don't show existing password
       role: user.role,
       allowedAirports: user.allowedAirports || [],
@@ -329,6 +363,7 @@ export default function UserManagement() {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
+                    placeholder="Chirag Patel San Jose"
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -342,32 +377,6 @@ export default function UserManagement() {
                   )}
                 </div>
 
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '0.875rem', 
-                    fontWeight: '500', 
-                    marginBottom: '0.5rem'
-                  }}>
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: `1px solid ${errors.email ? '#dc2626' : '#d1d5db'}`,
-                      borderRadius: '0.375rem',
-                      fontSize: '0.875rem'
-                    }}
-                  />
-                  {errors.email && (
-                    <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.email}</span>
-                  )}
-                </div>
 
                 <div>
                   <label style={{ 
@@ -435,35 +444,123 @@ export default function UserManagement() {
                     }}>
                       Allowed Airports *
                     </label>
-                    <div style={{
-                      maxHeight: '200px',
-                      overflow: 'auto',
-                      border: `1px solid ${errors.allowedAirports ? '#dc2626' : '#d1d5db'}`,
-                      borderRadius: '0.375rem',
-                      padding: '0.5rem'
-                    }}>
-                      {airports.map(airport => (
-                        <label
-                          key={airport.code}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.25rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.allowedAirports.includes(airport.code)}
-                            onChange={() => handleAirportToggle(airport.code)}
-                          />
-                          <span style={{ fontSize: '0.875rem' }}>
-                            {airport.code} - {airport.name} ({airport.city}, {airport.country})
-                          </span>
-                        </label>
-                      ))}
+                    
+                    {/* Airport Input */}
+                    <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                      <input
+                        type="text"
+                        value={airportInput}
+                        onChange={handleAirportInputChange}
+                        placeholder="Enter IATA code or airport name (e.g., SJC, San Jose)"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.375rem',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                      
+                      {/* Dropdown with filtered airports */}
+                      {filteredAirports.length > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.375rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          zIndex: 10,
+                          marginTop: '2px'
+                        }}>
+                          {filteredAirports.map(airport => (
+                            <div
+                              key={airport.code}
+                              onClick={() => addAirportFromInput(airport)}
+                              style={{
+                                padding: '0.75rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f3f4f6',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = '#f9fafb'}
+                              onMouseLeave={(e) => e.target.style.background = 'white'}
+                            >
+                              <div>
+                                <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>
+                                  {airport.code} - {airport.name}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                  {airport.city}, {airport.country}
+                                </div>
+                              </div>
+                              {formData.allowedAirports.includes(airport.code) && (
+                                <span style={{ color: '#16a34a', fontSize: '0.75rem' }}>✓ Added</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* Selected Airports */}
+                    {formData.allowedAirports.length > 0 && (
+                      <div style={{
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.375rem',
+                        padding: '0.75rem',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                          Selected Airports ({formData.allowedAirports.length}):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {formData.allowedAirports.map(code => {
+                            const airport = airports.find(a => a.code === code)
+                            return (
+                              <div
+                                key={code}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  background: '#e0f2fe',
+                                  color: '#0369a1',
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '0.375rem',
+                                  fontSize: '0.75rem'
+                                }}
+                              >
+                                <span>
+                                  {code} {airport && `- ${airport.city}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeAirport(code)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#dc2626',
+                                    cursor: 'pointer',
+                                    padding: '0',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
                     {errors.allowedAirports && (
                       <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.allowedAirports}</span>
                     )}
@@ -547,7 +644,6 @@ export default function UserManagement() {
                     <td style={{ padding: '1rem' }}>
                       <div>
                         <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>@{user.username}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{user.email}</div>
                         {user.telegramChatId && (
                           <div style={{ 
                             fontSize: '0.75rem', 

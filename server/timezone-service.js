@@ -157,23 +157,66 @@ class TimezoneService {
   }
 
   /**
-   * Get flight duration in hours and minutes
+   * Get flight duration in hours and minutes with timezone awareness
    * @param {string|Date} departureTime - Departure time
    * @param {string|Date} arrivalTime - Arrival time
+   * @param {string} departureAirport - Departure airport code (optional, for timezone-aware validation)
+   * @param {string} arrivalAirport - Arrival airport code (optional, for timezone-aware validation)
    * @returns {Object} Duration information
    */
-  getFlightDuration(departureTime, arrivalTime) {
+  getFlightDuration(departureTime, arrivalTime, departureAirport = null, arrivalAirport = null) {
     try {
       const dep = new Date(departureTime);
       const arr = new Date(arrivalTime);
       const durationMs = arr - dep;
       
+      // For timezone-aware validation, allow negative durations within reasonable bounds
+      // This accounts for flights crossing timezones where arrival appears before departure
       if (durationMs < 0) {
-        return { error: 'Arrival time is before departure time' };
+        const hours = Math.abs(durationMs) / (1000 * 60 * 60);
+        
+        // If no airport codes provided, use old validation
+        if (!departureAirport || !arrivalAirport) {
+          return { error: 'Arrival time is before departure time. Please check your times.' };
+        }
+        
+        // Allow negative durations up to 12 hours (common for trans-pacific flights)
+        // This handles cases like LAX 11:00 PM -> NRT 5:00 AM+1 (which appears as negative duration in local times)
+        if (hours > 12) {
+          return { error: 'Flight duration seems incorrect. Please verify departure and arrival times.' };
+        }
+        
+        // For negative durations within reasonable bounds, calculate the actual positive duration
+        // by adding 24 hours (assuming next day arrival)
+        const adjustedDurationMs = durationMs + (24 * 60 * 60 * 1000);
+        const adjustedHours = Math.floor(adjustedDurationMs / (1000 * 60 * 60));
+        const adjustedMinutes = Math.floor((adjustedDurationMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        // Validate that adjusted duration is reasonable (30 min to 20 hours)
+        if (adjustedHours < 0.5 || adjustedHours > 20) {
+          return { error: 'Flight duration seems incorrect. Please verify departure and arrival times.' };
+        }
+        
+        return {
+          hours: adjustedHours,
+          minutes: adjustedMinutes,
+          totalMinutes: Math.floor(adjustedDurationMs / (1000 * 60)),
+          formatted: `${adjustedHours}h ${adjustedMinutes}m`,
+          note: 'Timezone-adjusted duration (next day arrival)'
+        };
       }
 
       const hours = Math.floor(durationMs / (1000 * 60 * 60));
       const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Validate reasonable flight duration (5 minutes to 20 hours)
+      if (hours > 20) {
+        return { error: 'Flight duration exceeds 20 hours. Please verify departure and arrival times.' };
+      }
+      
+      if (hours === 0 && minutes < 5) {
+        return { error: 'Flight duration is less than 5 minutes. Please verify departure and arrival times.' };
+      }
 
       return {
         hours,
@@ -232,6 +275,32 @@ class TimezoneService {
         timezone: arrival.timezone,
         timezoneAbbr: this.getCurrentAirportTime(arrivalCode).timezoneAbbr
       } : null
+    };
+  }
+
+  /**
+   * Validate flight times with timezone awareness
+   * @param {string|Date} departureTime - Departure time
+   * @param {string|Date} arrivalTime - Arrival time
+   * @param {string} departureAirport - Departure airport code
+   * @param {string} arrivalAirport - Arrival airport code
+   * @returns {Object} Validation result
+   */
+  validateFlightTimes(departureTime, arrivalTime, departureAirport, arrivalAirport) {
+    if (!departureTime || !arrivalTime) {
+      return { valid: false, error: 'Both departure and arrival times are required' };
+    }
+
+    const duration = this.getFlightDuration(departureTime, arrivalTime, departureAirport, arrivalAirport);
+    
+    if (duration.error) {
+      return { valid: false, error: duration.error };
+    }
+
+    return { 
+      valid: true, 
+      duration: duration,
+      message: duration.note || 'Flight times are valid'
     };
   }
 }
