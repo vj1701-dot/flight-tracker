@@ -331,10 +331,13 @@ export default function BackupManagement() {
           >
             <option value="">Select backup to restore</option>
             {backups.map(backup => {
-              const { type, date } = formatBackupName(backup)
+              const backupId = backup.folder || backup;
+              const displayName = backup.folder ? 
+                `${backup.type} - ${backup.created} (${backup.filesCount} files)` :
+                formatBackupName(backup).type + ' - ' + formatBackupName(backup).date;
               return (
-                <option key={backup} value={backup}>
-                  {type} - {date}
+                <option key={backupId} value={backupId}>
+                  {displayName}
                 </option>
               )
             })}
@@ -395,10 +398,14 @@ export default function BackupManagement() {
             </div>
           ) : (
             backups.map((backup, index) => {
-              const { type, date } = formatBackupName(backup)
+              const backupId = backup.folder || backup;
+              const backupType = backup.type || formatBackupName(backup).type;
+              const backupDate = backup.created || formatBackupName(backup).date;
+              const fileCount = backup.filesCount || 'Unknown';
+              
               return (
                 <div
-                  key={backup}
+                  key={backupId}
                   style={{
                     padding: '1rem 1.5rem',
                     borderBottom: index < backups.length - 1 ? '1px solid #f3f4f6' : 'none',
@@ -408,26 +415,37 @@ export default function BackupManagement() {
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>
-                      {type}
+                    <div style={{ fontWeight: '500', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ 
+                        background: backupType === 'manual' ? '#10b981' : '#6366f1',
+                        color: 'white',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        textTransform: 'uppercase'
+                      }}>
+                        {backupType}
+                      </span>
+                      <span>{fileCount} files</span>
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      {date}
+                      {backupDate}
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelectedBackup(backup)}
+                    onClick={() => setSelectedBackup(backupId)}
                     style={{
                       padding: '0.25rem 0.75rem',
-                      background: selectedBackup === backup ? '#3b82f6' : 'transparent',
-                      color: selectedBackup === backup ? 'white' : '#3b82f6',
+                      background: selectedBackup === backupId ? '#3b82f6' : 'transparent',
+                      color: selectedBackup === backupId ? 'white' : '#3b82f6',
                       border: '1px solid #3b82f6',
                       borderRadius: '0.25rem',
                       cursor: 'pointer',
                       fontSize: '0.75rem'
                     }}
                   >
-                    {selectedBackup === backup ? 'Selected' : 'Select'}
+                    {selectedBackup === backupId ? 'Selected' : 'Select'}
                   </button>
                 </div>
               )

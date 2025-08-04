@@ -61,72 +61,115 @@ class BackupService {
     }
   }
 
-  async createBackup(manual = false) {
+  generateTimestamp() {
+    // Use West Coast timezone (Pacific Time)
+    const now = new Date();
+    const pacificTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+    return pacificTime.toISOString().replace(/[:.]/g, '-');
+  }
+
+  async createBackup(manual = false, skipPreBackup = false) {
     try {
-      await this.initializeStorage();
+      const storageReady = await this.initializeStorage();
+      if (!storageReady) {
+        throw new Error('Could not initialize backup storage');
+      }
       
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const timestamp = this.generateTimestamp();
       const backupFolder = manual ? `manual-${timestamp}` : `auto-${timestamp}`;
       
       console.log(`📦 Creating backup: ${backupFolder}`);
       
-      return await this.createGCSBackup(backupFolder, manual, timestamp);
+      const result = await this.createGCSBackup(backupFolder, manual, timestamp, skipPreBackup);
+      console.log(`✅ Backup creation completed: ${result.success ? 'SUCCESS' : 'FAILED'}`);
+      return result;
     } catch (error) {
-      console.error('Backup failed:', error.message);
+      console.error('Backup creation failed:', error.message);
       return { success: false, error: error.message };
     }
   }
 
-  async createGCSBackup(backupFolder, manual, timestamp) {
-    const bucket = this.storage.bucket(this.bucketName);
-    const uploadPromises = [];
+  async createGCSBackup(backupFolder, manual, timestamp, skipPreBackup = false) {
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      const uploadPromises = [];
+      const uploadedFiles = [];
 
-    // Backup each data file
-    for (const fileName of this.dataFiles) {
-      const filePath = path.join(__dirname, fileName);
-      
-      try {
-        await fs.access(filePath);
-        const destination = `${backupFolder}/${fileName}`;
+      console.log(`📋 Backing up ${this.dataFiles.length} data files...`);
+
+      // Backup each data file
+      for (const fileName of this.dataFiles) {
+        const filePath = path.join(__dirname, fileName);
         
-        uploadPromises.push(
-          bucket.upload(filePath, {
-            destination,
-            metadata: {
+        try {
+          await fs.access(filePath);
+          const destination = `${backupFolder}/${fileName}`;
+          
+          uploadPromises.push(
+            bucket.upload(filePath, {
+              destination,
               metadata: {
-                backupType: manual ? 'manual' : 'automatic',
-                timestamp,
-                environment: process.env.NODE_ENV || 'development'
+                metadata: {
+                  backupType: manual ? 'manual' : 'automatic',
+                  timestamp,
+                  environment: process.env.NODE_ENV || 'development'
+                }
               }
-            }
-          })
-        );
-      } catch (error) {
-        console.log(`⚠️  File ${fileName} not found, skipping...`);
+            }).then(() => {
+              uploadedFiles.push(fileName);
+              console.log(`✅ Uploaded: ${fileName}`);
+            })
+          );
+        } catch (error) {
+          console.log(`⚠️  File ${fileName} not found, skipping...`);
+        }
       }
-    }
 
-    await Promise.all(uploadPromises);
-    
-    // Create backup manifest
-    const manifest = {
-      timestamp,
-      backupType: manual ? 'manual' : 'automatic',
-      environment: process.env.NODE_ENV || 'development',
-      files: this.dataFiles,
-      created: new Date().toISOString()
-    };
+      await Promise.all(uploadPromises);
+      console.log(`📁 Successfully uploaded ${uploadedFiles.length} files`);
+      
+      // Create backup manifest with Pacific timezone
+      const pacificTime = new Date().toLocaleString("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
 
-    await bucket.file(`${backupFolder}/manifest.json`).save(JSON.stringify(manifest, null, 2));
-    
-    console.log(`✅ GCS Backup created successfully: ${backupFolder}`);
-    
-    // Clean up old automatic backups (keep last 30)
-    if (!manual) {
-      await this.cleanupOldBackups();
+      const manifest = {
+        timestamp,
+        backupType: manual ? 'manual' : 'automatic',
+        environment: process.env.NODE_ENV || 'development',
+        files: uploadedFiles,
+        totalFiles: uploadedFiles.length,
+        created: new Date().toISOString(),
+        createdPacific: pacificTime,
+        backupFolder
+      };
+
+      await bucket.file(`${backupFolder}/manifest.json`).save(JSON.stringify(manifest, null, 2));
+      console.log(`📋 Manifest created for backup: ${backupFolder}`);
+      
+      // Clean up old automatic backups (keep last 30) - but skip during restore operations
+      if (!manual && !skipPreBackup) {
+        try {
+          await this.cleanupOldBackups();
+        } catch (cleanupError) {
+          console.warn('Cleanup warning:', cleanupError.message);
+          // Don't fail the backup if cleanup fails
+        }
+      }
+      
+      console.log(`✅ GCS Backup completed successfully: ${backupFolder}`);
+      return { success: true, backupFolder, filesBackedUp: uploadedFiles.length };
+    } catch (error) {
+      console.error('GCS Backup creation failed:', error.message);
+      throw error;
     }
-    
-    return { success: true, backupFolder };
   }
 
 
@@ -142,42 +185,70 @@ class BackupService {
   }
 
   async restoreGCSBackup(backupFolder) {
-    const bucket = this.storage.bucket(this.bucketName);
-    
-    // Check if backup exists
-    const [manifestExists] = await bucket.file(`${backupFolder}/manifest.json`).exists();
-    if (!manifestExists) {
-      throw new Error(`Backup ${backupFolder} not found`);
-    }
-
-    // Download manifest
-    const [manifestContent] = await bucket.file(`${backupFolder}/manifest.json`).download();
-    const manifest = JSON.parse(manifestContent.toString());
-    
-    console.log(`📋 Backup created: ${manifest.created}`);
-    console.log(`📋 Backup type: ${manifest.backupType}`);
-
-    // Create restore backup of current data
-    await this.createBackup(true);
-
-    // Download and restore each file
-    for (const fileName of manifest.files) {
-      const sourceFile = `${backupFolder}/${fileName}`;
-      const localPath = path.join(__dirname, fileName);
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
       
-      try {
-        const [exists] = await bucket.file(sourceFile).exists();
-        if (exists) {
-          await bucket.file(sourceFile).download({ destination: localPath });
-          console.log(`✅ Restored: ${fileName}`);
-        }
-      } catch (error) {
-        console.log(`⚠️  Could not restore ${fileName}: ${error.message}`);
+      console.log(`🔍 Checking backup: ${backupFolder}`);
+      
+      // Check if backup exists
+      const [manifestExists] = await bucket.file(`${backupFolder}/manifest.json`).exists();
+      if (!manifestExists) {
+        throw new Error(`Backup ${backupFolder} not found or manifest missing`);
       }
+
+      // Download manifest
+      const [manifestContent] = await bucket.file(`${backupFolder}/manifest.json`).download();
+      const manifest = JSON.parse(manifestContent.toString());
+      
+      console.log(`📋 Found backup created: ${manifest.createdPacific || manifest.created}`);
+      console.log(`📋 Backup type: ${manifest.backupType}`);
+      console.log(`📋 Files to restore: ${manifest.totalFiles || manifest.files.length}`);
+
+      // Create pre-restore backup of current data (skip pre-backup to avoid recursion)
+      console.log(`💾 Creating pre-restore backup...`);
+      const preRestoreResult = await this.createBackup(true, true); // skipPreBackup = true
+      if (preRestoreResult.success) {
+        console.log(`✅ Pre-restore backup created: ${preRestoreResult.backupFolder}`);
+      } else {
+        console.warn(`⚠️  Pre-restore backup failed: ${preRestoreResult.error}`);
+      }
+
+      // Download and restore each file
+      let restoredCount = 0;
+      const filesToRestore = manifest.files || this.dataFiles;
+      
+      for (const fileName of filesToRestore) {
+        const sourceFile = `${backupFolder}/${fileName}`;
+        const localPath = path.join(__dirname, fileName);
+        
+        try {
+          const [exists] = await bucket.file(sourceFile).exists();
+          if (exists) {
+            await bucket.file(sourceFile).download({ destination: localPath });
+            console.log(`✅ Restored: ${fileName}`);
+            restoredCount++;
+          } else {
+            console.log(`⚠️  File not found in backup: ${fileName}`);
+          }
+        } catch (error) {
+          console.log(`❌ Could not restore ${fileName}: ${error.message}`);
+        }
+      }
+      
+      console.log(`✅ GCS Restore completed: ${backupFolder}`);
+      console.log(`📊 Files restored: ${restoredCount}/${filesToRestore.length}`);
+      
+      return { 
+        success: true, 
+        backupFolder,
+        filesRestored: restoredCount,
+        totalFiles: filesToRestore.length,
+        preRestoreBackup: preRestoreResult.backupFolder
+      };
+    } catch (error) {
+      console.error('GCS Restore failed:', error.message);
+      throw error;
     }
-    
-    console.log(`✅ GCS Restore completed: ${backupFolder}`);
-    return { success: true };
   }
 
 
@@ -215,18 +286,68 @@ class BackupService {
         return { success: true, backups: [] };
       }
       
-      const [files] = await bucket.getFiles({ prefix: '', delimiter: '/' });
+      console.log(`🔍 Scanning bucket for backups: ${this.bucketName}`);
+      const [files] = await bucket.getFiles();
       
-      const backups = new Set();
-      files.forEach(file => {
+      const backupFolders = new Set();
+      const backupDetails = new Map();
+      
+      // Process all files to find backup folders and manifests
+      for (const file of files) {
         const parts = file.name.split('/');
-        if (parts.length > 1 && (parts[0].startsWith('auto-') || parts[0].startsWith('manual-'))) {
-          backups.add(parts[0]);
+        if (parts.length >= 2) {
+          const folderName = parts[0];
+          
+          // Only include folders that match backup naming pattern
+          if (folderName.startsWith('auto-') || folderName.startsWith('manual-')) {
+            backupFolders.add(folderName);
+            
+            // If this is a manifest file, get additional details
+            if (parts[1] === 'manifest.json') {
+              try {
+                const [manifestContent] = await file.download();
+                const manifest = JSON.parse(manifestContent.toString());
+                backupDetails.set(folderName, {
+                  folder: folderName,
+                  type: manifest.backupType,
+                  created: manifest.createdPacific || manifest.created,
+                  createdISO: manifest.created,
+                  filesCount: manifest.totalFiles || manifest.files?.length || 0,
+                  environment: manifest.environment
+                });
+              } catch (manifestError) {
+                console.warn(`Could not read manifest for ${folderName}:`, manifestError.message);
+                // Add basic info even if manifest can't be read
+                backupDetails.set(folderName, {
+                  folder: folderName,
+                  type: folderName.startsWith('manual-') ? 'manual' : 'automatic',
+                  created: 'Unknown',
+                  createdISO: null,
+                  filesCount: 0,
+                  environment: 'unknown'
+                });
+              }
+            }
+          }
         }
-      });
+      }
 
-      const backupList = Array.from(backups).sort().reverse();
-      console.log(`Found ${backupList.length} backups in GCS bucket`);
+      // Convert to sorted array with details
+      const backupList = Array.from(backupFolders)
+        .sort()
+        .reverse()
+        .map(folder => backupDetails.get(folder) || {
+          folder,
+          type: folder.startsWith('manual-') ? 'manual' : 'automatic',
+          created: 'Unknown',
+          createdISO: null,
+          filesCount: 0,
+          environment: 'unknown'
+        });
+
+      console.log(`✅ Found ${backupList.length} backups in GCS bucket`);
+      console.log(`📊 Manual: ${backupList.filter(b => b.type === 'manual').length}, Auto: ${backupList.filter(b => b.type === 'automatic').length}`);
+      
       return { success: true, backups: backupList };
     } catch (error) {
       console.error('Error listing GCS backups:', error.message);

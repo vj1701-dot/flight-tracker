@@ -1483,7 +1483,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Flight monitoring endpoints
-app.get('/api/monitoring/status', authenticateToken, authorizeRole(['superadmin', 'admin']), (req, res) => {
+app.get('/api/monitoring/status', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
   try {
     const status = flightMonitor.getMonitoringStatus();
     res.json({
@@ -1496,7 +1496,7 @@ app.get('/api/monitoring/status', authenticateToken, authorizeRole(['superadmin'
   }
 });
 
-app.post('/api/monitoring/start', authenticateToken, authorizeRole(['superadmin', 'admin']), (req, res) => {
+app.post('/api/monitoring/start', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
   try {
     flightMonitor.startMonitoring();
     res.json({
@@ -1509,7 +1509,7 @@ app.post('/api/monitoring/start', authenticateToken, authorizeRole(['superadmin'
   }
 });
 
-app.post('/api/monitoring/stop', authenticateToken, authorizeRole(['superadmin', 'admin']), (req, res) => {
+app.post('/api/monitoring/stop', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
   try {
     flightMonitor.stopMonitoring();
     res.json({
@@ -1522,7 +1522,7 @@ app.post('/api/monitoring/stop', authenticateToken, authorizeRole(['superadmin',
   }
 });
 
-app.post('/api/monitoring/interval', authenticateToken, authorizeRole(['superadmin', 'admin']), (req, res) => {
+app.post('/api/monitoring/interval', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
   try {
     const { minutes } = req.body;
     
@@ -1541,7 +1541,7 @@ app.post('/api/monitoring/interval', authenticateToken, authorizeRole(['superadm
   }
 });
 
-app.post('/api/monitoring/check-now', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+app.post('/api/monitoring/check-now', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     // Run immediate check without waiting
     flightMonitor.checkAllFlights().catch(err => {
