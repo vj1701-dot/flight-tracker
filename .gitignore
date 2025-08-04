@@ -168,6 +168,10 @@ app.yaml
 .env*
 !.env.example
 
+# Generated deployment files (contain secrets)
+.env.generated
+deployment-info.txt
+
 # Temporary files
 *.tmp
 *.temp
