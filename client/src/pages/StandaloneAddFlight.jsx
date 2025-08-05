@@ -59,8 +59,10 @@ export default function StandaloneAddFlight() {
       if (fetchingFlightInfo || flightInfoFetched) return false
       if (formData.flightNumber.length < 3) return false // Minimum flight number length
       
-      // Extract date from datetime-local format
-      const departureDate = formData.departureDateTime.split('T')[0]
+      // Extract date from either datetime-local format or date format
+      const departureDate = formData.departureDateTime.includes('T') 
+        ? formData.departureDateTime.split('T')[0]
+        : formData.departureDateTime
       if (!departureDate || departureDate.length !== 10) return false
       
       return true
@@ -637,21 +639,56 @@ export default function StandaloneAddFlight() {
                 }}>
                   Departure Date & Time *
                 </label>
-                <input
-                  type="datetime-local"
-                  name="departureDateTime"
-                  value={formData.departureDateTime}
-                  onChange={handleChange}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: `1px solid ${errors.departureDateTime ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                />
+                {flightInfoFetched || formData.departureDateTime.includes('T') ? (
+                  <input
+                    type="datetime-local"
+                    name="departureDateTime"
+                    value={formData.departureDateTime}
+                    onChange={handleChange}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: `1px solid ${errors.departureDateTime ? '#dc2626' : '#d1d5db'}`,
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    name="departureDateTime"
+                    value={formData.departureDateTime.split('T')[0] || ''}
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+                      if (dateValue) {
+                        // Set just the date part, don't auto-fill time
+                        setFormData(prev => ({
+                          ...prev,
+                          departureDateTime: dateValue
+                        }));
+                      }
+                    }}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: `1px solid ${errors.departureDateTime ? '#dc2626' : '#d1d5db'}`,
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem'
+                    }}
+                    placeholder="Select departure date"
+                  />
+                )}
                 {errors.departureDateTime && (
                   <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.departureDateTime}</span>
+                )}
+                {!flightInfoFetched && formData.departureDateTime && !formData.departureDateTime.includes('T') && (
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#6b7280', 
+                    marginTop: '0.25rem' 
+                  }}>
+                    💡 Time will be auto-populated after flight lookup
+                  </div>
                 )}
               </div>
 
@@ -666,19 +703,35 @@ export default function StandaloneAddFlight() {
                 }}>
                   Arrival Date & Time *
                 </label>
-                <input
-                  type="datetime-local"
-                  name="arrivalDateTime"
-                  value={formData.arrivalDateTime}
-                  onChange={handleChange}
-                  style={{ 
+                {flightInfoFetched || formData.arrivalDateTime ? (
+                  <input
+                    type="datetime-local"
+                    name="arrivalDateTime"
+                    value={formData.arrivalDateTime}
+                    onChange={handleChange}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: `1px solid ${errors.arrivalDateTime ? '#dc2626' : '#d1d5db'}`,
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                ) : (
+                  <div style={{ 
                     width: '100%',
                     padding: '0.75rem',
                     border: `1px solid ${errors.arrivalDateTime ? '#dc2626' : '#d1d5db'}`,
                     borderRadius: '0.375rem',
-                    fontSize: '0.875rem'
-                  }}
-                />
+                    fontSize: '0.875rem',
+                    backgroundColor: '#f9fafb',
+                    color: '#6b7280',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    Will be auto-populated after flight lookup
+                  </div>
+                )}
                 {errors.arrivalDateTime && (
                   <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.arrivalDateTime}</span>
                 )}
