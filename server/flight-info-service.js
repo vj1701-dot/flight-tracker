@@ -84,7 +84,19 @@ class FlightInfoService {
         };
       }
 
-      // Get the most relevant flight (first one for the specified date)
+      // If multiple flights found, return them for user selection
+      if (response.data.flights.length > 1) {
+        console.log(`⚠️ Multiple flights found for ${flightNumber} on ${flightDate}: ${response.data.flights.length} flights`);
+        return {
+          multipleFlights: true,
+          flights: response.data.flights.map((flight, index) => ({
+            index,
+            ...this.formatFlightAwareData(flight, flightDate)
+          }))
+        };
+      }
+
+      // Get the single flight for the specified date
       const flight = response.data.flights[0];
       console.log('Processing flight data:', JSON.stringify(flight, null, 2));
       return this.formatFlightAwareData(flight, flightDate);
@@ -205,7 +217,7 @@ class FlightInfoService {
     if (flightDate > maxFutureDateStr) {
       return {
         error: true,
-        message: `Flight date is too far in the future. FlightAware API only supports flights up to 2 days from today (${todayStr}). Maximum date: ${maxFutureDateStr}`,
+        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is more than 48 hours in the future - FlightAware API only provides data up to 2 days ahead (maximum date: ${maxFutureDateStr}). Please manually enter flight details.`,
         fallback: this.generateFlightSuggestion(flightNumber, flightDate)
       };
     }
@@ -213,7 +225,7 @@ class FlightInfoService {
     if (flightDate < minPastDateStr) {
       return {
         error: true,
-        message: `Flight date is too far in the past. FlightAware API only supports flights from 10 days ago (${minPastDateStr}) to 2 days in the future (${maxFutureDateStr})`,
+        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is too far in the past - FlightAware API only provides historical data up to 10 days ago (earliest date: ${minPastDateStr}). Please manually enter flight details.`,
         fallback: this.generateFlightSuggestion(flightNumber, flightDate)
       };
     }

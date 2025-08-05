@@ -14,8 +14,10 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 
 ### 🚨 Smart Flight Information & Monitoring System
 - **Auto-population**: Flight details automatically fetched using FlightAware API
+- **Multiple flight selection**: When multiple flights exist for same flight number/date, users can select the correct one
 - **Real-time monitoring**: Automated flight status monitoring with admin dashboard
 - **Telegram alerts**: Instant delay notifications sent to passengers, volunteers, and users
+- **24-hour check-in reminders**: Automated reminders sent to passengers via Telegram with airline-specific check-in links
 - **Backend automation**: 24/7 monitoring starting 6 hours before each departure
 - **Superadmin control**: Exclusive frontend monitoring dashboard to manage alerts and settings
 - **Timezone-aware validation**: Handles international flights crossing timezones
@@ -40,6 +42,7 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 - **Real-time Flight Info**: Live flight status and delay information via bot commands
 - **Smart Registration**: Role-based registration with validation
 - **Comprehensive Commands**: Flight queries, status checks, and help
+- **Check-in Reminders**: Automated 24-hour reminders with airline-specific links and helpful tips
 - **Airport-based Notifications**: Dashboard users get alerts for their airports
 - **24/7 Monitoring**: Continuous backend monitoring with frontend management interface
 - **Superadmin Controls**: Exclusive dashboard interface for managing monitoring settings and manual checks

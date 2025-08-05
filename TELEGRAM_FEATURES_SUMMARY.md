@@ -42,7 +42,7 @@
 - Flight confirmations when added to system
 - Flight changes and updates
 - Flight deletions
-- 24-hour check-in reminders
+- 24-hour check-in reminders with airline-specific links and travel tips
 
 ---
 
@@ -76,6 +76,30 @@
 - **Airport-based Filtering**: Dashboard users only get alerts for their assigned airports
 - **Configurable Intervals**: Admins can adjust check frequency (15-120 minutes)
 - **Manual Override**: Dashboard interface allows immediate flight status checks
+
+### 6. ✅ 24-Hour Check-in Reminders
+**Automated Check-in System**:
+- **Smart Timing**: Automatically sends reminders exactly 24 hours before departure
+- **Passenger Targeting**: Only sent to registered passengers with Telegram accounts
+- **Airline Integration**: Includes direct check-in links for major airlines
+- **Helpful Tips**: Provides travel advice and preparation guidelines
+
+**Check-in Reminder Features**:
+- **Direct Links**: American, Delta, United, Southwest, JetBlue, Alaska, Spirit, Frontier
+- **Travel Tips**: Early check-in advice, boarding pass download, airport arrival timing
+- **Volunteer Info**: Includes pickup/dropoff volunteer contact details
+- **Flight Updates**: Provides command to get latest flight status
+- **One-time Delivery**: Smart tracking prevents duplicate reminders
+
+**Supported Airlines with Direct Links**:
+- American Airlines (`aa.com/checkin`)
+- Delta Air Lines (`delta.com/checkin`) 
+- United Airlines (`united.com/checkin`)
+- Southwest Airlines (`southwest.com/air/check-in`)
+- JetBlue Airways (`jetblue.com/checkin`)
+- Alaska Airlines (`alaskaair.com/checkin`)
+- Spirit Airlines (`spirit.com/check-in`)
+- Frontier Airlines (`flyfrontier.com/checkin`)
 
 ---
 

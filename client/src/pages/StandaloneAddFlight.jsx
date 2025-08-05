@@ -25,6 +25,8 @@ export default function StandaloneAddFlight() {
   const [fetchingFlightInfo, setFetchingFlightInfo] = useState(false)
   const [flightInfoFetched, setFlightInfoFetched] = useState(false)
   const [flightInfoMessage, setFlightInfoMessage] = useState('')
+  const [multipleFlights, setMultipleFlights] = useState([])
+  const [showFlightSelection, setShowFlightSelection] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +99,12 @@ export default function StandaloneAddFlight() {
           setFlightInfoFetched(true)
           setFlightInfoMessage('Flight details auto-populated successfully! Please verify the information matches your booking.')
           console.log('✅ Flight information auto-populated from API')
+        } else if (flightInfo.multipleFlights) {
+          // Handle multiple flights - show selection dialog
+          setMultipleFlights(flightInfo.flights)
+          setShowFlightSelection(true)
+          setFlightInfoMessage(`Found ${flightInfo.flights.length} flights for ${formData.flightNumber}. Please select the correct one.`)
+          console.log(`⚠️ Multiple flights found: ${flightInfo.flights.length}`)
         } else if (flightInfo.fallback) {
           // Handle API limitations gracefully with suggestions
           const fallback = flightInfo.fallback
@@ -122,6 +130,24 @@ export default function StandaloneAddFlight() {
     } finally {
       setFetchingFlightInfo(false)
     }
+  }
+
+  const handleFlightSelection = (selectedFlight) => {
+    // Auto-populate form data with selected flight
+    setFormData(prev => ({
+      ...prev,
+      airline: selectedFlight.airline || prev.airline,
+      from: selectedFlight.departure?.airport || prev.from,
+      to: selectedFlight.arrival?.airport || prev.to,
+      departureDateTime: selectedFlight.departure?.scheduledForInput || prev.departureDateTime,
+      arrivalDateTime: selectedFlight.arrival?.scheduledForInput || prev.arrivalDateTime
+    }))
+    
+    setFlightInfoFetched(true)
+    setFlightInfoMessage('Flight details auto-populated successfully! Please verify the information matches your booking.')
+    setShowFlightSelection(false)
+    setMultipleFlights([])
+    console.log('✅ Selected flight auto-populated from API')
   }
 
   const handleChange = (e) => {
@@ -318,6 +344,94 @@ export default function StandaloneAddFlight() {
             textAlign: 'center'
           }}>
             ✅ Flight added successfully! Form will reset in 3 seconds...
+          </div>
+        )}
+
+        {/* Flight Selection Modal */}
+        {showFlightSelection && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '0.5rem',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}>
+              <h3 style={{ marginBottom: '1rem', color: '#1e40af' }}>
+                Multiple Flights Found - Select Your Flight
+              </h3>
+              <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
+                We found {multipleFlights.length} flights for {formData.flightNumber}. Please select the correct one:
+              </p>
+              
+              {multipleFlights.map((flight, index) => (
+                <div key={index} style={{
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  padding: '1rem',
+                  marginBottom: '1rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  ':hover': { backgroundColor: '#f8fafc' }
+                }} onClick={() => handleFlightSelection(flight)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                        {flight.airline} {formData.flightNumber}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                        {flight.departure?.airport} → {flight.arrival?.airport}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                        Departure: {flight.departure?.scheduledTime || 'Unknown'}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                        Arrival: {flight.arrival?.scheduledTime || 'Unknown'}
+                      </div>
+                    </div>
+                    <button style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      padding: '0.5rem 1rem',
+                      cursor: 'pointer'
+                    }}>
+                      Select
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                <button 
+                  onClick={() => setShowFlightSelection(false)}
+                  style={{
+                    backgroundColor: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    padding: '0.5rem 1rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -14,6 +14,8 @@ class FlightMonitorService {
     this.isMonitoring = false;
     this.checkIntervalMinutes = 30; // Check every 30 minutes
     this.hoursBeforeDeparture = 6; // Start monitoring 6 hours before departure
+    this.checkInReminderHours = 24; // Send check-in reminders 24 hours before departure
+    this.sentCheckInReminders = new Set(); // Track which flights already got check-in reminders
     
     console.log('🚨 Automatic Flight Monitor Service initialized');
     this.startAutomaticMonitoring();
@@ -80,6 +82,9 @@ class FlightMonitorService {
       const flights = await readFlights();
       const now = new Date();
       
+      // Check for flights needing check-in reminders (24 hours before departure)
+      await this.checkCheckInReminders(flights, now);
+      
       // Filter for flights that should be monitored (6 hours before departure until departure)
       const flightsToMonitor = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
@@ -94,7 +99,7 @@ class FlightMonitorService {
 
       console.log(`📊 Found ${flightsToMonitor.length} flights in monitoring window (within ${this.hoursBeforeDeparture} hours of departure)`);
 
-      if (flightsToMonitor.length === 0) {
+      if (flightsToMonitor.length === 0 && flights.length > 0) {
         console.log('😴 No flights to monitor at this time');
         return;
       }
@@ -115,6 +120,53 @@ class FlightMonitorService {
       console.log('✅ Flight status check completed');
     } catch (error) {
       console.error('❌ Error during flight monitoring:', error);
+    }
+  }
+
+  /**
+   * Check for flights needing 24-hour check-in reminders
+   */
+  async checkCheckInReminders(flights, now) {
+    try {
+      const flightsNeedingCheckInReminder = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        const timeDiff = departureTime - now;
+        const hoursUntilDeparture = timeDiff / (1000 * 60 * 60);
+        
+        // Send reminder if:
+        // 1. Flight is approximately 24 hours away (23.5 to 24.5 hours)
+        // 2. We haven't already sent a reminder for this flight
+        const isCheckInTime = hoursUntilDeparture >= 23.5 && hoursUntilDeparture <= 24.5;
+        const notAlreadySent = !this.sentCheckInReminders.has(flight.id);
+        
+        return isCheckInTime && notAlreadySent && flight.passengers && flight.passengers.length > 0;
+      });
+
+      if (flightsNeedingCheckInReminder.length > 0) {
+        console.log(`🎫 Found ${flightsNeedingCheckInReminder.length} flights needing check-in reminders`);
+        
+        for (const flight of flightsNeedingCheckInReminder) {
+          const departureTime = new Date(flight.departureDateTime);
+          const hoursUntil = ((departureTime - now) / (1000 * 60 * 60)).toFixed(1);
+          
+          console.log(`🎫 Sending check-in reminder for ${flight.flightNumber} (departing in ${hoursUntil} hours)`);
+          
+          try {
+            const reminderSent = await this.telegramService.sendCheckInReminder(flight);
+            if (reminderSent) {
+              this.sentCheckInReminders.add(flight.id);
+              console.log(`✅ Check-in reminder sent for flight ${flight.flightNumber}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error sending check-in reminder for flight ${flight.flightNumber}:`, error);
+          }
+          
+          // Small delay between reminders
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking for check-in reminders:', error);
     }
   }
 

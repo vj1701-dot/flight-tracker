@@ -107,7 +107,7 @@ export default function FlightMonitoring() {
           Flight Delay Monitoring
         </h1>
         <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>
-          Fully automated system that monitors flights starting 6 hours before departure and sends instant delay alerts
+          Fully automated system that monitors flights, sends 24-hour check-in reminders, and provides instant delay alerts
         </p>
       </div>
 
@@ -233,7 +233,7 @@ export default function FlightMonitoring() {
             🚀 Fully Automated System
           </h3>
           <p style={{ color: '#075985', margin: '0 0 1rem 0', lineHeight: '1.6' }}>
-            This monitoring system runs automatically without manual intervention. It starts monitoring each flight exactly 6 hours before departure and continues until takeoff.
+            This monitoring system runs automatically without manual intervention. It sends check-in reminders 24 hours before departure and starts delay monitoring 6 hours before departure.
           </p>
           <button
             onClick={checkNow}
@@ -328,7 +328,8 @@ export default function FlightMonitoring() {
             How it works:
           </h3>
           <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#6b7280' }}>
-            <li>Automatically starts monitoring each flight 6 hours before departure</li>
+            <li>Sends 24-hour check-in reminders to passengers with airline-specific links</li>
+            <li>Automatically starts delay monitoring each flight 6 hours before departure</li>
             <li>Checks FlightAware API for delays and status changes every 30 minutes</li>
             <li>Sends automatic Telegram alerts to passengers, volunteers, and dashboard users</li>
             <li>Alerts for delays greater than 15 minutes or significant status changes</li>

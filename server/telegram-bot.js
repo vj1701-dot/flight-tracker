@@ -1205,6 +1205,81 @@ class TelegramNotificationService {
     }
   }
 
+  // Send 24-hour check-in reminder to passengers
+  async sendCheckInReminder(flight) {
+    if (!this.bot) {
+      console.log('Telegram bot not configured. Check-in reminder not sent.');
+      return false;
+    }
+
+    try {
+      const passengers = await readPassengers();
+      const flightPassengers = flight.passengers || [];
+      let remindersSent = 0;
+
+      const departure = new Date(flight.departureDateTime);
+      const departureLocal = this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from);
+      
+      // Get airline-specific check-in URL if available
+      const checkInUrls = {
+        'American Airlines': 'https://www.aa.com/checkin',
+        'Delta Air Lines': 'https://www.delta.com/checkin',
+        'United Airlines': 'https://www.united.com/checkin',
+        'Southwest Airlines': 'https://www.southwest.com/air/check-in/',
+        'JetBlue Airways': 'https://www.jetblue.com/checkin',
+        'Alaska Airlines': 'https://www.alaskaair.com/checkin',
+        'Spirit Airlines': 'https://www.spirit.com/check-in',
+        'Frontier Airlines': 'https://www.flyfrontier.com/checkin'
+      };
+
+      const checkInUrl = checkInUrls[flight.airline] || 'your airline\'s website or mobile app';
+      const checkInText = checkInUrls[flight.airline] ? `online at ${checkInUrl}` : `via ${checkInUrl}`;
+
+      for (const flightPassenger of flightPassengers) {
+        const passenger = passengers.find(p => 
+          p.name.toLowerCase() === flightPassenger.name.toLowerCase()
+        );
+
+        if (passenger && passenger.telegramChatId) {
+          const message = 
+            `Jai Swaminarayan 🙏\n\n` +
+            `⏰ *CHECK-IN REMINDER* - 24 Hours Notice\n\n` +
+            `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
+            `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+            `🛫 *Departure:* ${departureLocal}\n\n` +
+            `🎫 *Time to check in!*\n` +
+            `Most airlines allow online check-in 24 hours before departure.\n\n` +
+            `📱 *Check in ${checkInText}*\n\n` +
+            `💡 *Tips:*\n` +
+            `• Check in early to get better seat selection\n` +
+            `• Download your boarding pass to your phone\n` +
+            `• Arrive at airport 2-3 hours early for international flights\n` +
+            `• Check baggage requirements and restrictions\n\n` +
+            `${flight.pickupSevakName ? `🚗 *Pickup:* ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
+            `${flight.dropoffSevakName ? `🚗 *Dropoff:* ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
+            `\n💡 Use /flightinfo ${flight.flightNumber} ${new Date(flight.departureDateTime).toISOString().split('T')[0]} for latest flight updates.`;
+
+          try {
+            await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+            remindersSent++;
+            console.log(`✅ Check-in reminder sent to passenger: ${passenger.name}`);
+          } catch (error) {
+            console.error(`Error sending check-in reminder to ${passenger.name}:`, error);
+          }
+        }
+      }
+
+      if (remindersSent > 0) {
+        console.log(`✅ Sent ${remindersSent} check-in reminders for flight ${flight.flightNumber}`);
+      }
+
+      return remindersSent > 0;
+    } catch (error) {
+      console.error('Error sending check-in reminders:', error);
+      return false;
+    }
+  }
+
   // Get bot instance (for accessing from express routes)
   getBot() {
     return this.bot;

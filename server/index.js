@@ -1254,7 +1254,7 @@ app.post('/api/backup/create', authenticateToken, authorizeRole(['superadmin']),
     const result = await backupService.createBackup(true); // Manual backup
     
     if (result.success) {
-      await logAction('backup', 'create', 'backup', null, req.user.id, req, `Manual backup created: ${result.backupFolder}`);
+      await logAuditEvent('create', 'backup', result.backupFolder, req.user.id, req.user.username, null, null, { backupFolder: result.backupFolder });
       res.json({ message: 'Backup created successfully', backupFolder: result.backupFolder });
     } else {
       res.status(500).json({ error: result.error });
@@ -1291,7 +1291,7 @@ app.post('/api/backup/restore', authenticateToken, authorizeRole(['superadmin'])
     const result = await backupService.restoreBackup(backupFolder);
     
     if (result.success) {
-      await logAction('backup', 'restore', 'backup', null, req.user.id, req, `Restored backup: ${backupFolder}`);
+      await logAuditEvent('restore', 'backup', backupFolder, req.user.id, req.user.username, null, null, { backupFolder });
       res.json({ message: 'Backup restored successfully' });
     } else {
       res.status(500).json({ error: result.error });
