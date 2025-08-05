@@ -64,18 +64,17 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
     fetchData()
   }, [])
 
-  // Auto-fetch flight information when flight number and departure date are provided
+  // Auto-fetch flight information when flight number is provided (no date required)
   useEffect(() => {
     const shouldFetchFlightInfo = () => {
       console.log('🔍 [Admin] Checking if should fetch flight info:', {
         flightNumber: formData.flightNumber,
-        departureDateTime: formData.departureDateTime,
         fetchingFlightInfo,
         flightInfoFetched
       });
       
-      if (!formData.flightNumber || !formData.departureDateTime) {
-        console.log('❌ [Admin] Missing required fields: flightNumber or departureDateTime');
+      if (!formData.flightNumber) {
+        console.log('❌ [Admin] Missing flight number');
         return false;
       }
       if (fetchingFlightInfo || flightInfoFetched) {
@@ -87,37 +86,22 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
         return false;
       }
       
-      // Extract date from either datetime-local format or date format
-      const departureDate = formData.departureDateTime && formData.departureDateTime.includes('T') 
-        ? formData.departureDateTime.split('T')[0]
-        : formData.departureDateTime
-      if (!departureDate || departureDate.length !== 10) {
-        console.log('❌ [Admin] Invalid date format:', departureDate);
-        return false;
-      }
-      
-      console.log('✅ [Admin] All conditions met, will fetch flight info');
+      console.log('✅ [Admin] Flight number provided, will fetch upcoming flights');
       return true
     }
 
     if (shouldFetchFlightInfo()) {
       fetchFlightInformation()
     }
-  }, [formData.flightNumber, formData.departureDateTime])
+  }, [formData.flightNumber])
 
   const fetchFlightInformation = async () => {
     if (fetchingFlightInfo) return
     
-    console.log('🚀 [Admin] Starting fetchFlightInformation...');
+    console.log('🚀 [Admin] Starting fetchFlightInformation for upcoming flights...');
     setFetchingFlightInfo(true)
     try {
-      // Extract date from either datetime-local format or date format (same logic as useEffect)
-      const departureDate = formData.departureDateTime && formData.departureDateTime.includes('T') 
-        ? formData.departureDateTime.split('T')[0]
-        : formData.departureDateTime
-      const token = localStorage.getItem('token')
-      
-      const apiUrl = `${API_BASE}/flights/info/${formData.flightNumber}/${departureDate}`;
+      const apiUrl = `${API_BASE}/flights/upcoming/${formData.flightNumber}`;
       console.log('📡 [Admin] Making API call to:', apiUrl);
       
       const response = await fetch(apiUrl)
@@ -125,39 +109,13 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
       if (response.ok) {
         const flightInfo = await response.json()
         
-        if (flightInfo.success && flightInfo.data) {
-          const flight = flightInfo.data
-          
-          // Auto-populate form data
-          setFormData(prev => {
-            console.log('🔍 Single flight API response scheduledForInput values:', {
-              departure: flight.departure?.scheduledForInput,
-              arrival: flight.arrival?.scheduledForInput,
-              prevDeparture: prev.departureDateTime,
-              prevArrival: prev.arrivalDateTime
-            });
-            
-            return {
-              ...prev,
-              airline: flight.airline || prev.airline,
-              from: flight.departure?.airport || prev.from,
-              to: flight.arrival?.airport || prev.to,
-              departureDateTime: flight.departure?.scheduledForInput || prev.departureDateTime,
-              arrivalDateTime: flight.arrival?.scheduledForInput || prev.arrivalDateTime
-            };
-          })
-          
-          setFlightInfoFetched(true)
-          setFlightInfoMessage('Flight details auto-populated successfully!')
-          console.log('✅ Flight information auto-populated from API')
-        } else if (flightInfo.multipleFlights) {
-          // Handle multiple flights - show selection dialog
-          console.log('🔍 Multiple flights data received:', flightInfo.flights)
+        if (flightInfo.flights && flightInfo.flights.length > 0) {
+          // Always show selection dialog for upcoming flights
+          console.log('🔍 Upcoming flights data received:', flightInfo.flights)
           setMultipleFlights(flightInfo.flights)
           setShowFlightSelection(true)
-          setFlightInfoMessage(`Found ${flightInfo.flights.length} flights for ${formData.flightNumber}. Please select the correct one.`)
-          // Don't set flightInfoFetched to true for multiple flights
-          console.log(`⚠️ Multiple flights found: ${flightInfo.flights.length}`)
+          setFlightInfoMessage(`Found ${flightInfo.flights.length} upcoming flights for ${formData.flightNumber}. Please select your flight.`)
+          console.log(`✅ Found ${flightInfo.flights.length} upcoming flights`)
         } else if (flightInfo.fallback) {
           // Handle API limitations gracefully with suggestions
           const fallback = flightInfo.fallback
@@ -527,9 +485,13 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
                 </div>
               ))}
               
-              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+              <div style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button 
-                  onClick={() => setShowFlightSelection(false)}
+                  onClick={() => {
+                    setShowFlightSelection(false)
+                    setMultipleFlights([])
+                    setFlightInfoMessage('Enter flight details manually if your flight is not in the list above.')
+                  }}
                   style={{
                     backgroundColor: '#6b7280',
                     color: 'white',
@@ -539,7 +501,25 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
                     cursor: 'pointer'
                   }}
                 >
-                  Cancel
+                  My flight is not listed - Enter manually
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowFlightSelection(false)
+                    setMultipleFlights([])
+                    setFlightInfoFetched(false)
+                    setFlightInfoMessage('')
+                  }}
+                  style={{
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    padding: '0.5rem 1rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close
                 </button>
               </div>
             </div>
@@ -571,29 +551,6 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
               gap: 'clamp(1rem, 2vw, 1.5rem)',
               marginBottom: '2rem'
             }}>
-              {/* Airline */}
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.875rem', 
-                  fontWeight: '500', 
-                  color: '#374151',
-                  marginBottom: '0.5rem'
-                }}>
-                  Airline *
-                </label>
-                <SearchableSelect
-                  name="airline"
-                  value={formData.airline}
-                  onChange={handleChange}
-                  options={airlines}
-                  placeholder="Type to search airlines..."
-                  error={errors.airline}
-                  getOptionValue={(option) => option.name}
-                  getOptionLabel={(option) => option.name}
-                />
-              </div>
-
               {/* Flight Number */}
               <div>
                 <label style={{ 
@@ -664,6 +621,29 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
                     {flightInfoMessage.includes('auto-populated') ? '✅' : '💡'} {flightInfoMessage}
                   </div>
                 )}
+              </div>
+
+              {/* Airline */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '0.875rem', 
+                  fontWeight: '500', 
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Airline *
+                </label>
+                <SearchableSelect
+                  name="airline"
+                  value={formData.airline}
+                  onChange={handleChange}
+                  options={airlines}
+                  placeholder="Type to search airlines..."
+                  error={errors.airline}
+                  getOptionValue={(option) => option.name}
+                  getOptionLabel={(option) => option.name}
+                />
               </div>
 
               {/* From */}

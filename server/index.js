@@ -1491,6 +1491,143 @@ app.get('/api/flights/info/:flightNumber/:date', async (req, res) => {
   }
 });
 
+// Get upcoming flights (48-72 hours) for a flight number
+app.get('/api/flights/upcoming/:flightNumber', async (req, res) => {
+  try {
+    const { flightNumber } = req.params;
+    
+    console.log(`🔍 Fetching upcoming flights for ${flightNumber} in next 48-72 hours`);
+    
+    // Calculate date range (today to +2 days max due to API limitations)  
+    const today = new Date();
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 2); // FlightAware allows max 2 days in future
+    
+    const startDate = today.toISOString().split('T')[0];
+    const endDate = maxDate.toISOString().split('T')[0];
+    
+    console.log(`📅 Searching for flights from ${startDate} to ${endDate}`);
+    
+    // Use the FlightInfoService to get real-time data
+    const FlightInfoService = require('./flight-info-service');
+    const flightInfoService = new FlightInfoService();
+    
+    // Try each date in the range to find flights
+    const allFlights = [];
+    const currentDate = new Date(today);
+    
+    while (currentDate <= maxDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      console.log(`🔍 Checking ${flightNumber} on ${dateStr}`);
+      
+      try {
+        const dayResult = await flightInfoService.getFlightInfo(flightNumber, dateStr);
+        
+        if (dayResult.multipleFlights) {
+          // Add all flights from this day
+          allFlights.push(...dayResult.flights);
+          console.log(`✅ Found ${dayResult.flights.length} flights on ${dateStr}`);
+        } else if (!dayResult.error) {
+          // Add single flight from this day
+          allFlights.push(dayResult);
+          console.log(`✅ Found 1 flight on ${dateStr}`);
+        } else {
+          console.log(`ℹ️ No flights found on ${dateStr}: ${dayResult.message}`);
+        }
+      } catch (error) {
+        console.log(`⚠️ Error checking ${dateStr}: ${error.message}`);
+      }
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    if (allFlights.length > 0) {
+      console.log(`🔄 Transforming ${allFlights.length} upcoming flights for response`);
+      
+      const transformedFlights = allFlights.map((flight, index) => {
+        console.log(`🔄 Transforming upcoming flight ${index + 1}:`, {
+          airline: flight.airlineName,
+          departure: flight.departureAirport,
+          arrival: flight.arrivalAirport,
+          scheduledDepartureRaw: flight.scheduledDepartureRaw,
+          scheduledArrivalRaw: flight.scheduledArrivalRaw,
+          flightDate: flight.flightDate
+        });
+        
+        const transformed = {
+          airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
+          departure: {
+            airport: flight.departureAirport,
+            scheduled: flight.scheduledDeparture,
+            scheduledTime: flight.scheduledDeparture,
+            scheduledForInput: flight.scheduledDepartureRaw,
+            timezone: flight.departureTimezone
+          },
+          arrival: {
+            airport: flight.arrivalAirport,
+            scheduled: flight.scheduledArrival,
+            scheduledTime: flight.scheduledArrival,
+            scheduledForInput: flight.scheduledArrivalRaw,
+            timezone: flight.arrivalTimezone
+          },
+          status: flight.flightStatus,
+          duration: flight.duration,
+          flightDate: flight.flightDate
+        };
+        
+        console.log(`✅ Transformed upcoming flight ${index + 1} scheduledForInput values:`, {
+          departure: transformed.departure.scheduledForInput,
+          arrival: transformed.arrival.scheduledForInput,
+          flightDate: transformed.flightDate
+        });
+        
+        return transformed;
+      });
+      
+      console.log(`✅ Successfully found and transformed ${transformedFlights.length} upcoming flights`);
+      res.json({
+        flights: transformedFlights,
+        dateRange: { start: startDate, end: endDate },
+        source: 'FlightAware AeroAPI'
+      });
+    } else {
+      // No flights found in the date range
+      console.log(`ℹ️ No upcoming flights found for ${flightNumber} in date range ${startDate} to ${endDate}`);
+      
+      // Generate fallback suggestion
+      const fallbackSuggestion = flightInfoService.generateFlightSuggestion(flightNumber, startDate);
+      
+      res.json({
+        flights: [],
+        fallback: {
+          airline: fallbackSuggestion.airline,
+          message: `No upcoming flights found for ${flightNumber} in the next 48-72 hours. The FlightAware API may have limited data for this flight. Please manually enter flight details and verify with your booking confirmation.`,
+          tips: fallbackSuggestion.tips,
+          searchedDates: `${startDate} to ${endDate}`
+        },
+        dateRange: { start: startDate, end: endDate },
+        source: 'FlightAware AeroAPI'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching upcoming flights:', error);
+    res.status(500).json({ 
+      flights: [],
+      error: 'Failed to fetch upcoming flight information',
+      details: error.message,
+      fallback: {
+        message: 'Unable to search for upcoming flights due to a technical error. Please manually enter flight details.',
+        tips: [
+          'Check the airline\'s website for accurate flight times',
+          'Verify departure and arrival airports',
+          'Consider time zone differences for scheduling'
+        ]
+      }
+    });
+  }
+});
+
 // Get available timezones
 app.get('/api/timezones', (req, res) => {
   try {
