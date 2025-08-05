@@ -1393,10 +1393,11 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
           airline: flight.airlineName,
           departure: flight.departureAirport,
           arrival: flight.arrivalAirport,
-          scheduledDepartureRaw: flight.scheduledDepartureRaw
+          scheduledDepartureRaw: flight.scheduledDepartureRaw,
+          scheduledArrivalRaw: flight.scheduledArrivalRaw
         });
         
-        return {
+        const transformed = {
           airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
           departure: {
             airport: flight.departureAirport,
@@ -1415,6 +1416,13 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
           status: flight.flightStatus,
           duration: flight.duration
         };
+        
+        console.log(`✅ Transformed flight ${index + 1} scheduledForInput values:`, {
+          departure: transformed.departure.scheduledForInput,
+          arrival: transformed.arrival.scheduledForInput
+        });
+        
+        return transformed;
       });
       
       console.log(`✅ Successfully transformed multiple flights, sending response`);
@@ -1425,6 +1433,11 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
       });
     } else if (!result.error) {
       // Transform the FlightAware data to match our expected format
+      console.log(`🔄 Transforming single flight raw data:`, {
+        scheduledDepartureRaw: result.scheduledDepartureRaw,
+        scheduledArrivalRaw: result.scheduledArrivalRaw
+      });
+      
       const transformedData = {
         airline: result.airlineName || flightNumber.substring(0, 2).toUpperCase(),
         departure: {
@@ -1442,6 +1455,11 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
         status: result.flightStatus,
         duration: result.duration
       };
+      
+      console.log(`✅ Single flight scheduledForInput values:`, {
+        departure: transformedData.departure.scheduledForInput,
+        arrival: transformedData.arrival.scheduledForInput
+      });
       
       res.json({
         success: true,

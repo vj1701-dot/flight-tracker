@@ -265,13 +265,19 @@ class FlightInfoService {
   formatDateTimeForInput(dtStr, airportCode = null) {
     if (!dtStr) return '';
     
+    console.log(`🔍 formatDateTimeForInput: dtStr="${dtStr}", airportCode="${airportCode}"`);
+    
     try {
       // If airport code provided, use airport's timezone for accurate local time
       if (airportCode && this.timezoneService.hasTimezoneData(airportCode)) {
         const airportInfo = this.timezoneService.getAirportInfo(airportCode);
+        console.log(`🔍 Airport info for ${airportCode}:`, airportInfo);
+        
         if (airportInfo && airportInfo.timezone) {
           // Create date object and format in airport's timezone
           const date = new Date(dtStr);
+          console.log(`🔍 Original UTC date:`, date.toISOString());
+          
           const options = {
             timeZone: airportInfo.timezone,
             year: 'numeric',
@@ -291,14 +297,18 @@ class FlightInfoService {
           const hour = parts.find(p => p.type === 'hour').value;
           const minute = parts.find(p => p.type === 'minute').value;
           
-          return `${year}-${month}-${day}T${hour}:${minute}`;
+          const result = `${year}-${month}-${day}T${hour}:${minute}`;
+          console.log(`✅ Formatted for ${airportInfo.timezone}: ${result}`);
+          return result;
         }
       }
       
       // Fallback: use the original UTC time converted to local
       const date = new Date(dtStr);
       const localISOTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
-      return localISOTime.slice(0, 16); // Remove seconds and timezone info
+      const result = localISOTime.slice(0, 16); // Remove seconds and timezone info
+      console.log(`⚠️ Using fallback timezone conversion: ${result}`);
+      return result;
     } catch (error) {
       console.error('Error formatting datetime for input:', error);
       return '';

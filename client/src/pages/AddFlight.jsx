@@ -102,6 +102,13 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
           const flight = flightInfo.data
           
           // Auto-populate form data
+          console.log('🔍 Single flight API response scheduledForInput values:', {
+            departure: flight.departure?.scheduledForInput,
+            arrival: flight.arrival?.scheduledForInput,
+            prevDeparture: prev.departureDateTime,
+            prevArrival: prev.arrivalDateTime
+          });
+          
           setFormData(prev => ({
             ...prev,
             airline: flight.airline || prev.airline,
@@ -116,6 +123,7 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
           console.log('✅ Flight information auto-populated from API')
         } else if (flightInfo.multipleFlights) {
           // Handle multiple flights - show selection dialog
+          console.log('🔍 Multiple flights data received:', flightInfo.flights)
           setMultipleFlights(flightInfo.flights)
           setShowFlightSelection(true)
           setFlightInfoMessage(`Found ${flightInfo.flights.length} flights for ${formData.flightNumber}. Please select the correct one.`)
@@ -150,6 +158,10 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
 
   const handleFlightSelection = (selectedFlight) => {
     // Auto-populate form data with selected flight
+    console.log('🔍 Selecting flight:', selectedFlight)
+    console.log('🔍 Departure scheduledForInput:', selectedFlight.departure?.scheduledForInput)
+    console.log('🔍 Arrival scheduledForInput:', selectedFlight.arrival?.scheduledForInput)
+    
     setFormData(prev => ({
       ...prev,
       airline: selectedFlight.airline || prev.airline,
