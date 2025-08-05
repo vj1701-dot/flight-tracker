@@ -93,7 +93,7 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
       const departureDate = formData.departureDateTime.split('T')[0] // Extract date part
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`${API_BASE}/flights/info/${formData.flightNumber}/${departureDate}`, {
+      const response = await fetch(`${API_BASE}/admin/flights/info/${formData.flightNumber}/${departureDate}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       

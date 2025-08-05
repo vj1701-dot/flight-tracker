@@ -1372,7 +1372,8 @@ app.post('/api/flights/convert-times', (req, res) => {
 });
 
 // Get real-time flight information from FlightAware AeroAPI
-app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, res) => {
+// Public flight info endpoint for standalone form
+app.get('/api/flights/info/:flightNumber/:date', async (req, res) => {
   try {
     const { flightNumber, date } = req.params;
     
