@@ -105,6 +105,26 @@ class TelegramNotificationService {
   }
 
   /**
+   * Format airport display in proper format: IATA, City, State (no Country for USA)
+   * @param {string} airportCode - Airport IATA code
+   * @returns {string} Formatted airport display
+   */
+  formatAirportDisplay(airportCode) {
+    if (!airportCode) return 'Unknown Airport';
+    
+    const airport = this.timezoneService.getAirportInfo(airportCode);
+    if (airport) {
+      // Format: IATA, City, State (no Country for USA)
+      return airport.country === 'USA' 
+        ? `${airport.code}, ${airport.city}, ${airport.state}`
+        : `${airport.code}, ${airport.city}, ${airport.state || airport.country}`;
+    }
+    
+    // Fallback if airport not found
+    return airportCode;
+  }
+
+  /**
    * Format datetime with airport timezone
    * @param {string|Date} datetime - Flight datetime 
    * @param {string} airportCode - Airport IATA code
@@ -416,7 +436,7 @@ class TelegramNotificationService {
                      `✈️ *Your Upcoming Flights*\n\n`;
         userFlights.slice(0, 5).forEach((flight, index) => {
           message += `${index + 1}. *${flight.airline}* ${flight.flightNumber}\n`;
-          message += `   ${flight.from} → ${flight.to}\n`;
+          message += `   ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n`;
           message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
         });
 
@@ -471,7 +491,7 @@ class TelegramNotificationService {
                      `✈️ *Your Upcoming Flights*\n\n`;
         passengerFlights.slice(0, 5).forEach((flight, index) => {
           message += `${index + 1}. *${flight.airline}* ${flight.flightNumber}\n`;
-          message += `   ${flight.from} → ${flight.to}\n`;
+          message += `   ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n`;
           message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
           if (flight.pickupSevakName) {
             message += `   🚗 Pickup: ${flight.pickupSevakName}\n`;
@@ -609,10 +629,10 @@ class TelegramNotificationService {
                      `Flight: *${flight.flightNumber}*\n` +
                      `Airline: ${flight.airline}\n\n` +
                      `🛫 *Departure*\n` +
-                     `Airport: ${flight.departureAirport}\n` +
+                     `Airport: ${this.formatAirportDisplay(flight.from)}\n` +
                      `Time: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
                      `🛬 *Arrival*\n` +
-                     `Airport: ${flight.arrivalAirport}\n` +
+                     `Airport: ${this.formatAirportDisplay(flight.to)}\n` +
                      `Time: ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
 
         // Add passenger information if available
@@ -740,7 +760,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `🚨 *${volunteerType.toUpperCase()} REMINDER*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `👥 *Passengers:* ${passengers}\n` +
       `🕐 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
       `📞 *Your contact:* ${volunteerPhone}\n\n` +
@@ -766,7 +786,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `✅ *FLIGHT CONFIRMATION*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
       `🛬 *Arrival:* ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n` +
       `${flight.pickupSevakName ? `🚗 *Pickup Volunteer:* ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
@@ -812,7 +832,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `🔄 *FLIGHT ${updateType.toUpperCase()}*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `👥 *Passengers:* ${passengers}\n` +
       `🛫 *New Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
       `Please update your schedule accordingly.`;
@@ -872,7 +892,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `✅ *NEW FLIGHT ADDED*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `👥 *Passengers:* ${passengers}\n` +
       `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
       `🛬 *Arrival:* ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n` +
@@ -913,7 +933,7 @@ class TelegramNotificationService {
         `Jai Swaminarayan 🙏\n\n` +
         `🔄 *FLIGHT ${updateType.toUpperCase()}*\n\n` +
         `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-        `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+        `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
         `👥 *Passengers:* ${passengers}\n` +
         `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
 
@@ -969,7 +989,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `📱 *YOUR FLIGHT HAS BEEN UPDATED*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
 
     // Add real-time status if available
@@ -1038,7 +1058,7 @@ class TelegramNotificationService {
       `Jai Swaminarayan 🙏\n\n` +
       `🚨 *FLIGHT DELAY ALERT*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
       `👥 *Passengers:* ${passengers}\n` +
       `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
       `🔴 *CURRENT STATUS*\n` +
@@ -1245,7 +1265,7 @@ class TelegramNotificationService {
             `Jai Swaminarayan 🙏\n\n` +
             `⏰ *CHECK-IN REMINDER* - 24 Hours Notice\n\n` +
             `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-            `📍 *Route:* ${flight.from} → ${flight.to}\n` +
+            `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
             `🛫 *Departure:* ${departureLocal}\n\n` +
             `🎫 *Time to check in!*\n` +
             `Most airlines allow online check-in 24 hours before departure.\n\n` +

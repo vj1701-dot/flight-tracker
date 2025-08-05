@@ -1,50 +1,194 @@
 [
-  "Air India",
-  "American Airlines",
-  "Delta Air Lines", 
-  "United Airlines",
-  "Southwest Airlines",
-  "Alaska Airlines",
-  "JetBlue Airways",
-  "Spirit Airlines",
-  "Frontier Airlines",
-  "Hawaiian Airlines",
-  "British Airways",
-  "Lufthansa",
-  "Emirates",
-  "Qatar Airways",
-  "Singapore Airlines",
-  "Turkish Airlines",
-  "KLM Royal Dutch Airlines",
-  "Air France",
-  "Cathay Pacific",
-  "Japan Airlines",
-  "All Nippon Airways",
-  "Korean Air",
-  "China Eastern Airlines",
-  "China Southern Airlines",
-  "Etihad Airways",
-  "Virgin Atlantic",
-  "Virgin America",
-  "Air Canada",
-  "WestJet",
-  "Ryanair",
-  "EasyJet",
-  "Norwegian Air",
-  "Thai Airways",
-  "Malaysia Airlines",
-  "Philippine Airlines",
-  "Vietnam Airlines",
-  "Garuda Indonesia",
-  "Air New Zealand",
-  "Qantas",
-  "Jetstar Airways",
-  "Scoot",
-  "IndiGo",
-  "SpiceJet",
-  "GoAir",
-  "Vistara",
-  "AirAsia",
-  "Cebu Pacific",
-  "Lion Air"
+  {
+    "iata": "AI",
+    "name": "Air India"
+  },
+  {
+    "iata": "AA",
+    "name": "American Airlines"
+  },
+  {
+    "iata": "DL",
+    "name": "Delta Air Lines"
+  },
+  {
+    "iata": "UA",
+    "name": "United Airlines"
+  },
+  {
+    "iata": "WN",
+    "name": "Southwest Airlines"
+  },
+  {
+    "iata": "AS",
+    "name": "Alaska Airlines"
+  },
+  {
+    "iata": "B6",
+    "name": "JetBlue Airways"
+  },
+  {
+    "iata": "NK",
+    "name": "Spirit Airlines"
+  },
+  {
+    "iata": "F9",
+    "name": "Frontier Airlines"
+  },
+  {
+    "iata": "HA",
+    "name": "Hawaiian Airlines"
+  },
+  {
+    "iata": "BA",
+    "name": "British Airways"
+  },
+  {
+    "iata": "LH",
+    "name": "Lufthansa"
+  },
+  {
+    "iata": "EK",
+    "name": "Emirates"
+  },
+  {
+    "iata": "QR",
+    "name": "Qatar Airways"
+  },
+  {
+    "iata": "SQ",
+    "name": "Singapore Airlines"
+  },
+  {
+    "iata": "TK",
+    "name": "Turkish Airlines"
+  },
+  {
+    "iata": "KL",
+    "name": "KLM Royal Dutch Airlines"
+  },
+  {
+    "iata": "AF",
+    "name": "Air France"
+  },
+  {
+    "iata": "CX",
+    "name": "Cathay Pacific"
+  },
+  {
+    "iata": "JL",
+    "name": "Japan Airlines"
+  },
+  {
+    "iata": "NH",
+    "name": "All Nippon Airways"
+  },
+  {
+    "iata": "KE",
+    "name": "Korean Air"
+  },
+  {
+    "iata": "MU",
+    "name": "China Eastern Airlines"
+  },
+  {
+    "iata": "CZ",
+    "name": "China Southern Airlines"
+  },
+  {
+    "iata": "EY",
+    "name": "Etihad Airways"
+  },
+  {
+    "iata": "VS",
+    "name": "Virgin Atlantic"
+  },
+  {
+    "iata": "VX",
+    "name": "Virgin America"
+  },
+  {
+    "iata": "AC",
+    "name": "Air Canada"
+  },
+  {
+    "iata": "WS",
+    "name": "WestJet"
+  },
+  {
+    "iata": "FR",
+    "name": "Ryanair"
+  },
+  {
+    "iata": "U2",
+    "name": "EasyJet"
+  },
+  {
+    "iata": "DY",
+    "name": "Norwegian Air"
+  },
+  {
+    "iata": "TG",
+    "name": "Thai Airways"
+  },
+  {
+    "iata": "MH",
+    "name": "Malaysia Airlines"
+  },
+  {
+    "iata": "PR",
+    "name": "Philippine Airlines"
+  },
+  {
+    "iata": "VN",
+    "name": "Vietnam Airlines"
+  },
+  {
+    "iata": "GA",
+    "name": "Garuda Indonesia"
+  },
+  {
+    "iata": "NZ",
+    "name": "Air New Zealand"
+  },
+  {
+    "iata": "QF",
+    "name": "Qantas"
+  },
+  {
+    "iata": "JQ",
+    "name": "Jetstar Airways"
+  },
+  {
+    "iata": "TR",
+    "name": "Scoot"
+  },
+  {
+    "iata": "6E",
+    "name": "IndiGo"
+  },
+  {
+    "iata": "SG",
+    "name": "SpiceJet"
+  },
+  {
+    "iata": "G8",
+    "name": "GoAir"
+  },
+  {
+    "iata": "UK",
+    "name": "Vistara"
+  },
+  {
+    "iata": "AK",
+    "name": "AirAsia"
+  },
+  {
+    "iata": "5J",
+    "name": "Cebu Pacific"
+  },
+  {
+    "iata": "JT",
+    "name": "Lion Air"
+  }
 ]

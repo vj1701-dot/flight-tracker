@@ -516,6 +516,26 @@ class FlightInfoService {
   }
 
   /**
+   * Convert ICAO code to IATA code for US airports (K prefix)
+   * @param {string} code - Airport code (could be ICAO or IATA)
+   * @returns {string} IATA airport code
+   */
+  convertToIataCode(code) {
+    if (!code) return 'Unknown';
+    
+    // If code starts with K and is 4 characters, it's likely US ICAO -> convert to IATA
+    if (code.length === 4 && code.startsWith('K')) {
+      const iataCode = code.substring(1); // Remove 'K' prefix
+      console.log(`🔄 Converting ICAO ${code} to IATA ${iataCode}`);
+      return iataCode;
+    }
+    
+    // For international airports, we might need more complex mapping
+    // For now, return as-is
+    return code;
+  }
+
+  /**
    * Standardize airport information to match our local format
    * @param {Object} flightAwareAirport - Airport data from FlightAware API
    * @returns {Object} Standardized airport information
@@ -525,29 +545,38 @@ class FlightInfoService {
       return { name: 'Unknown Airport', code: 'Unknown', display: 'Unknown Airport' };
     }
 
-    // First try to get airport info from our local data
-    const localAirport = this.timezoneService.getAirportInfo(flightAwareAirport.code);
+    // Convert ICAO to IATA if needed
+    const iataCode = this.convertToIataCode(flightAwareAirport.code);
+    
+    // First try to get airport info from our local data using IATA code
+    const localAirport = this.timezoneService.getAirportInfo(iataCode);
     
     if (localAirport) {
-      // Use our local airport data format with new display format
+      // Use our local airport data format with proper display format
+      const displayFormat = localAirport.country === 'USA' 
+        ? `${localAirport.code}, ${localAirport.city}, ${localAirport.state}`
+        : `${localAirport.code}, ${localAirport.city}, ${localAirport.state || localAirport.country}`;
+      
+      console.log(`✅ Found airport ${iataCode}: ${displayFormat}`);
       return {
-        name: localAirport.display || localAirport.name, // Use display format (CODE, City, State, Country)
+        name: displayFormat,
         code: localAirport.code,
         city: localAirport.city,
         state: localAirport.state,
         timezone: localAirport.timezone,
-        display: localAirport.display || `${localAirport.code}, ${localAirport.city}${localAirport.state ? `, ${localAirport.state}` : ''}, ${localAirport.country}`
+        display: displayFormat
       };
     }
 
     // Fallback to FlightAware data if not in our local database
     const state = flightAwareAirport.state || null;
     const stateDisplay = state ? `, ${state}` : '';
-    const fallbackDisplay = `${flightAwareAirport.code}, ${flightAwareAirport.city || 'Unknown'}${stateDisplay}, ${flightAwareAirport.country || 'Unknown'}`;
+    const fallbackDisplay = `${iataCode}, ${flightAwareAirport.city || 'Unknown'}${stateDisplay}`;
     
+    console.log(`⚠️ Airport ${iataCode} not found in local data, using fallback: ${fallbackDisplay}`);
     return {
       name: fallbackDisplay,
-      code: flightAwareAirport.code || 'Unknown',
+      code: iataCode,
       city: flightAwareAirport.city || 'Unknown',
       state: state,
       timezone: null,
@@ -576,18 +605,34 @@ class FlightInfoService {
       const airlinesPath = path.join(__dirname, 'data', 'airlines.json');
       const airlinesData = JSON.parse(fs.readFileSync(airlinesPath, 'utf8'));
       
-      // Our airlines.json is an array of strings, so find matching airline by name
+      // First try to find by IATA code (most reliable)
+      if (flightAwareOperator.iata) {
+        const localAirline = airlinesData.find(airline => 
+          airline.iata === flightAwareOperator.iata
+        );
+        
+        if (localAirline) {
+          console.log(`✅ Found airline by IATA ${flightAwareOperator.iata}: ${localAirline.name}`);
+          return {
+            name: localAirline.name,
+            iata: localAirline.iata,
+            icao: flightAwareOperator.icao || 'Unknown'
+          };
+        }
+      }
+      
+      // Then try to find by name matching
       const flightAwareName = flightAwareOperator.name?.toLowerCase() || '';
       const localAirline = airlinesData.find(airline => 
-        airline.toLowerCase().includes(flightAwareName) ||
-        flightAwareName.includes(airline.toLowerCase())
+        airline.name.toLowerCase().includes(flightAwareName) ||
+        flightAwareName.includes(airline.name.toLowerCase())
       );
       
       if (localAirline) {
-        // Use our local airline name with FlightAware's IATA code
+        console.log(`✅ Found airline by name matching "${flightAwareName}": ${localAirline.name}`);
         return {
-          name: localAirline,
-          iata: flightAwareOperator.iata || 'Unknown',
+          name: localAirline.name,
+          iata: localAirline.iata,
           icao: flightAwareOperator.icao || 'Unknown'
         };
       }

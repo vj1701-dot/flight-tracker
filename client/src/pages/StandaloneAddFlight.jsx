@@ -479,8 +479,8 @@ export default function StandaloneAddFlight() {
                   options={airlines}
                   placeholder="Type to search airlines..."
                   error={errors.airline}
-                  getOptionValue={(option) => option}
-                  getOptionLabel={(option) => option}
+                  getOptionValue={(option) => option.name}
+                  getOptionLabel={(option) => option.name}
                 />
               </div>
 
