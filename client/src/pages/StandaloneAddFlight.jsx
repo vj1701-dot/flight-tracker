@@ -60,7 +60,7 @@ export default function StandaloneAddFlight() {
       if (formData.flightNumber.length < 3) return false // Minimum flight number length
       
       // Extract date from either datetime-local format or date format
-      const departureDate = formData.departureDateTime.includes('T') 
+      const departureDate = formData.departureDateTime && formData.departureDateTime.includes('T') 
         ? formData.departureDateTime.split('T')[0]
         : formData.departureDateTime
       if (!departureDate || departureDate.length !== 10) return false
@@ -639,7 +639,7 @@ export default function StandaloneAddFlight() {
                 }}>
                   Departure Date & Time *
                 </label>
-                {flightInfoFetched || formData.departureDateTime.includes('T') ? (
+                {flightInfoFetched || (formData.departureDateTime && formData.departureDateTime.includes('T')) ? (
                   <input
                     type="datetime-local"
                     name="departureDateTime"
@@ -657,7 +657,7 @@ export default function StandaloneAddFlight() {
                   <input
                     type="date"
                     name="departureDateTime"
-                    value={formData.departureDateTime.split('T')[0] || ''}
+                    value={formData.departureDateTime ? formData.departureDateTime.split('T')[0] : ''}
                     onChange={(e) => {
                       const dateValue = e.target.value;
                       if (dateValue) {
