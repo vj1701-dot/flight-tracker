@@ -90,7 +90,10 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
     
     setFetchingFlightInfo(true)
     try {
-      const departureDate = formData.departureDateTime.split('T')[0] // Extract date part
+      // Extract date from either datetime-local format or date format (same logic as useEffect)
+      const departureDate = formData.departureDateTime && formData.departureDateTime.includes('T') 
+        ? formData.departureDateTime.split('T')[0]
+        : formData.departureDateTime
       const token = localStorage.getItem('token')
       
       const response = await fetch(`${API_BASE}/admin/flights/info/${formData.flightNumber}/${departureDate}`, {
@@ -104,21 +107,23 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
           const flight = flightInfo.data
           
           // Auto-populate form data
-          console.log('🔍 Single flight API response scheduledForInput values:', {
-            departure: flight.departure?.scheduledForInput,
-            arrival: flight.arrival?.scheduledForInput,
-            prevDeparture: prev.departureDateTime,
-            prevArrival: prev.arrivalDateTime
-          });
-          
-          setFormData(prev => ({
-            ...prev,
-            airline: flight.airline || prev.airline,
-            from: flight.departure?.airport || prev.from,
-            to: flight.arrival?.airport || prev.to,
-            departureDateTime: flight.departure?.scheduledForInput || prev.departureDateTime,
-            arrivalDateTime: flight.arrival?.scheduledForInput || prev.arrivalDateTime
-          }))
+          setFormData(prev => {
+            console.log('🔍 Single flight API response scheduledForInput values:', {
+              departure: flight.departure?.scheduledForInput,
+              arrival: flight.arrival?.scheduledForInput,
+              prevDeparture: prev.departureDateTime,
+              prevArrival: prev.arrivalDateTime
+            });
+            
+            return {
+              ...prev,
+              airline: flight.airline || prev.airline,
+              from: flight.departure?.airport || prev.from,
+              to: flight.arrival?.airport || prev.to,
+              departureDateTime: flight.departure?.scheduledForInput || prev.departureDateTime,
+              arrivalDateTime: flight.arrival?.scheduledForInput || prev.arrivalDateTime
+            };
+          })
           
           setFlightInfoFetched(true)
           setFlightInfoMessage('Flight details auto-populated successfully!')
