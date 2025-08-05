@@ -1386,26 +1386,38 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
     
     if (result.multipleFlights) {
       // Handle multiple flights case - transform each flight
-      const transformedFlights = result.flights.map(flight => ({
-        airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
-        departure: {
-          airport: flight.departureAirport,
-          scheduled: flight.scheduledDeparture,
-          scheduledTime: flight.scheduledDeparture,
-          scheduledForInput: flight.scheduledDepartureRaw,
-          timezone: flight.departureTimezone
-        },
-        arrival: {
-          airport: flight.arrivalAirport,
-          scheduled: flight.scheduledArrival,
-          scheduledTime: flight.scheduledArrival,
-          scheduledForInput: flight.scheduledArrivalRaw,
-          timezone: flight.arrivalTimezone
-        },
-        status: flight.flightStatus,
-        duration: flight.duration
-      }));
+      console.log(`🔄 Transforming ${result.flights.length} flights for multiple flights response`);
       
+      const transformedFlights = result.flights.map((flight, index) => {
+        console.log(`🔄 Transforming flight ${index + 1}:`, {
+          airline: flight.airlineName,
+          departure: flight.departureAirport,
+          arrival: flight.arrivalAirport,
+          scheduledDepartureRaw: flight.scheduledDepartureRaw
+        });
+        
+        return {
+          airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
+          departure: {
+            airport: flight.departureAirport,
+            scheduled: flight.scheduledDeparture,
+            scheduledTime: flight.scheduledDeparture,
+            scheduledForInput: flight.scheduledDepartureRaw,
+            timezone: flight.departureTimezone
+          },
+          arrival: {
+            airport: flight.arrivalAirport,
+            scheduled: flight.scheduledArrival,
+            scheduledTime: flight.scheduledArrival,
+            scheduledForInput: flight.scheduledArrivalRaw,
+            timezone: flight.arrivalTimezone
+          },
+          status: flight.flightStatus,
+          duration: flight.duration
+        };
+      });
+      
+      console.log(`✅ Successfully transformed multiple flights, sending response`);
       res.json({
         multipleFlights: true,
         flights: transformedFlights,

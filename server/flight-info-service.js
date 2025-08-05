@@ -207,17 +207,19 @@ class FlightInfoService {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     const maxFutureDate = new Date(today);
-    maxFutureDate.setDate(today.getDate() + 2); // FlightAware allows max 2 days in future
+    maxFutureDate.setDate(today.getDate() + 7); // FlightAware allows up to 7 days in future
     const maxFutureDateStr = maxFutureDate.toISOString().split('T')[0];
 
     const minPastDate = new Date(today);
     minPastDate.setDate(today.getDate() - 10); // FlightAware allows max 10 days in past
     const minPastDateStr = minPastDate.toISOString().split('T')[0];
 
+    console.log(`📅 Date validation: today=${todayStr}, requested=${flightDate}, maxFuture=${maxFutureDateStr}, minPast=${minPastDateStr}`);
+
     if (flightDate > maxFutureDateStr) {
       return {
         error: true,
-        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is more than 48 hours in the future - FlightAware API only provides data up to 2 days ahead (maximum date: ${maxFutureDateStr}). Please manually enter flight details.`,
+        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is too far in the future - FlightAware API only provides data up to 7 days ahead (maximum date: ${maxFutureDateStr}). Please manually enter flight details.`,
         fallback: this.generateFlightSuggestion(flightNumber, flightDate)
       };
     }
