@@ -358,6 +358,14 @@ class FlightInfoService {
     const origin = flight.origin || {};
     const destination = flight.destination || {};
     const operator = flight.operator || {};
+    
+    // Handle operator_iata field from FlightAware API
+    if (flight.operator_iata && !operator.iata) {
+      operator.iata = flight.operator_iata;
+    }
+    if (flight.operator_icao && !operator.icao) {
+      operator.icao = flight.operator_icao;
+    }
 
     // Calculate delay notification
     const departureDelay = this.getDelayInfo(
@@ -370,6 +378,10 @@ class FlightInfoService {
     const standardizedArrivalAirport = this.standardizeAirportInfo(destination);
     const standardizedAirline = this.standardizeAirlineInfo(operator);
 
+    // Use IATA codes for timezone conversion
+    const departureIataCode = standardizedDepartureAirport.code;
+    const arrivalIataCode = standardizedArrivalAirport.code;
+
     const result = {
       error: false,
       flightNumber: flight.ident || 'Unknown',
@@ -379,28 +391,28 @@ class FlightInfoService {
       departureIata: standardizedDepartureAirport.code,
       arrivalAirport: standardizedArrivalAirport.name,
       arrivalIata: standardizedArrivalAirport.code,
-      scheduledDeparture: this.formatDateTime(flight.scheduled_out, origin.code),
-      scheduledArrival: this.formatDateTime(flight.scheduled_in, destination.code),
-      actualDeparture: this.formatDateTime(flight.actual_out, origin.code),
-      estimatedDeparture: this.formatDateTime(flight.estimated_out, origin.code),
-      actualArrival: this.formatDateTime(flight.actual_in, destination.code),
-      estimatedArrival: this.formatDateTime(flight.estimated_in, destination.code),
+      scheduledDeparture: this.formatDateTime(flight.scheduled_out, departureIataCode),
+      scheduledArrival: this.formatDateTime(flight.scheduled_in, arrivalIataCode),
+      actualDeparture: this.formatDateTime(flight.actual_out, departureIataCode),
+      estimatedDeparture: this.formatDateTime(flight.estimated_out, departureIataCode),
+      actualArrival: this.formatDateTime(flight.actual_in, arrivalIataCode),
+      estimatedArrival: this.formatDateTime(flight.estimated_in, arrivalIataCode),
       // Raw datetime values for form auto-population (converted to airport timezone)
-      scheduledDepartureRaw: this.formatDateTimeForInput(flight.scheduled_out, origin.code),
-      scheduledArrivalRaw: this.formatDateTimeForInput(flight.scheduled_in, destination.code),
-      actualDepartureRaw: this.formatDateTimeForInput(flight.actual_out, origin.code),
-      estimatedDepartureRaw: this.formatDateTimeForInput(flight.estimated_out, origin.code),
-      actualArrivalRaw: this.formatDateTimeForInput(flight.actual_in, destination.code),
-      estimatedArrivalRaw: this.formatDateTimeForInput(flight.estimated_in, destination.code),
+      scheduledDepartureRaw: this.formatDateTimeForInput(flight.scheduled_out, departureIataCode),
+      scheduledArrivalRaw: this.formatDateTimeForInput(flight.scheduled_in, arrivalIataCode),
+      actualDepartureRaw: this.formatDateTimeForInput(flight.actual_out, departureIataCode),
+      estimatedDepartureRaw: this.formatDateTimeForInput(flight.estimated_out, departureIataCode),
+      actualArrivalRaw: this.formatDateTimeForInput(flight.actual_in, arrivalIataCode),
+      estimatedArrivalRaw: this.formatDateTimeForInput(flight.estimated_in, arrivalIataCode),
       flightStatus: flight.status || 'unknown',
       delayNotification: departureDelay,
       flightDate: flightDate,
       rawData: flight // Include raw data for debugging
     };
 
-    // Add timezone information if available
-    if (origin.code) {
-      const depAirport = this.timezoneService.getAirportInfo(origin.code);
+    // Add timezone information if available (use IATA codes)
+    if (departureIataCode) {
+      const depAirport = this.timezoneService.getAirportInfo(departureIataCode);
       if (depAirport) {
         result.departureTimezone = depAirport.timezone;
         result.departureCity = depAirport.city;
@@ -408,8 +420,8 @@ class FlightInfoService {
       }
     }
 
-    if (destination.code) {
-      const arrAirport = this.timezoneService.getAirportInfo(destination.code);
+    if (arrivalIataCode) {
+      const arrAirport = this.timezoneService.getAirportInfo(arrivalIataCode);
       if (arrAirport) {
         result.arrivalTimezone = arrAirport.timezone;
         result.arrivalCity = arrAirport.city;
