@@ -1498,10 +1498,10 @@ app.get('/api/flights/upcoming/:flightNumber', async (req, res) => {
     
     console.log(`🔍 Fetching upcoming flights for ${flightNumber} in next 48-72 hours`);
     
-    // Calculate date range (today to +2 days max due to API limitations)  
+    // Calculate date range (today to +1 day max due to API limitations)  
     const today = new Date();
     const maxDate = new Date(today);
-    maxDate.setDate(today.getDate() + 2); // FlightAware allows max 2 days in future
+    maxDate.setDate(today.getDate() + 1); // FlightAware allows max 2 days total (today + 1)
     
     const startDate = today.toISOString().split('T')[0];
     const endDate = maxDate.toISOString().split('T')[0];

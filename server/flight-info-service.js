@@ -373,12 +373,18 @@ class FlightInfoService {
     const destination = flight.destination || {};
     const operator = flight.operator || {};
     
-    // Handle operator_iata field from FlightAware API
-    if (flight.operator_iata && !operator.iata) {
-      operator.iata = flight.operator_iata;
+    // Handle operator field - FlightAware sometimes returns string instead of object
+    let operatorObj = operator;
+    if (typeof operator === 'string') {
+      operatorObj = { icao: operator, name: operator };
     }
-    if (flight.operator_icao && !operator.icao) {
-      operator.icao = flight.operator_icao;
+    
+    // Handle operator_iata field from FlightAware API
+    if (flight.operator_iata && (!operatorObj.iata || typeof operatorObj.iata === 'undefined')) {
+      operatorObj.iata = flight.operator_iata;
+    }
+    if (flight.operator_icao && (!operatorObj.icao || typeof operatorObj.icao === 'undefined')) {
+      operatorObj.icao = flight.operator_icao;
     }
 
     // Calculate delay notification
@@ -390,7 +396,7 @@ class FlightInfoService {
     // Standardize airport and airline data to match our local format
     const standardizedDepartureAirport = this.standardizeAirportInfo(origin);
     const standardizedArrivalAirport = this.standardizeAirportInfo(destination);
-    const standardizedAirline = this.standardizeAirlineInfo(operator);
+    const standardizedAirline = this.standardizeAirlineInfo(operatorObj);
 
     // Use IATA codes for timezone conversion
     const departureIataCode = standardizedDepartureAirport.code;
