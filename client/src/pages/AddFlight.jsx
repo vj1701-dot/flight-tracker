@@ -67,16 +67,36 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
   // Auto-fetch flight information when flight number and departure date are provided
   useEffect(() => {
     const shouldFetchFlightInfo = () => {
-      if (!formData.flightNumber || !formData.departureDateTime) return false
-      if (fetchingFlightInfo || flightInfoFetched) return false
-      if (formData.flightNumber.length < 3) return false // Minimum flight number length
+      console.log('🔍 [Admin] Checking if should fetch flight info:', {
+        flightNumber: formData.flightNumber,
+        departureDateTime: formData.departureDateTime,
+        fetchingFlightInfo,
+        flightInfoFetched
+      });
+      
+      if (!formData.flightNumber || !formData.departureDateTime) {
+        console.log('❌ [Admin] Missing required fields: flightNumber or departureDateTime');
+        return false;
+      }
+      if (fetchingFlightInfo || flightInfoFetched) {
+        console.log('❌ [Admin] Already fetching or fetched');
+        return false;
+      }
+      if (formData.flightNumber.length < 3) {
+        console.log('❌ [Admin] Flight number too short:', formData.flightNumber.length);
+        return false;
+      }
       
       // Extract date from either datetime-local format or date format
       const departureDate = formData.departureDateTime && formData.departureDateTime.includes('T') 
         ? formData.departureDateTime.split('T')[0]
         : formData.departureDateTime
-      if (!departureDate || departureDate.length !== 10) return false
+      if (!departureDate || departureDate.length !== 10) {
+        console.log('❌ [Admin] Invalid date format:', departureDate);
+        return false;
+      }
       
+      console.log('✅ [Admin] All conditions met, will fetch flight info');
       return true
     }
 
@@ -88,6 +108,7 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
   const fetchFlightInformation = async () => {
     if (fetchingFlightInfo) return
     
+    console.log('🚀 [Admin] Starting fetchFlightInformation...');
     setFetchingFlightInfo(true)
     try {
       // Extract date from either datetime-local format or date format (same logic as useEffect)
@@ -96,9 +117,10 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
         : formData.departureDateTime
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`${API_BASE}/admin/flights/info/${formData.flightNumber}/${departureDate}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const apiUrl = `${API_BASE}/flights/info/${formData.flightNumber}/${departureDate}`;
+      console.log('📡 [Admin] Making API call to:', apiUrl);
+      
+      const response = await fetch(apiUrl)
       
       if (response.ok) {
         const flightInfo = await response.json()
