@@ -241,12 +241,30 @@ deploy_with_backup() {
     # Step 3: Deploy the service
     log_info "Deploying service..."
     
+    log_info "Checking for required deployment secrets..."
+    if [[ -z "$JWT_SECRET" || -z "$TELEGRAM_BOT_TOKEN" ]]; then
+        log_error "Required environment variables JWT_SECRET and TELEGRAM_BOT_TOKEN are not set."
+        log_error "You can generate a JWT_SECRET by running: ./generate-env.sh"
+        log_error "Then export the variables before deploying:"
+        log_error "  export JWT_SECRET=..."
+        log_error "  export TELEGRAM_BOT_TOKEN=..."
+        log_error "  export FLIGHTAWARE_API_KEY=... (optional)"
+        return 1
+    fi
+    log_success "Required secrets found in environment."
+
+    # Build environment variables string
+    local ENV_VARS="NODE_ENV=production,BACKUP_BUCKET_NAME=$BACKUP_BUCKET_NAME,JWT_SECRET=$JWT_SECRET,TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"
+    if [[ -n "$FLIGHTAWARE_API_KEY" ]]; then
+        ENV_VARS="$ENV_VARS,FLIGHTAWARE_API_KEY=$FLIGHTAWARE_API_KEY"
+    fi
+
     if ! gcloud run deploy "$SERVICE_NAME" \
         --source . \
         --region="$REGION" \
         --platform managed \
         --allow-unauthenticated \
-        --set-env-vars="NODE_ENV=production,BACKUP_BUCKET_NAME=$BACKUP_BUCKET_NAME" \
+        --set-env-vars="$ENV_VARS" \
         --memory=1Gi \
         --cpu=1000m \
         --timeout=300 \

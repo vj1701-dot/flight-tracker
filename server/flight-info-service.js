@@ -13,7 +13,7 @@ class FlightInfoService {
     // Warn if API key is not configured
     if (!this.apiKey) {
       console.warn('⚠️  WARNING: FLIGHTAWARE_API_KEY environment variable not set. Flight tracking features will be disabled.');
-    } else if (process.env.NODE_ENV === 'production') {
+    } else if (process.env.NODE_ENV === 'production' && this.apiKey !== 'YOUR_FLIGHTAWARE_API_KEY') {
       console.log('✅ FlightAware API configured for production');
     }
   }
