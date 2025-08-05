@@ -1384,7 +1384,34 @@ app.get('/api/flights/info/:flightNumber/:date', authenticateToken, async (req, 
     
     const result = await flightInfoService.getFlightInfo(flightNumber, date);
     
-    if (!result.error) {
+    if (result.multipleFlights) {
+      // Handle multiple flights case - transform each flight
+      const transformedFlights = result.flights.map(flight => ({
+        airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
+        departure: {
+          airport: flight.departureAirport,
+          scheduled: flight.scheduledDeparture,
+          scheduledTime: flight.scheduledDeparture,
+          scheduledForInput: flight.scheduledDepartureRaw,
+          timezone: flight.departureTimezone
+        },
+        arrival: {
+          airport: flight.arrivalAirport,
+          scheduled: flight.scheduledArrival,
+          scheduledTime: flight.scheduledArrival,
+          scheduledForInput: flight.scheduledArrivalRaw,
+          timezone: flight.arrivalTimezone
+        },
+        status: flight.flightStatus,
+        duration: flight.duration
+      }));
+      
+      res.json({
+        multipleFlights: true,
+        flights: transformedFlights,
+        source: 'FlightAware AeroAPI'
+      });
+    } else if (!result.error) {
       // Transform the FlightAware data to match our expected format
       const transformedData = {
         airline: result.airlineName || flightNumber.substring(0, 2).toUpperCase(),

@@ -119,6 +119,7 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
           setMultipleFlights(flightInfo.flights)
           setShowFlightSelection(true)
           setFlightInfoMessage(`Found ${flightInfo.flights.length} flights for ${formData.flightNumber}. Please select the correct one.`)
+          // Don't set flightInfoFetched to true for multiple flights
           console.log(`⚠️ Multiple flights found: ${flightInfo.flights.length}`)
         } else if (flightInfo.fallback) {
           // Handle API limitations gracefully with suggestions

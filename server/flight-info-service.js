@@ -565,6 +565,9 @@ class FlightInfoService {
       return { name: 'Unknown Airline', iata: 'Unknown' };
     }
 
+    // Debug logging to see what FlightAware provides
+    console.log('🔍 FlightAware operator data:', JSON.stringify(flightAwareOperator, null, 2));
+
     // Read our local airlines data to get standardized names
     const fs = require('fs');
     const path = require('path');
@@ -591,11 +594,12 @@ class FlightInfoService {
 
       // Create mappings for common airlines by both name and IATA code
       const airlineMapping = {
-        'alaska airlines': 'Alaska Airlines',
-        'american airlines': 'American Airlines', 
+        'air india': 'Air India',
+        'american airlines': 'American Airlines',
         'delta air lines': 'Delta Air Lines',
         'united airlines': 'United Airlines',
         'southwest airlines': 'Southwest Airlines',
+        'alaska airlines': 'Alaska Airlines',
         'jetblue airways': 'JetBlue Airways',
         'spirit airlines': 'Spirit Airlines',
         'frontier airlines': 'Frontier Airlines',
@@ -604,16 +608,52 @@ class FlightInfoService {
         'lufthansa': 'Lufthansa',
         'emirates': 'Emirates',
         'qatar airways': 'Qatar Airways',
-        'air india': 'Air India'
+        'singapore airlines': 'Singapore Airlines',
+        'turkish airlines': 'Turkish Airlines',
+        'klm royal dutch airlines': 'KLM Royal Dutch Airlines',
+        'klm': 'KLM Royal Dutch Airlines',
+        'air france': 'Air France',
+        'cathay pacific': 'Cathay Pacific',
+        'japan airlines': 'Japan Airlines',
+        'all nippon airways': 'All Nippon Airways',
+        'ana': 'All Nippon Airways',
+        'korean air': 'Korean Air',
+        'china eastern airlines': 'China Eastern Airlines',
+        'china southern airlines': 'China Southern Airlines',
+        'etihad airways': 'Etihad Airways',
+        'virgin atlantic': 'Virgin Atlantic',
+        'virgin america': 'Virgin America',
+        'air canada': 'Air Canada',
+        'westjet': 'WestJet',
+        'ryanair': 'Ryanair',
+        'easyjet': 'EasyJet',
+        'norwegian air': 'Norwegian Air',
+        'thai airways': 'Thai Airways',
+        'malaysia airlines': 'Malaysia Airlines',
+        'philippine airlines': 'Philippine Airlines',
+        'vietnam airlines': 'Vietnam Airlines',
+        'garuda indonesia': 'Garuda Indonesia',
+        'air new zealand': 'Air New Zealand',
+        'qantas': 'Qantas',
+        'jetstar airways': 'Jetstar Airways',
+        'scoot': 'Scoot',
+        'indigo': 'IndiGo',
+        'spicejet': 'SpiceJet',
+        'goair': 'GoAir',
+        'vistara': 'Vistara',
+        'airasia': 'AirAsia',
+        'cebu pacific': 'Cebu Pacific',
+        'lion air': 'Lion Air'
       };
 
-      // IATA code to airline name mapping
+      // Comprehensive IATA code to airline name mapping
       const iataMapping = {
-        'AS': 'Alaska Airlines',
+        'AI': 'Air India',
         'AA': 'American Airlines',
         'DL': 'Delta Air Lines',
         'UA': 'United Airlines',
         'WN': 'Southwest Airlines',
+        'AS': 'Alaska Airlines',
         'B6': 'JetBlue Airways',
         'NK': 'Spirit Airlines',
         'F9': 'Frontier Airlines',
@@ -622,26 +662,63 @@ class FlightInfoService {
         'LH': 'Lufthansa',
         'EK': 'Emirates',
         'QR': 'Qatar Airways',
-        'AI': 'Air India'
+        'SQ': 'Singapore Airlines',
+        'TK': 'Turkish Airlines',
+        'KL': 'KLM Royal Dutch Airlines',
+        'AF': 'Air France',
+        'CX': 'Cathay Pacific',
+        'JL': 'Japan Airlines',
+        'NH': 'All Nippon Airways',
+        'KE': 'Korean Air',
+        'MU': 'China Eastern Airlines',
+        'CZ': 'China Southern Airlines',
+        'EY': 'Etihad Airways',
+        'VS': 'Virgin Atlantic',
+        'VX': 'Virgin America',
+        'AC': 'Air Canada',
+        'WS': 'WestJet',
+        'FR': 'Ryanair',
+        'U2': 'EasyJet',
+        'DY': 'Norwegian Air',
+        'TG': 'Thai Airways',
+        'MH': 'Malaysia Airlines',
+        'PR': 'Philippine Airlines',
+        'VN': 'Vietnam Airlines',
+        'GA': 'Garuda Indonesia',
+        'NZ': 'Air New Zealand',
+        'QF': 'Qantas',
+        'JQ': 'Jetstar Airways',
+        'TR': 'Scoot',
+        '6E': 'IndiGo',
+        'SG': 'SpiceJet',
+        'G8': 'GoAir',
+        'UK': 'Vistara',
+        'AK': 'AirAsia',
+        '5J': 'Cebu Pacific',
+        'JT': 'Lion Air'
       };
 
       // First try IATA code mapping (more reliable)
       if (flightAwareOperator.iata && iataMapping[flightAwareOperator.iata]) {
-        return {
+        const mappedAirline = {
           name: iataMapping[flightAwareOperator.iata],
           iata: flightAwareOperator.iata,
           icao: flightAwareOperator.icao || 'Unknown'
         };
+        console.log(`✅ Mapped IATA ${flightAwareOperator.iata} to airline: ${mappedAirline.name}`);
+        return mappedAirline;
       }
 
       // Then try name mapping
       const mappedAirline = airlineMapping[flightAwareName];
       if (mappedAirline) {
-        return {
+        const result = {
           name: mappedAirline,
           iata: flightAwareOperator.iata || 'Unknown',
           icao: flightAwareOperator.icao || 'Unknown'
         };
+        console.log(`✅ Mapped airline name "${flightAwareName}" to: ${result.name}`);
+        return result;
       }
 
     } catch (error) {
@@ -649,11 +726,13 @@ class FlightInfoService {
     }
 
     // Fallback to FlightAware data if not in our local database
-    return {
+    const fallbackResult = {
       name: flightAwareOperator.name || 'Unknown Airline',
       iata: flightAwareOperator.iata || 'Unknown',
       icao: flightAwareOperator.icao || 'Unknown'
     };
+    console.log(`⚠️ No mapping found, using FlightAware data: ${JSON.stringify(fallbackResult)}`);
+    return fallbackResult;
   }
 }
 
