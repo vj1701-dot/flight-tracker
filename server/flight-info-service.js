@@ -31,6 +31,10 @@ class FlightInfoService {
       return validation;
     }
 
+    // Build URL outside try block so it's available for error logging
+    let flightIdent = flightNumber.toUpperCase();
+    const url = `${this.baseUrl}/flights/${flightIdent}`;
+    
     try {
       console.log(`🔍 Fetching flight info for ${flightNumber} on ${flightDate}...`);
       console.log(`🔑 Using API key: ${this.apiKey.substring(0, 8)}...${this.apiKey.substring(-4)}`);
@@ -38,14 +42,12 @@ class FlightInfoService {
 
       // FlightAware AeroAPI endpoint for flight schedules
       // Note: FlightAware uses flight identifiers in format like "AAL123" not just "123"
-      let flightIdent = flightNumber.toUpperCase();
       
       // Ensure flight number has airline code - if it doesn't appear to have one, try to add it
       if (!/^[A-Z]{2,3}\d+$/.test(flightIdent)) {
         console.log(`⚠️ Flight number ${flightIdent} may not be in correct format for FlightAware API`);
       }
       
-      const url = `${this.baseUrl}/flights/${flightIdent}`;
       console.log(`📡 Full request URL: ${url}`);
       
       const requestHeaders = {
@@ -207,7 +209,7 @@ class FlightInfoService {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     const maxFutureDate = new Date(today);
-    maxFutureDate.setDate(today.getDate() + 7); // FlightAware allows up to 7 days in future
+    maxFutureDate.setDate(today.getDate() + 2); // FlightAware allows up to 2 days in future
     const maxFutureDateStr = maxFutureDate.toISOString().split('T')[0];
 
     const minPastDate = new Date(today);
@@ -219,7 +221,7 @@ class FlightInfoService {
     if (flightDate > maxFutureDateStr) {
       return {
         error: true,
-        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is too far in the future - FlightAware API only provides data up to 7 days ahead (maximum date: ${maxFutureDateStr}). Please manually enter flight details.`,
+        message: `Auto-populate not available for ${flightNumber} on ${flightDate}. Flight date is too far in the future - FlightAware API only provides data up to 2 days ahead (maximum date: ${maxFutureDateStr}). Please manually enter flight details.`,
         fallback: this.generateFlightSuggestion(flightNumber, flightDate)
       };
     }
