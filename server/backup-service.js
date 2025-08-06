@@ -371,7 +371,7 @@ class BackupService {
       const { success, backups } = await this.listBackups();
       if (!success) return;
 
-      const autoBackups = backups.filter(b => b.startsWith('auto-')).sort().reverse();
+      const autoBackups = backups.filter(b => b.folder && b.folder.startsWith('auto-')).sort((a, b) => b.folder.localeCompare(a.folder));
       
       if (autoBackups.length > keepCount) {
         const toDelete = autoBackups.slice(keepCount);
@@ -385,7 +385,8 @@ class BackupService {
   async cleanupGCSBackups(toDelete) {
     const bucket = this.storage.bucket(this.bucketName);
     
-    for (const backupFolder of toDelete) {
+    for (const backupObj of toDelete) {
+      const backupFolder = backupObj.folder || backupObj; // Handle both object and string formats
       const [files] = await bucket.getFiles({ prefix: `${backupFolder}/` });
       await Promise.all(files.map(file => file.delete()));
       console.log(`🗑️  Deleted old GCS backup: ${backupFolder}`);
@@ -412,8 +413,8 @@ class BackupService {
       const { success, backups } = await this.listBackups();
       if (!success) return { error: 'Failed to get stats' };
 
-      const autoBackups = backups.filter(b => b.startsWith('auto-'));
-      const manualBackups = backups.filter(b => b.startsWith('manual-'));
+      const autoBackups = backups.filter(b => b.folder && b.folder.startsWith('auto-'));
+      const manualBackups = backups.filter(b => b.folder && b.folder.startsWith('manual-'));
       
       let totalSize = 0;
       
