@@ -377,7 +377,6 @@ export default function UserManagement() {
                   )}
                 </div>
 
-
                 <div>
                   <label style={{ 
                     display: 'block', 

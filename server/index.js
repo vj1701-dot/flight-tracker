@@ -458,7 +458,7 @@ app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin
   try {
     const { username, name, email, password, role, allowedAirports } = req.body;
     
-    if (!username || !name || !email || !password || !role) {
+    if (!username || !name || !password || !role) {
       return res.status(400).json({ error: 'All fields required' });
     }
 
@@ -471,9 +471,9 @@ app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin
     }
 
     const users = await readUsers();
-    const existingUser = users.find(u => u.username === username || u.email === email);
+    const existingUser = users.find(u => u.username === username);
     if (existingUser) {
-      return res.status(409).json({ error: 'Username or email already exists' });
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -551,8 +551,8 @@ app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin
     const { id } = req.params;
     const { username, name, email, role, allowedAirports } = req.body;
     
-    if (!username || !name || !email || !role) {
-      return res.status(400).json({ error: 'Username, name, email, and role are required' });
+    if (!username || !name || !role) {
+      return res.status(400).json({ error: 'Username, name, and role are required' });
     }
 
     if (!['superadmin', 'admin', 'user'].includes(role)) {
@@ -577,10 +577,10 @@ app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin
       return res.status(403).json({ error: 'Admins cannot modify super admin accounts' });
     }
     
-    // Check if username or email already exists for other users
-    const existingUser = users.find(u => u.id !== id && (u.username === username || u.email === email));
+    // Check if username already exists for other users
+    const existingUser = users.find(u => u.id !== id && u.username === username);
     if (existingUser) {
-      return res.status(409).json({ error: 'Username or email already exists' });
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
     const updatedUser = {
