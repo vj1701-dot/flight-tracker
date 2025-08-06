@@ -81,8 +81,8 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
         console.log('❌ [Admin] Already fetching or fetched');
         return false;
       }
-      if (formData.flightNumber.length < 3) {
-        console.log('❌ [Admin] Flight number too short:', formData.flightNumber.length);
+      if (formData.flightNumber.length < 5) {
+        console.log('❌ [Admin] Flight number too short:', formData.flightNumber.length, '(minimum 5 characters required)');
         return false;
       }
       
@@ -131,9 +131,12 @@ export default function AddFlight({ onFlightAdded, onBackClick }) {
           console.log(`💡 ${fallback.message}`)
         } else {
           setFlightInfoMessage('Flight information not found, please enter manually')
+          setFlightInfoFetched(true) // Mark as completed to prevent getting stuck
           console.log('⚠️ Flight information not found in API, manual entry required')
         }
       } else {
+        setFlightInfoMessage('Could not fetch flight information from API')
+        setFlightInfoFetched(true) // Mark as completed to prevent getting stuck
         console.log('⚠️ Could not fetch flight information from API')
       }
     } catch (error) {

@@ -69,8 +69,8 @@ export default function StandaloneAddFlight() {
         console.log('❌ Already fetching or fetched');
         return false;
       }
-      if (formData.flightNumber.length < 3) {
-        console.log('❌ Flight number too short:', formData.flightNumber.length);
+      if (formData.flightNumber.length < 5) {
+        console.log('❌ Flight number too short:', formData.flightNumber.length, '(minimum 5 characters required)');
         return false;
       }
       
@@ -119,9 +119,12 @@ export default function StandaloneAddFlight() {
           console.log(`💡 ${fallback.message}`)
         } else {
           setFlightInfoMessage('Flight information not found, please enter manually and verify with your booking')
+          setFlightInfoFetched(true) // Mark as completed to prevent getting stuck
           console.log('⚠️ Flight information not found in API, manual entry required')
         }
       } else {
+        setFlightInfoMessage('Could not fetch flight information from API')
+        setFlightInfoFetched(true) // Mark as completed to prevent getting stuck
         console.log('⚠️ Could not fetch flight information from API')
       }
     } catch (error) {
@@ -313,27 +316,6 @@ export default function StandaloneAddFlight() {
             Enter flight number and departure date to auto-populate flight details, then add passenger information
           </p>
           
-          {/* Instructions */}
-          <div style={{
-            background: '#f0f9ff',
-            border: '1px solid #0ea5e9',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginTop: '1rem',
-            fontSize: '0.875rem',
-            color: '#075985'
-          }}>
-            <h4 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 0.5rem 0', color: '#0c4a6e' }}>
-              📋 How to Use This Form:
-            </h4>
-            <ol style={{ margin: '0', paddingLeft: '1.25rem' }}>
-              <li style={{ marginBottom: '0.25rem' }}><strong>Enter your flight number</strong> (e.g., AA123, UA456)</li>
-              <li style={{ marginBottom: '0.25rem' }}><strong>Select your departure date and time</strong></li>
-              <li style={{ marginBottom: '0.25rem' }}><strong>Wait for auto-population</strong> - Flight details will be filled automatically</li>
-              <li style={{ marginBottom: '0.25rem' }}><strong>Verify the information</strong> matches your booking confirmation</li>
-              <li><strong>Add passenger names</strong> and submit</li>
-            </ol>
-          </div>
         </div>
 
 
