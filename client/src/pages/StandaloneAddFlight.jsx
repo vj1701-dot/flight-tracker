@@ -52,7 +52,7 @@ export default function StandaloneAddFlight() {
     fetchData()
   }, [])
 
-  // Auto-fetch flight information when flight number is provided (no date required)
+  // Auto-fetch flight information when flight number is provided (debounced to allow full input)
   useEffect(() => {
     const shouldFetchFlightInfo = () => {
       console.log('🔍 Checking if should fetch flight info:', {
@@ -65,10 +65,6 @@ export default function StandaloneAddFlight() {
         console.log('❌ Missing flight number');
         return false;
       }
-      if (fetchingFlightInfo || flightInfoFetched) {
-        console.log('❌ Already fetching or fetched');
-        return false;
-      }
       if (formData.flightNumber.length < 5) {
         console.log('❌ Flight number too short:', formData.flightNumber.length, '(minimum 5 characters required)');
         return false;
@@ -78,15 +74,22 @@ export default function StandaloneAddFlight() {
       return true
     }
 
-    if (shouldFetchFlightInfo()) {
-      fetchFlightInformation()
-    }
+    // Debounce the API call to allow user to finish typing
+    const timeoutId = setTimeout(() => {
+      if (shouldFetchFlightInfo()) {
+        // Reset states to allow fresh API call for new flight number
+        setFlightInfoFetched(false)
+        setFlightInfoMessage('')
+        fetchFlightInformation()
+      }
+    }, 1000) // Wait 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
   }, [formData.flightNumber])
 
   const fetchFlightInformation = async () => {
-    if (fetchingFlightInfo) return
-    
-    console.log('🚀 Starting fetchFlightInformation for upcoming flights...');
+    const currentFlightNumber = formData.flightNumber
+    console.log('🚀 Starting fetchFlightInformation for upcoming flights:', currentFlightNumber);
     setFetchingFlightInfo(true)
     try {
       const apiUrl = `${API_BASE}/flights/upcoming/${formData.flightNumber}`;
@@ -96,6 +99,12 @@ export default function StandaloneAddFlight() {
       
       if (response.ok) {
         const flightInfo = await response.json()
+        
+        // Only process results if flight number hasn't changed during the API call
+        if (formData.flightNumber !== currentFlightNumber) {
+          console.log('⚠️ Flight number changed during API call, ignoring result');
+          return;
+        }
         
         if (flightInfo.flights && flightInfo.flights.length > 0) {
           // Always show selection dialog for upcoming flights

@@ -51,8 +51,8 @@ app.use((req, res, next) => {
 });
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 10 * 60 * 1000,
+  max: 2000,
   message: 'Too many requests from this IP',
   trustProxy: true, // Trust Cloud Run proxy headers
   keyGenerator: (req) => {
