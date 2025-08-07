@@ -25,9 +25,11 @@ export default function SearchableSelect({
 
   useEffect(() => {
     // Filter options based on search term
-    const filtered = options.filter(option => 
-      getOptionLabel(option).toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filtered = options.filter(option => {
+      const label = getOptionLabel(option)
+      return label && typeof label === 'string' && 
+        label.toLowerCase().includes(searchTerm.toLowerCase())
+    })
     setFilteredOptions(filtered)
     setSelectedIndex(-1)
   }, [searchTerm, options, getOptionLabel])
@@ -37,7 +39,8 @@ export default function SearchableSelect({
     if (value) {
       const selectedOption = options.find(option => getOptionValue(option) === value)
       if (selectedOption) {
-        setSearchTerm(getOptionLabel(selectedOption))
+        const label = getOptionLabel(selectedOption)
+        setSearchTerm(label && typeof label === 'string' ? label : '')
       }
     } else {
       setSearchTerm('')
@@ -54,7 +57,8 @@ export default function SearchableSelect({
   const handleOptionClick = (option) => {
     const optionValue = getOptionValue(option)
     onChange({ target: { name, value: optionValue } })
-    setSearchTerm(getOptionLabel(option))
+    const label = getOptionLabel(option)
+    setSearchTerm(label && typeof label === 'string' ? label : '')
     setIsOpen(false)
     setSelectedIndex(-1)
   }
@@ -72,7 +76,8 @@ export default function SearchableSelect({
         if (value) {
           const selectedOption = options.find(option => getOptionValue(option) === value)
           if (selectedOption) {
-            setSearchTerm(getOptionLabel(selectedOption))
+            const label = getOptionLabel(selectedOption)
+            setSearchTerm(label && typeof label === 'string' ? label : '')
           }
         } else {
           setSearchTerm('')
@@ -128,7 +133,11 @@ export default function SearchableSelect({
 
   const displayValue = value ? (
     options.find(option => getOptionValue(option) === value) ? 
-    getOptionLabel(options.find(option => getOptionValue(option) === value)) : value
+    (() => {
+      const selectedOption = options.find(option => getOptionValue(option) === value)
+      const label = getOptionLabel(selectedOption)
+      return label && typeof label === 'string' ? label : value
+    })() : value
   ) : ''
 
   return (

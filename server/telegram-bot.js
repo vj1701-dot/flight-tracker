@@ -15,6 +15,9 @@ if (process.env.NODE_ENV === 'production' && !BOT_TOKEN) {
 
 class TelegramNotificationService {
   constructor() {
+    // Track registration states for multi-step registration
+    this.registrationStates = new Map();
+    
     if (!BOT_TOKEN) {
       console.log('⚠️  Telegram bot token not configured. Set TELEGRAM_BOT_TOKEN environment variable.');
       this.bot = null;
@@ -204,31 +207,53 @@ class TelegramNotificationService {
 
       try {
         const users = await readUsers();
-        const user = users.find(u => u.username === username);
+        let user = users.find(u => u.username === username);
 
         if (!user) {
+          // Store registration state for new volunteer
+          this.registrationStates.set(chatId, {
+            type: 'volunteer',
+            step: 'phone',
+            data: { username }
+          });
+          
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
-            `❌ Username "${username}" not found. Please check your username and try again.`
+            `✅ Great! I'll create a new volunteer account for "${username}".\n\n` +
+            `📱 Please share your phone number so passengers can contact you when needed.\n\n` +
+            `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
           );
-          return;
+        } else {
+          // Check if existing user needs phone number
+          if (!user.phone || user.phone.trim() === '') {
+            // Store registration state for existing volunteer needing phone
+            this.registrationStates.set(chatId, {
+              type: 'volunteer_existing',
+              step: 'phone',
+              data: { username, user }
+            });
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Linking your Telegram to existing volunteer account "${username}".\n\n` +
+              `📱 Please share your phone number so passengers can contact you when needed.\n\n` +
+              `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
+            );
+          } else {
+            // Update existing user with Telegram chat ID
+            user.telegramChatId = chatId;
+            user.updatedAt = new Date().toISOString();
+            await writeUsers(users);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as Volunteer! You'll now receive pickup/dropoff notifications.\n\n` +
+              `Available commands:\n` +
+              `/flights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+          }
         }
-
-        // Update user with Telegram chat ID
-        user.telegramChatId = chatId;
-        user.updatedAt = new Date().toISOString();
-        
-        const userIndex = users.findIndex(u => u.username === username);
-        users[userIndex] = user;
-        await writeUsers(users);
-
-        await this.bot.sendMessage(chatId, 
-          `Jai Swaminarayan 🙏\n\n` +
-          `✅ Successfully registered as Volunteer! You'll now receive pickup/dropoff notifications.\n\n` +
-          `Available commands:\n` +
-          `/flights - View your upcoming flights\n` +
-          `/help - Show help menu`
-        );
 
       } catch (error) {
         console.error('Error registering volunteer:', error);
@@ -266,36 +291,55 @@ class TelegramNotificationService {
         );
 
         if (!passenger) {
-          // Create new passenger record
-          passenger = {
-            id: require('uuid').v4(),
-            name: passengerName,
-            telegramChatId: chatId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            flightCount: 0
-          };
-          passengers.push(passenger);
+          // Store registration state for new passenger
+          this.registrationStates.set(chatId, {
+            type: 'passenger',
+            step: 'phone',
+            data: { name: passengerName }
+          });
+          
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `✅ Great! I'll create a passenger account for "${passengerName}".\n\n` +
+            `📱 Please share your phone number so volunteers can contact you if needed.\n\n` +
+            `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
+          );
         } else {
-          // Update existing passenger with chat ID
-          passenger.telegramChatId = chatId;
-          passenger.updatedAt = new Date().toISOString();
+          // Check if existing passenger needs phone number
+          if (!passenger.phone || passenger.phone.trim() === '') {
+            // Store registration state for existing passenger needing phone
+            this.registrationStates.set(chatId, {
+              type: 'passenger_existing',
+              step: 'phone',
+              data: { name: passengerName, passenger }
+            });
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Linking your Telegram to existing passenger account "${passengerName}".\n\n` +
+              `📱 Please share your phone number so volunteers can contact you if needed.\n\n` +
+              `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
+            );
+          } else {
+            // Update existing passenger with chat ID
+            passenger.telegramChatId = chatId;
+            passenger.updatedAt = new Date().toISOString();
+            await writePassengers(passengers);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as passenger "${passengerName}"!\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight confirmations\n` +
+              `🔔 Flight updates and changes\n` +
+              `🔔 24-hour check-in reminders\n` +
+              `🔔 Volunteer contact information\n\n` +
+              `Available commands:\n` +
+              `/myflights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+          }
         }
-
-        await writePassengers(passengers);
-
-        await this.bot.sendMessage(chatId, 
-          `Jai Swaminarayan 🙏\n\n` +
-          `✅ Successfully registered as passenger "${passengerName}"!\n\n` +
-          `You'll receive notifications for:\n` +
-          `🔔 Flight confirmations\n` +
-          `🔔 Flight updates and changes\n` +
-          `🔔 24-hour check-in reminders\n` +
-          `🔔 Volunteer contact information\n\n` +
-          `Available commands:\n` +
-          `/myflights - View your upcoming flights\n` +
-          `/help - Show help menu`
-        );
 
       } catch (error) {
         console.error('Error registering passenger:', error);
@@ -704,6 +748,153 @@ class TelegramNotificationService {
 
       await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
     });
+
+    // Handle general messages (for phone number collection and other registration steps)
+    this.bot.on('message', async (msg) => {
+      if (await this.isMessageProcessed(msg)) return;
+      
+      const chatId = msg.chat.id;
+      const text = msg.text;
+      
+      // Skip if message is a command (starts with /)
+      if (!text || text.startsWith('/')) return;
+      
+      // Check if user is in a registration state
+      const registrationState = this.registrationStates.get(chatId);
+      if (!registrationState) return;
+      
+      try {
+        if (registrationState.step === 'phone') {
+          // Validate phone number format (basic validation)
+          const phoneRegex = /^[\+]?[1-9][\d\-\(\)\s]{7,15}$/;
+          if (!phoneRegex.test(text.replace(/\s+/g, ''))) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `❌ Please enter a valid phone number.\n\n` +
+              `Examples:\n` +
+              `• +1-555-123-4567\n` +
+              `• 555-123-4567\n` +
+              `• (555) 123-4567`
+            );
+            return;
+          }
+          
+          const formattedPhone = text.trim();
+          
+          if (registrationState.type === 'volunteer') {
+            // Create new volunteer
+            const users = await readUsers();
+            const user = {
+              id: require('uuid').v4(),
+              username: registrationState.data.username,
+              name: registrationState.data.username,
+              role: 'volunteer',
+              phone: formattedPhone,
+              telegramChatId: chatId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              allowedAirports: []
+            };
+            users.push(user);
+            await writeUsers(users);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as Volunteer "${user.username}" with phone ${formattedPhone}!\n\n` +
+              `📝 Note: Your administrator can assign you to specific airports.\n\n` +
+              `Available commands:\n` +
+              `/flights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+            
+          } else if (registrationState.type === 'volunteer_existing') {
+            // Update existing volunteer
+            const users = await readUsers();
+            const user = registrationState.data.user;
+            user.phone = formattedPhone;
+            user.telegramChatId = chatId;
+            user.updatedAt = new Date().toISOString();
+            
+            const userIndex = users.findIndex(u => u.username === user.username);
+            users[userIndex] = user;
+            await writeUsers(users);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as Volunteer with phone ${formattedPhone}!\n\n` +
+              `Available commands:\n` +
+              `/flights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+            
+          } else if (registrationState.type === 'passenger') {
+            // Create new passenger
+            const passengers = await readPassengers();
+            const passenger = {
+              id: require('uuid').v4(),
+              name: registrationState.data.name,
+              phone: formattedPhone,
+              telegramChatId: chatId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              flightCount: 0
+            };
+            passengers.push(passenger);
+            await writePassengers(passengers);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as passenger "${passenger.name}" with phone ${formattedPhone}!\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight confirmations\n` +
+              `🔔 Flight updates and changes\n` +
+              `🔔 24-hour check-in reminders\n` +
+              `🔔 Volunteer contact information\n\n` +
+              `Available commands:\n` +
+              `/myflights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+            
+          } else if (registrationState.type === 'passenger_existing') {
+            // Update existing passenger
+            const passengers = await readPassengers();
+            const passenger = registrationState.data.passenger;
+            passenger.phone = formattedPhone;
+            passenger.telegramChatId = chatId;
+            passenger.updatedAt = new Date().toISOString();
+            
+            const passengerIndex = passengers.findIndex(p => p.name.toLowerCase() === passenger.name.toLowerCase());
+            passengers[passengerIndex] = passenger;
+            await writePassengers(passengers);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Successfully registered as passenger "${passenger.name}" with phone ${formattedPhone}!\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight confirmations\n` +
+              `🔔 Flight updates and changes\n` +
+              `🔔 24-hour check-in reminders\n` +
+              `🔔 Volunteer contact information\n\n` +
+              `Available commands:\n` +
+              `/myflights - View your upcoming flights\n` +
+              `/help - Show help menu`
+            );
+          }
+          
+          // Clear registration state
+          this.registrationStates.delete(chatId);
+        }
+        
+      } catch (error) {
+        console.error('Error processing registration step:', error);
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ Registration failed. Please try again later.`
+        );
+        // Clear registration state on error
+        this.registrationStates.delete(chatId);
+      }
+    });
   }
 
   // Send notification to specific user
@@ -754,15 +945,33 @@ class TelegramNotificationService {
     }
 
     const departure = new Date(flight.departureDateTime);
-    const passengers = flight.passengers.map(p => p.name).join(', ');
+    
+    // Get passenger details with phone numbers
+    const passengers = await readPassengers();
+    let passengerDetails = '';
+    
+    if (flight.passengers && flight.passengers.length > 0) {
+      passengerDetails = flight.passengers.map(flightPassenger => {
+        const passenger = passengers.find(p => 
+          p.name.toLowerCase() === flightPassenger.name.toLowerCase()
+        );
+        if (passenger && passenger.phone) {
+          return `• ${flightPassenger.name} - ${passenger.phone}`;
+        } else {
+          return `• ${flightPassenger.name} - (no phone)`;
+        }
+      }).join('\n');
+    } else {
+      passengerDetails = 'No passengers listed';
+    }
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
       `🚨 *${volunteerType.toUpperCase()} REMINDER*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
       `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `👥 *Passengers:* ${passengers}\n` +
-      `🕐 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
+      `🕐 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+      `👥 *Passengers:*\n${passengerDetails}\n\n` +
       `📞 *Your contact:* ${volunteerPhone}\n\n` +
       `⏰ *${timeUntil} until ${volunteerType}*\n\n` +
       `Please be ready and confirm receipt of this message.`;
@@ -826,15 +1035,33 @@ class TelegramNotificationService {
     }
 
     const departure = new Date(flight.departureDateTime);
-    const passengers = flight.passengers.map(p => p.name).join(', ');
+    
+    // Get passenger details with phone numbers
+    const passengers = await readPassengers();
+    let passengerDetails = '';
+    
+    if (flight.passengers && flight.passengers.length > 0) {
+      passengerDetails = flight.passengers.map(flightPassenger => {
+        const passenger = passengers.find(p => 
+          p.name.toLowerCase() === flightPassenger.name.toLowerCase()
+        );
+        if (passenger && passenger.phone) {
+          return `• ${flightPassenger.name} - ${passenger.phone}`;
+        } else {
+          return `• ${flightPassenger.name} - (no phone)`;
+        }
+      }).join('\n');
+    } else {
+      passengerDetails = 'No passengers listed';
+    }
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
       `🔄 *FLIGHT ${updateType.toUpperCase()}*\n\n` +
       `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
       `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `👥 *Passengers:* ${passengers}\n` +
       `🛫 *New Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+      `👥 *Passengers:*\n${passengerDetails}\n\n` +
       `Please update your schedule accordingly.`;
 
     const results = await Promise.all(
