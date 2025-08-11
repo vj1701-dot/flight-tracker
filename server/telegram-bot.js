@@ -4,6 +4,7 @@ const path = require('path');
 const { readUsers, writeUsers, readFlights, readPassengers, writePassengers } = require('./data-helpers');
 const FlightInfoService = require('./flight-info-service');
 const TimezoneService = require('./timezone-service');
+const { processFlightTicket } = require('./flight-processing-service');
 
 // Telegram bot token
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -893,6 +894,37 @@ class TelegramNotificationService {
         );
         // Clear registration state on error
         this.registrationStates.delete(chatId);
+      }
+    });
+
+    // Handle incoming photos for flight ticket processing
+    this.bot.on('photo', async (msg) => {
+      if (await this.isMessageProcessed(msg)) return;
+
+      const chatId = msg.chat.id;
+
+      try {
+        await this.bot.sendMessage(chatId, '✈️ Ticket image received. Processing...');
+
+        const photo = msg.photo[msg.photo.length - 1]; // Get highest resolution
+        const fileLink = await this.bot.getFileLink(photo.file_id);
+
+        const newFlight = await processFlightTicket(fileLink);
+
+        await this.bot.sendMessage(chatId,
+          `✅ Flight created successfully from ticket!\n\n` +
+          `Flight Number: *${newFlight.flightNumber}*\n` +
+          `Passenger: *${newFlight.passengers[0].name}*\n\n` +
+          `Please add other details (like arrival/departure times and airports) manually in the dashboard.`,
+          { parse_mode: 'Markdown' }
+        );
+
+      } catch (error) {
+        console.error('Error processing flight ticket photo:', error);
+        await this.bot.sendMessage(chatId,
+          `❌ Error processing ticket: ${error.message}\n\n` +
+          `Please ensure the image is clear and contains the flight number and passenger name.`
+        );
       }
     });
   }
