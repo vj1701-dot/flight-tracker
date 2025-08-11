@@ -90,9 +90,11 @@ class TelegramNotificationService {
 
   async isMessageProcessed(msg) {
     const messageId = `${msg.chat.id}_${msg.message_id}`;
-    if (this.processedMessages.has(messageId)) {
-      return true;
-    }
+    return this.processedMessages.has(messageId);
+  }
+
+  async markMessageAsProcessed(msg) {
+    const messageId = `${msg.chat.id}_${msg.message_id}`;
     this.processedMessages.add(messageId);
     
     // Keep only last 1000 processed messages to prevent memory leak
@@ -105,8 +107,13 @@ class TelegramNotificationService {
     if (this.processedMessages.size % 10 === 0) {
       await this.saveProcessedMessages();
     }
-    
-    return false;
+  }
+
+  async handleCommand(msg, handler) {
+    if (await this.isMessageProcessed(msg)) return false;
+    await this.markMessageAsProcessed(msg);
+    await handler(msg);
+    return true;
   }
 
   /**
@@ -174,9 +181,8 @@ class TelegramNotificationService {
 
     // Handle /start command for user registration
     this.bot.onText(/\/start/, async (msg) => {
-      if (await this.isMessageProcessed(msg)) return;
-      
-      const chatId = msg.chat.id;
+      await this.handleCommand(msg, async (msg) => {
+        const chatId = msg.chat.id;
       
       try {
         await this.bot.sendMessage(chatId, 
@@ -195,14 +201,15 @@ class TelegramNotificationService {
           `/register_user admin_user`, 
           { parse_mode: 'Markdown' }
         );
-      } catch (error) {
-        console.error('Error sending start message:', error);
-      }
+        } catch (error) {
+          console.error('Error sending start message:', error);
+        }
+      });
     });
 
     // Handle volunteer registration
     this.bot.onText(/\/register_volunteer (.+)/, async (msg, match) => {
-      if (await this.isMessageProcessed(msg)) return;
+      await this.handleCommand(msg, async (msg) => {
       
       const chatId = msg.chat.id;
       const username = match[1].trim();
@@ -268,7 +275,7 @@ class TelegramNotificationService {
 
     // Handle legacy sevak registration for backward compatibility
     this.bot.onText(/\/register_sevak (.+)/, async (msg, match) => {
-      if (await this.isMessageProcessed(msg)) return;
+      await this.handleCommand(msg, async (msg) => {
       
       const chatId = msg.chat.id;
       await this.bot.sendMessage(chatId, 
@@ -281,7 +288,7 @@ class TelegramNotificationService {
 
     // Handle passenger registration
     this.bot.onText(/\/register_passenger (.+)/, async (msg, match) => {
-      if (await this.isMessageProcessed(msg)) return;
+      await this.handleCommand(msg, async (msg) => {
       
       const chatId = msg.chat.id;
       const passengerName = match[1].trim();
@@ -1078,6 +1085,9 @@ class TelegramNotificationService {
           await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
         }
       }
+      
+      // Mark message as processed (both success and error cases)
+      await this.markMessageAsProcessed(msg);
     });
   }
 
