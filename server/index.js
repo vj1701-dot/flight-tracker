@@ -402,7 +402,7 @@ app.post('/telegram/webhook', (req, res) => {
 
 // Set up webhook in production
 if (process.env.NODE_ENV === 'production') {
-  const webhookUrl = `${process.env.WEBHOOK_URL || 'https://west-sant-transport-352144879829.us-central1.run.app'}/telegram/webhook`;
+  const webhookUrl = `${process.env.WEBHOOK_URL || 'https://flight-tracker-352144879829.us-central1.run.app'}/telegram/webhook`;
   telegramBot.setupWebhook(webhookUrl).then(success => {
     if (success) {
       console.log('✅ Telegram webhook configured successfully');
