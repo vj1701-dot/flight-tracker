@@ -1,5 +1,8 @@
 // Imports the Google Cloud client library
 const vision = require('@google-cloud/vision');
+const fetch = require('node-fetch');
+const fs = require('fs').promises;
+const path = require('path');
 
 let client;
 let credentialsInfo = null;
@@ -109,27 +112,102 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
 
 
 /**
+ * Downloads an image file to temporary storage
+ * @param {string} imageUrl - The URL of the image to download
+ * @returns {Promise<string>} - Path to the downloaded file
+ */
+async function downloadImageFile(imageUrl) {
+  const startTime = Date.now();
+  console.log(`⬇️ OCR_SERVICE: Downloading image from URL: ${imageUrl}`);
+  
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+    }
+    
+    // Create temp directory if it doesn't exist
+    const tempDir = '/tmp/ticket-images';
+    try {
+      await fs.mkdir(tempDir, { recursive: true });
+    } catch (mkdirError) {
+      // Directory might already exist, ignore
+    }
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2);
+    const fileName = `ticket-${timestamp}-${randomId}.jpg`;
+    const filePath = path.join(tempDir, fileName);
+    
+    // Save file
+    const buffer = await response.buffer();
+    await fs.writeFile(filePath, buffer);
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ OCR_SERVICE: Image downloaded successfully in ${duration}ms`);
+    console.log(`   File path: ${filePath}`);
+    console.log(`   File size: ${buffer.length} bytes`);
+    
+    return filePath;
+    
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`❌ OCR_SERVICE: Failed to download image in ${duration}ms:`, error.message);
+    throw new Error(`Image download failed: ${error.message}`);
+  }
+}
+
+/**
+ * Deletes a temporary image file
+ * @param {string} filePath - Path to the file to delete
+ */
+async function cleanupImageFile(filePath) {
+  try {
+    await fs.unlink(filePath);
+    console.log(`🗑️ OCR_SERVICE: Cleaned up temporary file: ${filePath}`);
+  } catch (error) {
+    console.warn(`⚠️ OCR_SERVICE: Failed to cleanup file ${filePath}:`, error.message);
+  }
+}
+
+/**
  * Extracts text from an image using the Google Cloud Vision API with detailed logging.
  * @param {string} imageUrl - The public URL of the image to process.
  * @returns {Promise<object>} - A promise that resolves to detailed extraction results.
  */
 async function extractTextFromImage(imageUrl) {
+  let downloadedFilePath = null;
+  
   try {
     console.log('🔍 OCR_SERVICE: Starting text extraction from image');
     console.log(`   Image URL: ${imageUrl}`);
     console.log(`   Using credentials for project: ${credentialsInfo?.projectId || 'default'}`);
     
+    // Download the image file first
+    downloadedFilePath = await downloadImageFile(imageUrl);
+    
     const startTime = Date.now();
     
-    // Make the API call with verbose request details
+    // Make the API call with verbose request details using local file
     console.log('📡 OCR_SERVICE: Sending request to Google Vision API...');
     console.log('📡 OCR_SERVICE: Using textDetection method for ticket OCR');
-    const [result] = await client.textDetection(imageUrl);
+    console.log(`📡 OCR_SERVICE: Processing local file: ${downloadedFilePath}`);
+    const [result] = await client.textDetection(downloadedFilePath);
     
     const duration = Date.now() - startTime;
     console.log(`✅ OCR_SERVICE: API call completed in ${duration}ms`);
     console.log(`🔍 OCR_SERVICE: Raw result keys: ${Object.keys(result).join(', ')}`);
-    console.log(`🔍 OCR_SERVICE: Full result structure: ${JSON.stringify(result, null, 2).substring(0, 500)}...`);
+    
+    // Check for API errors first
+    if (result.error) {
+      console.error(`❌ OCR_SERVICE: Google Vision API returned error:`);
+      console.error(`   Code: ${result.error.code}`);
+      console.error(`   Message: ${result.error.message}`);
+      console.error(`   Details: ${JSON.stringify(result.error.details || 'none')}`);
+    }
+    
+    console.log(`🔍 OCR_SERVICE: Full result structure: ${JSON.stringify(result, null, 2).substring(0, 800)}...`);
 
     const detections = result.textAnnotations;
     console.log(`🔍 OCR_SERVICE: Text annotations array length: ${detections ? detections.length : 'null'}`);
@@ -140,9 +218,21 @@ async function extractTextFromImage(imageUrl) {
       
       try {
         const startTime2 = Date.now();
-        const [documentResult] = await client.documentTextDetection(imageUrl);
+        console.log(`📡 OCR_SERVICE: Trying document detection with local file: ${downloadedFilePath}`);
+        const [documentResult] = await client.documentTextDetection(downloadedFilePath);
         const duration2 = Date.now() - startTime2;
         console.log(`✅ OCR_SERVICE: Document text detection completed in ${duration2}ms`);
+        
+        // Check for API errors in document detection
+        if (documentResult.error) {
+          console.error(`❌ OCR_SERVICE: Document detection API returned error:`);
+          console.error(`   Code: ${documentResult.error.code}`);
+          console.error(`   Message: ${documentResult.error.message}`);
+          console.error(`   Details: ${JSON.stringify(documentResult.error.details || 'none')}`);
+        }
+        
+        console.log(`🔍 OCR_SERVICE: Document result keys: ${Object.keys(documentResult).join(', ')}`);
+        console.log(`🔍 OCR_SERVICE: Document text annotations length: ${documentResult.textAnnotations ? documentResult.textAnnotations.length : 'null'}`);
         
         if (documentResult.textAnnotations && documentResult.textAnnotations.length > 0) {
           console.log(`🎯 OCR_SERVICE: Document detection found ${documentResult.textAnnotations.length} text blocks!`);
@@ -160,6 +250,11 @@ async function extractTextFromImage(imageUrl) {
           console.log(`   Full text length: ${fullText.length} characters`);
           console.log(`   Preview (first 200 chars): ${fullText.substring(0, 200)}${fullText.length > 200 ? '...' : ''}`);
 
+          // Cleanup downloaded file before returning
+          if (downloadedFilePath) {
+            await cleanupImageFile(downloadedFilePath);
+          }
+
           return {
             success: true,
             fullText: fullText,
@@ -169,7 +264,8 @@ async function extractTextFromImage(imageUrl) {
               detectionCount: documentResult.textAnnotations.length,
               processingTimeMs: duration + duration2,
               imageUrl: imageUrl,
-              credentialProject: credentialsInfo?.projectId
+              credentialProject: credentialsInfo?.projectId,
+              downloadedFile: downloadedFilePath
             }
           };
         }
@@ -184,6 +280,11 @@ async function extractTextFromImage(imageUrl) {
       console.log('   - Text is in an unsupported language/format');
       console.log('   - Try a clearer, higher-contrast image');
       
+      // Cleanup downloaded file before returning
+      if (downloadedFilePath) {
+        await cleanupImageFile(downloadedFilePath);
+      }
+      
       return {
         success: false,
         fullText: '',
@@ -192,7 +293,8 @@ async function extractTextFromImage(imageUrl) {
         metadata: {
           detectionCount: 0,
           processingTimeMs: duration,
-          imageUrl: imageUrl
+          imageUrl: imageUrl,
+          downloadedFile: downloadedFilePath
         }
       };
     }
@@ -222,15 +324,22 @@ async function extractTextFromImage(imageUrl) {
       }
     }
 
+    // Cleanup downloaded file before returning
+    if (downloadedFilePath) {
+      await cleanupImageFile(downloadedFilePath);
+    }
+
     return {
       success: true,
       fullText: fullText,
       individualTexts: individualTexts,
+      method: 'textDetection',
       metadata: {
         detectionCount: detections.length,
         processingTimeMs: duration,
         imageUrl: imageUrl,
-        credentialProject: credentialsInfo?.projectId
+        credentialProject: credentialsInfo?.projectId,
+        downloadedFile: downloadedFilePath
       }
     };
     
