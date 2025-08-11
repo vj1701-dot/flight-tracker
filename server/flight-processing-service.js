@@ -41,7 +41,7 @@ const AIRLINE_PATTERNS = {
     flightRegex: /(?:UA|United(?:\s+Airlines)?)\s*(\d{3,4})/i,
     dateRegex: /(\d{1,2}[A-Z]{3}\d{2,4})/i,
     routeRegex: /([A-Z]{3})\s*[-→]\s*([A-Z]{3})/i,
-    passengerRegex: /name[:\s]*([A-Z][A-Z\s',.-]+)/i,
+    passengerRegex: /(?:name[:\s]*([A-Z][A-Z\s',.-]+)|([A-Z][A-Z\s',.-]+)\s*-\s*\d+[A-F])/i,
     confirmationRegex: /(?:confirmation|record\s+locator)\s*[:\-]?\s*([A-Z0-9]{6})/i
   },
   'SOUTHWEST': {
@@ -78,7 +78,7 @@ const GENERIC_PATTERNS = {
   flightRegex: /([A-Z]{2,3})\s*(\d{3,4})/g,
   dateRegex: /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s[A-Z]{3}\s\d{2,4})/g,
   routeRegex: /([A-Z]{3})\s*(?:to|→|-|>)\s*([A-Z]{3})/gi,
-  passengerRegex: /(?:passenger|name|traveler)\s*[:\-]?\s*([A-Z][A-Z\s',.-]{2,})/gi,
+  passengerRegex: /(?:(?:passenger|name|traveler)\s*[:\-]?\s*([A-Z][A-Z\s',.-]{2,})|([A-Z][A-Z\s',.-]{2,})\s*-\s*\d+[A-F])/gi,
   timeRegex: /(\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi,
   seatRegex: /(?:seat|row)\s*[:\-]?\s*([A-Z0-9]{1,3}[A-F]?)/gi,
   confirmationRegex: /(?:confirmation|pnr|record\s+locator)\s*[:\-]?\s*([A-Z0-9]{4,8})/gi
@@ -331,16 +331,27 @@ function parseFlightDataWithMultipleStrategies(text, metadata = {}) {
   extractedData.allMatches.flightNumber = flightMatches;
   extractedData.debugInfo.rawMatches.flightNumber = genericFlightMatches;
 
-  // Step 4: Extract passenger name
+  // Step 4: Extract passenger name and seat number
   console.log('🔍 FLIGHT_PROCESSING: Extracting passenger name...');
   let passengerMatches = [];
+  let seatNumbers = [];
   
   if (patterns && patterns.passengerRegex) {
     const match = text.match(patterns.passengerRegex);
-    if (match && match[1]) {
-      const cleanName = match[1].trim().replace(/\s+/g, ' ');
-      if (cleanName.length >= 3) {
+    if (match) {
+      // Handle both formats: "name: JOHN DOE" (match[1]) and "JOHN DOE - 24A" (match[2])
+      const cleanName = (match[1] || match[2])?.trim().replace(/\s+/g, ' ');
+      if (cleanName && cleanName.length >= 3) {
         passengerMatches.push({ value: cleanName, confidence: 0.9, source: 'airline_specific' });
+        
+        // Extract seat number if present in the second format
+        if (match[2]) {
+          const fullMatch = match[0];
+          const seatMatch = fullMatch.match(/(\d+[A-F])/);
+          if (seatMatch) {
+            seatNumbers.push(seatMatch[1]);
+          }
+        }
       }
     }
   }
@@ -348,10 +359,18 @@ function parseFlightDataWithMultipleStrategies(text, metadata = {}) {
   // Fallback to generic patterns
   const genericPassengerMatches = Array.from(text.matchAll(GENERIC_PATTERNS.passengerRegex));
   genericPassengerMatches.forEach(match => {
-    if (match[1]) {
-      const cleanName = match[1].trim().replace(/\s+/g, ' ');
-      if (cleanName.length >= 3 && !passengerMatches.find(m => m.value.toLowerCase() === cleanName.toLowerCase())) {
-        passengerMatches.push({ value: cleanName, confidence: 0.7, source: 'generic' });
+    // Handle both formats: "name: JOHN DOE" (match[1]) and "JOHN DOE - 24A" (match[2])
+    const cleanName = (match[1] || match[2])?.trim().replace(/\s+/g, ' ');
+    if (cleanName && cleanName.length >= 3 && !passengerMatches.find(m => m.value.toLowerCase() === cleanName.toLowerCase())) {
+      passengerMatches.push({ value: cleanName, confidence: 0.7, source: 'generic' });
+      
+      // Extract seat number if present in the second format
+      if (match[2]) {
+        const fullMatch = match[0];
+        const seatMatch = fullMatch.match(/(\d+[A-F])/);
+        if (seatMatch && !seatNumbers.includes(seatMatch[1])) {
+          seatNumbers.push(seatMatch[1]);
+        }
       }
     }
   });
@@ -361,6 +380,12 @@ function parseFlightDataWithMultipleStrategies(text, metadata = {}) {
     extractedData.passengerName = passengerMatches[0].value;
     extractedData.confidence.passengerName = passengerMatches[0].confidence;
     console.log(`✅ FLIGHT_PROCESSING: Found passenger name: ${extractedData.passengerName}`);
+  }
+  
+  // Add seat numbers to extracted data
+  if (seatNumbers.length > 0) {
+    extractedData.seatNumbers = seatNumbers;
+    console.log(`✅ FLIGHT_PROCESSING: Found seat numbers: ${seatNumbers.join(', ')}`);
   }
   
   extractedData.allMatches.passengerName = passengerMatches;
@@ -610,7 +635,7 @@ async function processFlightTicket(imageUrl) {
       createdBy: 'telegram_ticket_processing',
       
       // Default fields for compatibility
-      notes: `Auto-created from ticket image. Extracted data: ${JSON.stringify(extractedData, null, 2)}`,
+      notes: `Auto-created from ticket image.${extractedData.seatNumbers ? ` Seat Numbers: ${extractedData.seatNumbers.join(', ')}.` : ''} Extracted data: ${JSON.stringify(extractedData, null, 2)}`,
       pickupSevakName: null,
       dropoffSevakName: null,
       pickupSevakPhone: null,

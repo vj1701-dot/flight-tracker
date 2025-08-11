@@ -206,15 +206,15 @@ class TelegramNotificationService {
           `👋 Welcome to West Sant Transportation!\n\n` +
           `Choose your registration type:\n\n` +
           `🚗 **For Volunteers (Pickup/Dropoff volunteers):**\n` +
-          `Send: /register_volunteer your_username\n\n` +
+          `Send: /register_volunteer\n\n` +
           `✈️ **For Passengers:**\n` +
-          `Send: /register_passenger Your Full Name\n\n` +
+          `Send: /register_passenger\n\n` +
           `👤 **For Dashboard Users (Admin/User access holders):**\n` +
-          `Send: /register_user your_dashboard_username\n\n` +
+          `Send: /register_user\n\n` +
           `Example:\n` +
-          `/register_volunteer john_smith\n` +
-          `/register_passenger Harinivas Swami\n` +
-          `/register_user admin_user`, 
+          `/register_volunteer\n` +
+          `/register_passenger\n` +
+          `/register_user`, 
           { parse_mode: 'Markdown' }
         );
       } catch (error) {
@@ -222,65 +222,31 @@ class TelegramNotificationService {
       }
     });
 
-    // Handle volunteer registration
-    this.bot.onText(/\/register_volunteer (.+)/, async (msg, match) => {
+    // Handle volunteer registration - new multi-step flow
+    this.bot.onText(/\/register_volunteer$/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
       const chatId = msg.chat.id;
-      const username = match[1].trim();
 
       try {
-        const users = await readUsers();
-        let user = users.find(u => u.username === username);
-
-        if (!user) {
-          // Store registration state for new volunteer
-          this.registrationStates.set(chatId, {
-            type: 'volunteer',
-            step: 'phone',
-            data: { username }
-          });
-          
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `✅ Great! I'll create a new volunteer account for "${username}".\n\n` +
-            `📱 Please share your phone number so passengers can contact you when needed.\n\n` +
-            `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
-          );
-        } else {
-          // Check if existing user needs phone number
-          if (!user.phone || user.phone.trim() === '') {
-            // Store registration state for existing volunteer needing phone
-            this.registrationStates.set(chatId, {
-              type: 'volunteer_existing',
-              step: 'phone',
-              data: { username, user }
-            });
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Linking your Telegram to existing volunteer account "${username}".\n\n` +
-              `📱 Please share your phone number so passengers can contact you when needed.\n\n` +
-              `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
-            );
-          } else {
-            // Update existing user with Telegram chat ID
-            user.telegramChatId = chatId;
-            user.updatedAt = new Date().toISOString();
-            await writeUsers(users);
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Successfully registered as Volunteer! You'll now receive pickup/dropoff notifications.\n\n` +
-              `Available commands:\n` +
-              `/flights - View your upcoming flights\n` +
-              `/help - Show help menu`
-            );
-          }
-        }
+        // Start registration flow
+        this.registrationStates.set(chatId, {
+          type: 'volunteer_new',
+          step: 'full_name',
+          data: {}
+        });
+        
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ Welcome to West Sant Transportation volunteer registration!\n\n` +
+          `📝 Please enter your *Full Name* in First Name & Last Name format.\n\n` +
+          `Example: John Smith\n\n` +
+          `Enter your full name:`,
+          { parse_mode: 'Markdown' }
+        );
 
       } catch (error) {
-        console.error('Error registering volunteer:', error);
+        console.error('Error starting volunteer registration:', error);
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `❌ Registration failed. Please try again later.`
@@ -301,72 +267,31 @@ class TelegramNotificationService {
       );
     });
 
-    // Handle passenger registration
-    this.bot.onText(/\/register_passenger (.+)/, async (msg, match) => {
+    // Handle passenger registration - new multi-step flow
+    this.bot.onText(/\/register_passenger$/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
       const chatId = msg.chat.id;
-      const passengerName = match[1].trim();
 
       try {
-        const passengers = await readPassengers();
-        let passenger = passengers.find(p => 
-          p.name.toLowerCase() === passengerName.toLowerCase()
+        // Start registration flow
+        this.registrationStates.set(chatId, {
+          type: 'passenger_new',
+          step: 'full_name',
+          data: {}
+        });
+        
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ Welcome to West Sant Transportation passenger registration!\n\n` +
+          `📝 Please enter your *Full Name* in First Name & Last Name format.\n\n` +
+          `Example: John Smith\n\n` +
+          `Enter your full name:`,
+          { parse_mode: 'Markdown' }
         );
 
-        if (!passenger) {
-          // Store registration state for new passenger
-          this.registrationStates.set(chatId, {
-            type: 'passenger',
-            step: 'phone',
-            data: { name: passengerName }
-          });
-          
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `✅ Great! I'll create a passenger account for "${passengerName}".\n\n` +
-            `📱 Please share your phone number so volunteers can contact you if needed.\n\n` +
-            `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
-          );
-        } else {
-          // Check if existing passenger needs phone number
-          if (!passenger.phone || passenger.phone.trim() === '') {
-            // Store registration state for existing passenger needing phone
-            this.registrationStates.set(chatId, {
-              type: 'passenger_existing',
-              step: 'phone',
-              data: { name: passengerName, passenger }
-            });
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Linking your Telegram to existing passenger account "${passengerName}".\n\n` +
-              `📱 Please share your phone number so volunteers can contact you if needed.\n\n` +
-              `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
-            );
-          } else {
-            // Update existing passenger with chat ID
-            passenger.telegramChatId = chatId;
-            passenger.updatedAt = new Date().toISOString();
-            await writePassengers(passengers);
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Successfully registered as passenger "${passengerName}"!\n\n` +
-              `You'll receive notifications for:\n` +
-              `🔔 Flight confirmations\n` +
-              `🔔 Flight updates and changes\n` +
-              `🔔 24-hour check-in reminders\n` +
-              `🔔 Volunteer contact information\n\n` +
-              `Available commands:\n` +
-              `/myflights - View your upcoming flights\n` +
-              `/help - Show help menu`
-            );
-          }
-        }
-
       } catch (error) {
-        console.error('Error registering passenger:', error);
+        console.error('Error starting passenger registration:', error);
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `❌ Registration failed. Please try again later.`
@@ -374,87 +299,31 @@ class TelegramNotificationService {
       }
     });
 
-    // Handle dashboard user registration (links with existing dashboard users)
-    this.bot.onText(/\/register_user (.+)/, async (msg, match) => {
+    // Handle dashboard user registration - new multi-step flow
+    this.bot.onText(/\/register_user$/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
       const chatId = msg.chat.id;
-      const username = match[1].trim();
 
       try {
-        const users = await readUsers();
-        const user = users.find(u => u.username === username);
-
-        if (!user) {
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `❌ Username "${username}" not found in the dashboard system.\n\n` +
-            `Please ensure:\n` +
-            `• You have a dashboard account\n` +
-            `• You're using your exact dashboard username\n` +
-            `• Your account is active\n\n` +
-            `Contact your administrator if you need help.`
-          );
-          return;
-        }
-
-        // Check if user is a volunteer (volunteers cannot be dashboard users)
-        if (user.role === 'volunteer') {
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `❌ Volunteers cannot register as dashboard users.\n\n` +
-            `Please use: \`/register_volunteer ${username}\`\n\n` +
-            `If you need dashboard access, contact your administrator.`, 
-            { parse_mode: 'Markdown' }
-          );
-          return;
-        }
-
-        // Check if user already has Telegram linked
-        if (user.telegramChatId) {
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `✅ You're already registered as dashboard user "${user.name || user.username}"!\n\n` +
-            `Role: ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
-            `Access Level: ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
-            `You'll receive notifications for:\n` +
-            `🔔 Flight additions and changes\n` +
-            `🔔 Flight delays and updates\n` +
-            `🔔 System notifications\n\n` +
-            `Available commands:\n` +
-            `/status - Check your registration status\n` +
-            `/help - Show help menu`
-          );
-          return;
-        }
-
-        // Link Telegram to dashboard user
-        user.telegramChatId = chatId;
-        user.updatedAt = new Date().toISOString();
+        // Start registration flow
+        this.registrationStates.set(chatId, {
+          type: 'user_new',
+          step: 'username',
+          data: {}
+        });
         
-        const userIndex = users.findIndex(u => u.username === username);
-        users[userIndex] = user;
-        await writeUsers(users);
-
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
-          `✅ Successfully linked Telegram to dashboard account!\n\n` +
-          `Dashboard User: ${user.name || user.username}\n` +
-          `Username: ${user.username}\n` +
-          `Role: ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
-          `Access Level: ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
-          `You'll now receive notifications for:\n` +
-          `🔔 Flight additions and changes\n` +
-          `🔔 Flight delays and updates\n` +
-          `🔔 System notifications\n` +
-          `🔔 Administrative alerts (if applicable)\n\n` +
-          `Available commands:\n` +
-          `/status - Check your registration status\n` +
-          `/help - Show help menu`
+          `✅ Welcome to West Sant Transportation dashboard user registration!\n\n` +
+          `📝 Please enter your *dashboard username*.\n\n` +
+          `This should be the username you use to login to the dashboard.\n\n` +
+          `Enter your username:`,
+          { parse_mode: 'Markdown' }
         );
 
       } catch (error) {
-        console.error('Error registering dashboard user:', error);
+        console.error('Error starting user registration:', error);
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `❌ Registration failed. Please try again later.`
@@ -748,9 +617,9 @@ class TelegramNotificationService {
         `🤖 *West Sant Transportation Bot*\n\n` +
         `*Registration Commands:*\n` +
         `/start - Start registration process\n` +
-        `/register_volunteer username - Register as Volunteer\n` +
-        `/register_passenger Full Name - Register as Passenger\n` +
-        `/register_user dashboard_username - Register as Dashboard User\n\n` +
+        `/register_volunteer - Register as Volunteer\n` +
+        `/register_passenger - Register as Passenger\n` +
+        `/register_user - Register as Dashboard User\n\n` +
         `*Flight Commands:*\n` +
         `/flights - View your assigned flights (Volunteers)\n` +
         `/myflights - View your passenger flights\n` +
@@ -788,7 +657,263 @@ class TelegramNotificationService {
       if (!registrationState) return;
       
       try {
-        if (registrationState.step === 'phone') {
+        if (registrationState.step === 'full_name') {
+          // Handle full name input for new passenger registration
+          const fullName = text.trim();
+          
+          // Validate name format (First Name & Last Name)
+          const nameParts = fullName.split(/\s+/);
+          if (nameParts.length < 2 || fullName.length < 3) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `❌ Please enter your name in First Name & Last Name format.\n\n` +
+              `Examples:\n` +
+              `• John Smith\n` +
+              `• Mary Johnson\n` +
+              `• Harinivas Swami\n\n` +
+              `Please try again:`
+            );
+            return;
+          }
+          
+          // Store full name and move to legal name step
+          registrationState.data.fullName = fullName;
+          registrationState.step = 'legal_name';
+          
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `✅ Full Name: ${fullName}\n\n` +
+            `📄 Now please enter your *Legal Name* as it appears on your tickets and travel documents.\n\n` +
+            `This may be different from your full name if you have a different legal name.\n\n` +
+            `Enter your legal name:`,
+            { parse_mode: 'Markdown' }
+          );
+          
+        } else if (registrationState.step === 'legal_name') {
+          // Handle legal name input
+          const legalName = text.trim();
+          
+          // Validate legal name
+          if (legalName.length < 2) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `❌ Please enter a valid legal name.\n\n` +
+              `Enter your legal name as it appears on tickets:`
+            );
+            return;
+          }
+          
+          // Store legal name and complete registration
+          registrationState.data.legalName = legalName;
+          
+          // Create new passenger
+          const passengers = await readPassengers();
+          const newPassenger = {
+            id: require('uuid').v4(),
+            name: registrationState.data.fullName,
+            legalName: legalName,
+            telegramChatId: chatId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            flightCount: 0
+          };
+          
+          passengers.push(newPassenger);
+          await writePassengers(passengers);
+          
+          // Send greeting message
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `🎉 *Welcome to West Sant Transportation!*\n\n` +
+            `✅ Successfully registered as passenger:\n` +
+            `👤 **Name:** ${newPassenger.name}\n` +
+            `📄 **Legal Name:** ${legalName}\n\n` +
+            `You'll receive notifications for:\n` +
+            `🔔 Flight confirmations\n` +
+            `🔔 Flight updates and changes\n` +
+            `🔔 24-hour check-in reminders\n` +
+            `🔔 Volunteer contact information\n\n` +
+            `*Available commands:*\n` +
+            `/myflights - View your upcoming flights\n` +
+            `/help - Show help menu\n\n` +
+            `Thank you for registering! 🙏`,
+            { parse_mode: 'Markdown' }
+          );
+          
+          // Clear registration state
+          this.registrationStates.delete(chatId);
+          return;
+          
+        } else if (registrationState.type === 'volunteer_new') {
+          if (registrationState.step === 'full_name') {
+            // Handle full name input for volunteer registration
+            const fullName = text.trim();
+            
+            // Validate name format
+            const nameParts = fullName.split(/\s+/);
+            if (nameParts.length < 2 || fullName.length < 3) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter your name in First Name & Last Name format.\n\n` +
+                `Examples:\n` +
+                `• John Smith\n` +
+                `• Mary Johnson\n\n` +
+                `Please try again:`
+              );
+              return;
+            }
+            
+            // Store full name and move to city step
+            registrationState.data.fullName = fullName;
+            registrationState.step = 'city';
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Full Name: ${fullName}\n\n` +
+              `🏙️ Please enter your *City* where you live.\n\n` +
+              `This helps us assign you to nearby airport pickups/dropoffs.\n\n` +
+              `Enter your city:`,
+              { parse_mode: 'Markdown' }
+            );
+            
+          } else if (registrationState.step === 'city') {
+            // Handle city input
+            const city = text.trim();
+            
+            // Validate city
+            if (city.length < 2) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter a valid city name.\n\n` +
+                `Enter your city:`
+              );
+              return;
+            }
+            
+            // Store city and move to phone step
+            registrationState.data.city = city;
+            registrationState.step = 'phone';
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ City: ${city}\n\n` +
+              `📱 Please share your phone number so passengers can contact you when needed.\n\n` +
+              `Send your phone number (e.g., +1-555-123-4567 or 555-123-4567):`
+            );
+            
+          } else if (registrationState.step === 'phone') {
+            // Handle phone for volunteer - will be processed below in phone section
+          }
+          
+        } else if (registrationState.type === 'user_new') {
+          if (registrationState.step === 'username') {
+            // Handle username input for user registration
+            const username = text.trim();
+            
+            // Validate username
+            if (username.length < 3) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter a valid username (at least 3 characters).\n\n` +
+                `Enter your dashboard username:`
+              );
+              return;
+            }
+            
+            // Check if user exists in system
+            try {
+              const users = await readUsers();
+              const user = users.find(u => u.username === username);
+
+              if (!user) {
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `❌ Username "${username}" not found in the dashboard system.\n\n` +
+                  `Please ensure:\n` +
+                  `• You have a dashboard account\n` +
+                  `• You're using your exact dashboard username\n` +
+                  `• Your account is active\n\n` +
+                  `Contact your administrator if you need help.`
+                );
+                this.registrationStates.delete(chatId);
+                return;
+              }
+
+              // Check if user is a volunteer
+              if (user.role === 'volunteer') {
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `❌ Volunteers cannot register as dashboard users.\n\n` +
+                  `Please use: \`/register_volunteer\`\n\n` +
+                  `If you need dashboard access, contact your administrator.`, 
+                  { parse_mode: 'Markdown' }
+                );
+                this.registrationStates.delete(chatId);
+                return;
+              }
+
+              // Check if user already has Telegram linked
+              if (user.telegramChatId) {
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `✅ You're already registered as dashboard user "${user.name || user.username}"!\n\n` +
+                  `Role: ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
+                  `Access Level: ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
+                  `You'll receive notifications for:\n` +
+                  `🔔 Flight additions and changes\n` +
+                  `🔔 Flight delays and updates\n` +
+                  `🔔 System notifications\n\n` +
+                  `Available commands:\n` +
+                  `/status - Check your registration status\n` +
+                  `/help - Show help menu`
+                );
+                this.registrationStates.delete(chatId);
+                return;
+              }
+
+              // Link Telegram to dashboard user
+              user.telegramChatId = chatId;
+              user.updatedAt = new Date().toISOString();
+              
+              const userIndex = users.findIndex(u => u.username === username);
+              users[userIndex] = user;
+              await writeUsers(users);
+
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 *Successfully linked to dashboard account!*\n\n` +
+                `✅ **Dashboard User:** ${user.name || user.username}\n` +
+                `👤 **Username:** ${user.username}\n` +
+                `🔑 **Role:** ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
+                `📊 **Access Level:** ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
+                `You'll now receive notifications for:\n` +
+                `🔔 Flight additions and changes\n` +
+                `🔔 Flight delays and updates\n` +
+                `🔔 System notifications\n` +
+                `🔔 Administrative alerts (if applicable)\n\n` +
+                `*Available commands:*\n` +
+                `/status - Check your registration status\n` +
+                `/help - Show help menu\n\n` +
+                `Welcome to the system! 🙏`,
+                { parse_mode: 'Markdown' }
+              );
+              
+              // Clear registration state
+              this.registrationStates.delete(chatId);
+              return;
+              
+            } catch (error) {
+              console.error('Error processing user registration:', error);
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Registration failed. Please try again later.`
+              );
+              this.registrationStates.delete(chatId);
+              return;
+            }
+          }
+          
+        } else if (registrationState.step === 'phone') {
           // Validate phone number format (basic validation)
           const phoneRegex = /^[\+]?[1-9][\d\-\(\)\s]{7,15}$/;
           if (!phoneRegex.test(text.replace(/\s+/g, ''))) {
@@ -805,7 +930,45 @@ class TelegramNotificationService {
           
           const formattedPhone = text.trim();
           
-          if (registrationState.type === 'volunteer') {
+          if (registrationState.type === 'volunteer_new') {
+            // Create new volunteer with full name and city
+            const users = await readUsers();
+            const user = {
+              id: require('uuid').v4(),
+              username: registrationState.data.fullName.replace(/\s+/g, '_').toLowerCase(), // Generate username from name
+              name: registrationState.data.fullName,
+              role: 'volunteer',
+              phone: formattedPhone,
+              city: registrationState.data.city,
+              telegramChatId: chatId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              allowedAirports: []
+            };
+            users.push(user);
+            await writeUsers(users);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `🎉 *Welcome to West Sant Transportation!*\n\n` +
+              `✅ Successfully registered as volunteer:\n` +
+              `👤 **Name:** ${user.name}\n` +
+              `🏙️ **City:** ${registrationState.data.city}\n` +
+              `📱 **Phone:** ${formattedPhone}\n` +
+              `🆔 **Username:** ${user.username}\n\n` +
+              `📝 Note: Your administrator can assign you to specific airports for pickups/dropoffs.\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight assignments\n` +
+              `🔔 Passenger contact information\n` +
+              `🔔 Schedule updates\n\n` +
+              `*Available commands:*\n` +
+              `/flights - View your assigned flights\n` +
+              `/help - Show help menu\n\n` +
+              `Thank you for volunteering! 🙏`,
+              { parse_mode: 'Markdown' }
+            );
+            
+          } else if (registrationState.type === 'volunteer') {
             // Create new volunteer
             const users = await readUsers();
             const user = {
