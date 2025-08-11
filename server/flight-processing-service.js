@@ -79,14 +79,20 @@ function parseFlightData(text) {
  * @returns {object} The newly created flight object.
  */
 async function processFlightTicket(imageUrl) {
+  console.log('PROCESS_FLIGHT_TICKET: Service called.');
   const text = await extractTextFromImage(imageUrl);
+  console.log('PROCESS_FLIGHT_TICKET: Text extracted from image.');
+
   const parsedData = parseFlightData(text);
+  console.log('PROCESS_FLIGHT_TICKET: Data parsed from text.');
 
   if (!parsedData.flightNumber || !parsedData.passengerName) {
     throw new Error('Could not extract flight number or passenger name.');
   }
 
   const passenger = await findPassengerByLegalName(parsedData.passengerName);
+  console.log('PROCESS_FLIGHT_TICKET: Passenger found.');
+
   if (!passenger) {
     throw new Error(`Could not find a passenger matching name: ${parsedData.passengerName}`);
   }
@@ -109,6 +115,7 @@ async function processFlightTicket(imageUrl) {
 
   flights.push(newFlight);
   await fs.writeFile(flightsFilePath, JSON.stringify(flights, null, 2));
+  console.log('PROCESS_FLIGHT_TICKET: New flight created and saved.');
 
   return newFlight;
 }

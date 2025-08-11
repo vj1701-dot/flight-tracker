@@ -904,12 +904,17 @@ class TelegramNotificationService {
       const chatId = msg.chat.id;
 
       try {
+        console.log('PHOTO_HANDLER: Starting photo processing.');
         await this.bot.sendMessage(chatId, '✈️ Ticket image received. Processing...');
+        console.log('PHOTO_HANDLER: "Processing" message sent.');
 
         const photo = msg.photo[msg.photo.length - 1]; // Get highest resolution
+        console.log('PHOTO_HANDLER: Getting file link.');
         const fileLink = await this.bot.getFileLink(photo.file_id);
+        console.log('PHOTO_HANDLER: File link obtained. Calling processFlightTicket.');
 
         const newFlight = await processFlightTicket(fileLink);
+        console.log('PHOTO_HANDLER: processFlightTicket completed.');
 
         await this.bot.sendMessage(chatId,
           `✅ Flight created successfully from ticket!\n\n` +
@@ -920,7 +925,7 @@ class TelegramNotificationService {
         );
 
       } catch (error) {
-        console.error('Error processing flight ticket photo:', error);
+        console.error('PHOTO_HANDLER_ERROR: Caught error:', error);
         await this.bot.sendMessage(chatId,
           `❌ Error processing ticket: ${error.message}\n\n` +
           `Please ensure the image is clear and contains the flight number and passenger name.`

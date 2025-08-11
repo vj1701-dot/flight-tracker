@@ -28,7 +28,10 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
  */
 async function extractTextFromImage(imageUrl) {
   try {
+    console.log('OCR_SERVICE: Calling Google Vision API.');
     const [result] = await client.textDetection(imageUrl);
+    console.log('OCR_SERVICE: Google Vision API call successful.');
+
     const detections = result.textAnnotations;
     
     if (detections && detections.length > 0) {
@@ -38,7 +41,7 @@ async function extractTextFromImage(imageUrl) {
       throw new Error('No text found in image.');
     }
   } catch (error) {
-    console.error('ERROR:', error);
+    console.error('ERROR in extractTextFromImage:', error);
     throw new Error('Google Cloud Vision API request failed.');
   }
 }
