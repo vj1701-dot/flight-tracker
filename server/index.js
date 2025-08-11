@@ -792,6 +792,308 @@ app.get('/api/airports', async (req, res) => {
   }
 });
 
+// Data Management Endpoints (Superadmin only)
+
+// Passengers endpoints
+app.get('/api/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    res.json(passengers);
+  } catch (error) {
+    console.error('Error reading passengers:', error);
+    res.status(500).json({ error: 'Failed to read passengers' });
+  }
+});
+
+app.post('/api/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const newPassenger = {
+      id: uuidv4(),
+      ...req.body,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      flightCount: 0
+    };
+    
+    passengers.push(newPassenger);
+    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'CREATE_PASSENGER', { passengerId: newPassenger.id, name: newPassenger.name });
+    
+    res.status(201).json(newPassenger);
+  } catch (error) {
+    console.error('Error creating passenger:', error);
+    res.status(500).json({ error: 'Failed to create passenger' });
+  }
+});
+
+app.put('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
+    
+    if (passengerIndex === -1) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+    
+    passengers[passengerIndex] = {
+      ...passengers[passengerIndex],
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+    
+    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'UPDATE_PASSENGER', { passengerId: req.params.id, name: passengers[passengerIndex].name });
+    
+    res.json(passengers[passengerIndex]);
+  } catch (error) {
+    console.error('Error updating passenger:', error);
+    res.status(500).json({ error: 'Failed to update passenger' });
+  }
+});
+
+app.delete('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
+    
+    if (passengerIndex === -1) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+    
+    const deletedPassenger = passengers[passengerIndex];
+    passengers.splice(passengerIndex, 1);
+    
+    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'DELETE_PASSENGER', { passengerId: req.params.id, name: deletedPassenger.name });
+    
+    res.json({ message: 'Passenger deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting passenger:', error);
+    res.status(500).json({ error: 'Failed to delete passenger' });
+  }
+});
+
+// Users endpoints
+app.get('/api/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    // Remove password hashes from response
+    const safeUsers = users.map(({ password, ...user }) => user);
+    res.json(safeUsers);
+  } catch (error) {
+    console.error('Error reading users:', error);
+    res.status(500).json({ error: 'Failed to read users' });
+  }
+});
+
+app.post('/api/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    
+    // Check if username already exists
+    if (users.some(u => u.username === req.body.username)) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    
+    const newUser = {
+      id: uuidv4(),
+      ...req.body,
+      password: await bcrypt.hash('password123', 10), // Default password
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      allowedAirports: req.body.allowedAirports || []
+    };
+    
+    users.push(newUser);
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'CREATE_USER', { userId: newUser.id, username: newUser.username });
+    
+    // Remove password hash from response
+    const { password, ...safeUser } = newUser;
+    res.status(201).json(safeUser);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const userIndex = users.findIndex(u => u.id === req.params.id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Check if username is being changed and if it conflicts
+    if (req.body.username && req.body.username !== users[userIndex].username) {
+      if (users.some(u => u.username === req.body.username && u.id !== req.params.id)) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+    }
+    
+    users[userIndex] = {
+      ...users[userIndex],
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+    
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'UPDATE_USER', { userId: req.params.id, username: users[userIndex].username });
+    
+    // Remove password hash from response
+    const { password, ...safeUser } = users[userIndex];
+    res.json(safeUser);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+app.delete('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const userIndex = users.findIndex(u => u.id === req.params.id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Prevent deletion of the last superadmin
+    if (users[userIndex].role === 'superadmin') {
+      const superadminCount = users.filter(u => u.role === 'superadmin').length;
+      if (superadminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last superadmin user' });
+      }
+    }
+    
+    const deletedUser = users[userIndex];
+    users.splice(userIndex, 1);
+    
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'DELETE_USER', { userId: req.params.id, username: deletedUser.username });
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Volunteers endpoints
+app.get('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    res.json(volunteers);
+  } catch (error) {
+    console.error('Error reading volunteers:', error);
+    res.status(500).json({ error: 'Failed to read volunteers' });
+  }
+});
+
+app.post('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    
+    // Check if username already exists
+    if (volunteers.some(v => v.username === req.body.username)) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    
+    const newVolunteer = {
+      id: uuidv4(),
+      ...req.body,
+      role: 'volunteer',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      allowedAirports: req.body.allowedAirports || []
+    };
+    
+    volunteers.push(newVolunteer);
+    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'CREATE_VOLUNTEER', { volunteerId: newVolunteer.id, username: newVolunteer.username });
+    
+    res.status(201).json(newVolunteer);
+  } catch (error) {
+    console.error('Error creating volunteer:', error);
+    res.status(500).json({ error: 'Failed to create volunteer' });
+  }
+});
+
+app.put('/api/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
+    
+    if (volunteerIndex === -1) {
+      return res.status(404).json({ error: 'Volunteer not found' });
+    }
+    
+    // Check if username is being changed and if it conflicts
+    if (req.body.username && req.body.username !== volunteers[volunteerIndex].username) {
+      if (volunteers.some(v => v.username === req.body.username && v.id !== req.params.id)) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+    }
+    
+    volunteers[volunteerIndex] = {
+      ...volunteers[volunteerIndex],
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+    
+    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'UPDATE_VOLUNTEER', { volunteerId: req.params.id, username: volunteers[volunteerIndex].username });
+    
+    res.json(volunteers[volunteerIndex]);
+  } catch (error) {
+    console.error('Error updating volunteer:', error);
+    res.status(500).json({ error: 'Failed to update volunteer' });
+  }
+});
+
+app.delete('/api/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
+    
+    if (volunteerIndex === -1) {
+      return res.status(404).json({ error: 'Volunteer not found' });
+    }
+    
+    const deletedVolunteer = volunteers[volunteerIndex];
+    volunteers.splice(volunteerIndex, 1);
+    
+    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    
+    // Log the action
+    await logAudit(req.user.id, 'DELETE_VOLUNTEER', { volunteerId: req.params.id, username: deletedVolunteer.username });
+    
+    res.json({ message: 'Volunteer deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting volunteer:', error);
+    res.status(500).json({ error: 'Failed to delete volunteer' });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
