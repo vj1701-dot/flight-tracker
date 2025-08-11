@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { extractTextFromImage } = require('./ocr-service');
+const GeminiService = require('./gemini-service');
 const { v4: uuidv4 } = require('uuid');
 
 const passengersFilePath = path.join(__dirname, 'passengers.json');
@@ -83,6 +84,100 @@ const GENERIC_PATTERNS = {
   seatRegex: /(?:seat|row)\s*[:\-]?\s*([A-Z0-9]{1,3}[A-F]?)/gi,
   confirmationRegex: /(?:confirmation|pnr|record\s+locator)\s*[:\-]?\s*([A-Z0-9]{4,8})/gi
 };
+
+/**
+ * Convert Gemini extracted data to our internal format
+ * @param {Object} geminiData - Data from Gemini API
+ * @returns {Object} - Data in our internal format
+ */
+function convertGeminiDataToInternalFormat(geminiData) {
+  console.log('🔄 FLIGHT_PROCESSING: Converting Gemini data to internal format...');
+  
+  // Initialize the internal format structure
+  const internalData = {
+    // Basic flight information
+    flightNumber: geminiData.flightNumber || null,
+    airline: geminiData.airline || null,
+    
+    // Route information
+    from: geminiData.departure?.airport || null,
+    to: geminiData.arrival?.airport || null,
+    fromCity: geminiData.departure?.city || null,
+    toCity: geminiData.arrival?.city || null,
+    
+    // Date and time information
+    departureDate: geminiData.departure?.date || null,
+    departureTime: geminiData.departure?.time || null,
+    arrivalDate: geminiData.arrival?.date || null,
+    arrivalTime: geminiData.arrival?.time || null,
+    
+    // Passenger information - take the first passenger for now
+    passengerName: null,
+    seatNumbers: geminiData.seatNumbers || [],
+    
+    // Additional information
+    confirmationCode: geminiData.confirmationCode || null,
+    gate: geminiData.gate || null,
+    terminal: geminiData.terminal || null,
+    
+    // Confidence and metadata
+    confidence: {
+      overall: 0.95, // Gemini generally has high confidence
+      flightNumber: geminiData.flightNumber ? 0.95 : 0,
+      passengerName: 0.95, // Will be updated below
+      airline: geminiData.airline ? 0.95 : 0,
+      route: (geminiData.departure?.airport && geminiData.arrival?.airport) ? 0.95 : 0
+    },
+    
+    parseStrategy: 'gemini_ai',
+    
+    // Debug and tracking information
+    allMatches: {
+      flightNumber: geminiData.flightNumber ? [{ value: geminiData.flightNumber, confidence: 0.95, source: 'gemini' }] : [],
+      passengerName: [],
+      airline: geminiData.airline ? [{ value: geminiData.airline, confidence: 0.95, source: 'gemini' }] : []
+    },
+    
+    debugInfo: {
+      rawMatches: {},
+      aiProvider: 'gemini',
+      geminiRawData: geminiData
+    }
+  };
+  
+  // Handle passengers - extract names and update confidence
+  if (geminiData.passengers && geminiData.passengers.length > 0) {
+    // For now, take the first passenger as primary
+    const firstPassenger = geminiData.passengers[0];
+    if (firstPassenger.name) {
+      internalData.passengerName = firstPassenger.name;
+      internalData.confidence.passengerName = 0.95;
+      
+      // Add all passengers to allMatches for reference
+      internalData.allMatches.passengerName = geminiData.passengers.map(p => ({
+        value: p.name,
+        seatNumber: p.seatNumber,
+        confidence: 0.95,
+        source: 'gemini'
+      }));
+      
+      console.log(`✅ FLIGHT_PROCESSING: Primary passenger: ${internalData.passengerName}`);
+      if (internalData.seatNumbers.length > 0) {
+        console.log(`💺 FLIGHT_PROCESSING: Seat numbers: ${internalData.seatNumbers.join(', ')}`);
+      }
+    }
+  }
+  
+  // Calculate overall confidence based on available data
+  const confidenceScores = Object.values(internalData.confidence).filter(score => score > 0);
+  if (confidenceScores.length > 0) {
+    internalData.confidence.overall = confidenceScores.reduce((sum, score) => sum + score, 0) / confidenceScores.length;
+  }
+  
+  console.log(`✅ FLIGHT_PROCESSING: Conversion completed. Overall confidence: ${internalData.confidence.overall.toFixed(2)}`);
+  
+  return internalData;
+}
 
 /**
  * Enhanced passenger matching with fuzzy search and multiple strategies
@@ -536,21 +631,82 @@ async function processFlightTicket(imageUrl) {
   };
 
   try {
-    // Step 1: Extract text from image with detailed results
-    console.log('🔍 FLIGHT_PROCESSING: Step 1 - OCR text extraction');
-    const ocrResult = await extractTextFromImage(imageUrl);
-    
-    if (!ocrResult.success) {
-      throw new Error(`OCR failed: ${ocrResult.error}`);
-    }
-    
-    console.log(`✅ FLIGHT_PROCESSING: OCR successful - ${ocrResult.fullText.length} characters extracted`);
-    processingResult.metadata.ocrResult = ocrResult.metadata;
+    let extractedData = null;
+    let extractionMethod = 'unknown';
 
-    // Step 2: Parse flight data using enhanced parsing
-    console.log('🔍 FLIGHT_PROCESSING: Step 2 - Enhanced data parsing');
-    const extractedData = parseFlightDataWithMultipleStrategies(ocrResult.fullText, ocrResult.metadata);
+    // Initialize Gemini service
+    const geminiService = new GeminiService();
+
+    // Step 1: Try Gemini AI first (primary method)
+    if (geminiService.isAvailable()) {
+      try {
+        console.log('🧠 FLIGHT_PROCESSING: Step 1 - Gemini AI extraction (primary method)');
+        
+        // Download image locally for Gemini processing
+        const fetch = require('node-fetch');
+        const response = await fetch(imageUrl);
+        const buffer = await response.buffer();
+        
+        // Create temporary file for Gemini
+        const tempDir = path.join(__dirname, 'temp-images');
+        await fs.mkdir(tempDir, { recursive: true });
+        const tempImagePath = path.join(tempDir, `gemini-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`);
+        
+        await fs.writeFile(tempImagePath, buffer);
+        console.log('📥 FLIGHT_PROCESSING: Image downloaded for Gemini processing');
+
+        // Process with Gemini
+        const geminiResult = await geminiService.extractFlightData(tempImagePath);
+        
+        // Clean up temp file
+        try {
+          await fs.unlink(tempImagePath);
+          console.log('🗑️  FLIGHT_PROCESSING: Cleaned up temporary file');
+        } catch (cleanupError) {
+          console.warn('⚠️  FLIGHT_PROCESSING: Failed to cleanup temp file:', cleanupError.message);
+        }
+
+        if (geminiResult.success && geminiResult.data) {
+          console.log('✅ FLIGHT_PROCESSING: Gemini extraction successful');
+          console.log('📊 FLIGHT_PROCESSING: Gemini summary:', geminiService.getDataSummary(geminiResult));
+          
+          // Convert Gemini data to our internal format
+          extractedData = convertGeminiDataToInternalFormat(geminiResult.data);
+          extractionMethod = 'gemini';
+          processingResult.metadata.extractionMethod = 'gemini';
+          processingResult.metadata.geminiConfidence = geminiResult.confidence;
+        } else {
+          console.log('⚠️  FLIGHT_PROCESSING: Gemini extraction failed, falling back to OCR');
+        }
+      } catch (geminiError) {
+        console.error('❌ FLIGHT_PROCESSING: Gemini error:', geminiError.message);
+        console.log('🔄 FLIGHT_PROCESSING: Falling back to OCR method');
+      }
+    } else {
+      console.log('⚠️  FLIGHT_PROCESSING: Gemini service not available, using OCR method');
+    }
+
+    // Step 1B: Fallback to OCR method if Gemini failed
+    if (!extractedData) {
+      console.log('🔍 FLIGHT_PROCESSING: Step 1B - OCR text extraction (fallback method)');
+      const ocrResult = await extractTextFromImage(imageUrl);
+      
+      if (!ocrResult.success) {
+        throw new Error(`Both Gemini and OCR failed. OCR error: ${ocrResult.error}`);
+      }
+      
+      console.log(`✅ FLIGHT_PROCESSING: OCR successful - ${ocrResult.fullText.length} characters extracted`);
+      processingResult.metadata.ocrResult = ocrResult.metadata;
+      processingResult.metadata.extractionMethod = 'ocr';
+
+      // Step 2: Parse flight data using enhanced parsing
+      console.log('🔍 FLIGHT_PROCESSING: Step 2 - Enhanced data parsing (OCR)');
+      extractedData = parseFlightDataWithMultipleStrategies(ocrResult.fullText, ocrResult.metadata);
+      extractionMethod = 'ocr';
+    }
+
     processingResult.extractedData = extractedData;
+    console.log(`📊 FLIGHT_PROCESSING: Data extraction completed using ${extractionMethod} method`);
     
     console.log(`📊 FLIGHT_PROCESSING: Parsing completed with ${extractedData.confidence.overall?.toFixed(2) || 0} overall confidence`);
 
@@ -635,7 +791,7 @@ async function processFlightTicket(imageUrl) {
       createdBy: 'telegram_ticket_processing',
       
       // Default fields for compatibility
-      notes: `Auto-created from ticket image.${extractedData.seatNumbers ? ` Seat Numbers: ${extractedData.seatNumbers.join(', ')}.` : ''} Extracted data: ${JSON.stringify(extractedData, null, 2)}`,
+      notes: `Auto-created from ticket image using ${extractionMethod.toUpperCase()} processing.${extractedData.seatNumbers ? ` Seat Numbers: ${extractedData.seatNumbers.join(', ')}.` : ''} Extracted data: ${JSON.stringify(extractedData, null, 2)}`,
       pickupSevakName: null,
       dropoffSevakName: null,
       pickupSevakPhone: null,

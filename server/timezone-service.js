@@ -303,6 +303,102 @@ class TimezoneService {
       message: duration.note || 'Flight times are valid'
     };
   }
+
+  /**
+   * Format date and time for telegram messages with local timezone
+   * @param {string} date - Date in YYYY-MM-DD format
+   * @param {string} time - Time in HH:MM format
+   * @param {string} airportCode - Airport code for timezone
+   * @returns {string} Formatted datetime string for telegram
+   */
+  formatDateTimeForTelegram(date, time, airportCode) {
+    if (!date || !time) {
+      return 'Time not specified';
+    }
+
+    try {
+      // Combine date and time
+      const dateTimeString = `${date}T${time}:00`;
+      const dateTime = new Date(dateTimeString);
+      
+      // Get airport info
+      const airport = this.getAirportInfo(airportCode);
+      if (!airport || !airport.timezone) {
+        // Fallback to basic formatting
+        const options = { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric', 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true
+        };
+        return `${dateTime.toLocaleDateString('en-US', options)}`;
+      }
+
+      // Format with airport timezone
+      const options = { 
+        timeZone: airport.timezone,
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true,
+        timeZoneName: 'short'
+      };
+
+      const formatted = dateTime.toLocaleDateString('en-US', options);
+      return formatted;
+    } catch (error) {
+      console.error('Error formatting datetime for telegram:', error);
+      return `${date} ${time}`;
+    }
+  }
+
+  /**
+   * Format flight times for telegram display
+   * @param {Object} flight - Flight object with departure/arrival info
+   * @returns {Object} Object with formatted strings for telegram
+   */
+  formatFlightTimesForTelegram(flight) {
+    const result = {
+      departure: 'Time not specified',
+      arrival: 'Time not specified'
+    };
+
+    // Format departure time
+    if (flight.departureDate && flight.departureTime && flight.from) {
+      result.departure = this.formatDateTimeForTelegram(
+        flight.departureDate, 
+        flight.departureTime, 
+        flight.from
+      );
+    } else if (flight.departureDateTime && flight.from) {
+      // Handle legacy format
+      const date = new Date(flight.departureDateTime);
+      const dateStr = date.toISOString().split('T')[0];
+      const timeStr = date.toISOString().split('T')[1].substring(0, 5);
+      result.departure = this.formatDateTimeForTelegram(dateStr, timeStr, flight.from);
+    }
+
+    // Format arrival time
+    if (flight.arrivalDate && flight.arrivalTime && flight.to) {
+      result.arrival = this.formatDateTimeForTelegram(
+        flight.arrivalDate, 
+        flight.arrivalTime, 
+        flight.to
+      );
+    } else if (flight.arrivalDateTime && flight.to) {
+      // Handle legacy format
+      const date = new Date(flight.arrivalDateTime);
+      const dateStr = date.toISOString().split('T')[0];
+      const timeStr = date.toISOString().split('T')[1].substring(0, 5);
+      result.arrival = this.formatDateTimeForTelegram(dateStr, timeStr, flight.to);
+    }
+
+    return result;
+  }
 }
 
 module.exports = TimezoneService;

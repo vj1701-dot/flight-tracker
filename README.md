@@ -40,7 +40,8 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 - **Multi-User Support**: Passengers, volunteers, and dashboard users
 - **Automated Monitoring**: Backend system monitors flights with admin dashboard control
 - **Real-time Flight Info**: Live flight status and delay information via bot commands
-- **Smart Registration**: Role-based registration with validation
+- **Smart Registration**: Multi-step guided registration with validation
+- **AI-Powered Ticket Processing**: Send flight ticket images to auto-extract flight details, passenger info, and seat assignments using Google Gemini AI with OCR fallback
 - **Comprehensive Commands**: Flight queries, status checks, and help
 - **Check-in Reminders**: Automated 24-hour reminders with airline-specific links and helpful tips
 - **Airport-based Notifications**: Dashboard users get alerts for their airports
@@ -197,6 +198,8 @@ NODE_ENV=production                    # Environment mode
 JWT_SECRET=your-secure-secret-here     # JWT signing secret
 TELEGRAM_BOT_TOKEN=your-bot-token      # Telegram bot token
 FLIGHTAWARE_API_KEY=your-api-key       # FlightAware AeroAPI key
+GEMINI_API_KEY=your-gemini-api-key     # Google Gemini API key (for AI ticket processing)
+GOOGLE_CREDENTIALS_JSON="{...}"        # Google Cloud credentials (for OCR fallback)
 PORT=3333                              # Server port (optional)
 ```
 

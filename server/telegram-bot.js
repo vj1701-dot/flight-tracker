@@ -161,9 +161,28 @@ class TelegramNotificationService {
     if (!datetime) return 'Not available';
     
     try {
-      const airportTime = this.timezoneService.convertToAirportTime(datetime, airportCode);
-      if (airportTime.error) {
-        // Fallback to UTC if timezone conversion fails
+      // Handle both legacy datetime format and new separate date/time format
+      let date, time;
+      
+      if (typeof datetime === 'string' && datetime.includes('T')) {
+        // Legacy format: "2025-08-11T15:30:00.000Z"
+        const dateObj = new Date(datetime);
+        date = dateObj.toISOString().split('T')[0];
+        time = dateObj.toISOString().split('T')[1].substring(0, 5);
+      } else {
+        // Could be other formats, try to parse
+        const dateObj = new Date(datetime);
+        date = dateObj.toISOString().split('T')[0];
+        time = dateObj.toISOString().split('T')[1].substring(0, 5);
+      }
+      
+      // Use the new timezone service method for telegram formatting
+      return this.timezoneService.formatDateTimeForTelegram(date, time, airportCode);
+      
+    } catch (error) {
+      console.error('Error formatting datetime with timezone:', error);
+      // Fallback formatting
+      try {
         return new Date(datetime).toLocaleString('en-US', {
           weekday: 'short',
           month: 'short',
@@ -172,22 +191,9 @@ class TelegramNotificationService {
           minute: '2-digit',
           hour12: true
         }) + ' UTC';
+      } catch (fallbackError) {
+        return 'Time formatting error';
       }
-      
-      // Parse the local time and format it nicely
-      const localDate = new Date(airportTime.localTime + 'Z'); // Add Z to treat as UTC
-      return localDate.toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }) + ` ${airportTime.timezoneAbbr}`;
-      
-    } catch (error) {
-      console.error('Error formatting datetime with timezone:', error);
-      return new Date(datetime).toLocaleString('en-US') + ' UTC';
     }
   }
 
