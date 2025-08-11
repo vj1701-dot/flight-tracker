@@ -953,8 +953,14 @@ class TelegramNotificationService {
         console.log(`🖼️  PHOTO_HANDLER: Processing photo - File ID: ${photo.file_id}`);
         console.log(`   Resolution: ${photo.width}x${photo.height}`);
         
-        const fileLink = await this.bot.getFileLink(photo.file_id);
-        console.log(`🔗 PHOTO_HANDLER: File link obtained: ${fileLink}`);
+        // Get file info first, then construct download URL manually
+        console.log('🔍 PHOTO_HANDLER: Getting file info from Telegram API...');
+        const fileInfo = await this.bot.getFile(photo.file_id);
+        console.log(`📸 PHOTO_HANDLER: File info received:`, JSON.stringify(fileInfo, null, 2));
+        
+        // Construct the full download URL manually
+        const fileLink = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.file_path}`;
+        console.log(`🔗 PHOTO_HANDLER: Constructed download URL: ${fileLink}`);
 
         // Process with enhanced system
         const processingResult = await processFlightTicket(fileLink);
@@ -1082,6 +1088,207 @@ class TelegramNotificationService {
         }
 
         const errorMessage = `❌ *Ticket Processing Error*\n\n` +
+                            `${error.message}${errorDetails}\n\n` +
+                            `Please try again or contact your administrator if the problem persists.`;
+
+        if (processingMessage) {
+          try {
+            await this.bot.editMessageText(errorMessage, {
+              chat_id: chatId,
+              message_id: processingMessage.message_id,
+              parse_mode: 'Markdown'
+            });
+          } catch (editError) {
+            // If edit fails, send new message
+            await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+          }
+        } else {
+          await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+        }
+      }
+      
+      // Mark message as processed (both success and error cases)
+      await this.markPhotoMessageAsProcessed(msg);
+    });
+
+    // Handle documents (including photos sent as files)
+    this.bot.on('document', async (msg) => {
+      console.log('📄 DOCUMENT_HANDLER: Document received, checking if it\'s an image...');
+      
+      if (await this.isPhotoMessageProcessed(msg)) {
+        console.log('⚠️ DOCUMENT_HANDLER: Message already processed, skipping');
+        return;
+      }
+      
+      const document = msg.document;
+      console.log(`📄 DOCUMENT_HANDLER: Document type: ${document.mime_type}, size: ${document.file_size}`);
+      
+      // Check if document is an image
+      if (!document.mime_type || !document.mime_type.startsWith('image/')) {
+        console.log('⚠️ DOCUMENT_HANDLER: Document is not an image, skipping');
+        return;
+      }
+      
+      console.log('✅ DOCUMENT_HANDLER: Document is an image, processing as ticket...');
+
+      const chatId = msg.chat.id;
+      let processingMessage;
+
+      try {
+        console.log('📄 DOCUMENT_HANDLER: Starting enhanced document image processing...');
+        
+        // Send initial processing message
+        processingMessage = await this.bot.sendMessage(chatId, 
+          '🔍 *Ticket Processing Started* (Document)\n\n' +
+          '• Analyzing document image...\n' +
+          '• Extracting text with Google Vision API...\n' +
+          '• Identifying airline patterns...\n' +
+          '• Matching passenger names...\n\n' +
+          '_This may take a few seconds..._',
+          { parse_mode: 'Markdown' }
+        );
+
+        // Get document file link
+        console.log(`📄 DOCUMENT_HANDLER: Processing document - File ID: ${document.file_id}`);
+        console.log(`   File name: ${document.file_name || 'unknown'}`);
+        console.log(`   MIME type: ${document.mime_type}`);
+        console.log(`   File size: ${document.file_size} bytes`);
+        
+        // Get file info first, then construct download URL manually
+        console.log('🔍 DOCUMENT_HANDLER: Getting file info from Telegram API...');
+        const fileInfo = await this.bot.getFile(document.file_id);
+        console.log(`📄 DOCUMENT_HANDLER: File info received:`, JSON.stringify(fileInfo, null, 2));
+        
+        // Construct the full download URL manually
+        const fileLink = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.file_path}`;
+        console.log(`🔗 DOCUMENT_HANDLER: Constructed download URL: ${fileLink}`);
+
+        // Process with enhanced system (same as photo processing)
+        const processingResult = await processFlightTicket(fileLink);
+        console.log(`✅ DOCUMENT_HANDLER: Processing completed - Success: ${processingResult.success}`);
+
+        if (processingResult.success) {
+          const flight = processingResult.flight;
+          const extractedData = processingResult.extractedData;
+          const passengerMatch = processingResult.passengerMatch;
+
+          // Build detailed result message (same as photo handler)
+          let resultMessage = `✅ *Ticket Processing Successful!* (Document)\n\n`;
+          
+          // Flight information
+          resultMessage += `🛩️ *Flight Details:*\n`;
+          resultMessage += `• Flight: *${flight.flightNumber}*\n`;
+          if (flight.airline) {
+            resultMessage += `• Airline: ${flight.airline}\n`;
+          }
+          if (flight.from && flight.to) {
+            resultMessage += `• Route: ${flight.from} → ${flight.to}\n`;
+          }
+          resultMessage += `• Confidence: ${Math.round((extractedData.confidence.overall || 0) * 100)}%\n`;
+          
+          // Passenger information
+          resultMessage += `\n👤 *Passenger Information:*\n`;
+          if (passengerMatch.passenger) {
+            resultMessage += `• Matched: *${passengerMatch.passenger.name}*\n`;
+            resultMessage += `• Extracted Name: "${passengerMatch.extractedName}"\n`;
+            resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
+            resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
+          } else {
+            resultMessage += `• ⚠️ No passenger match found\n`;
+            resultMessage += `• Extracted Name: "${extractedData.passengerName}"\n`;
+            resultMessage += `• *Requires manual passenger assignment*\n`;
+          }
+
+          // What was extracted
+          resultMessage += `\n📋 *Extracted Information:*\n`;
+          const extractedFields = [];
+          if (extractedData.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
+          if (extractedData.date) extractedFields.push(`Date: ${extractedData.date}`);
+          if (extractedData.departureTime) extractedFields.push(`Departure: ${extractedData.departureTime}`);
+          if (extractedData.seat) extractedFields.push(`Seat: ${extractedData.seat}`);
+          
+          if (extractedFields.length > 0) {
+            resultMessage += extractedFields.map(field => `• ${field}`).join('\n');
+          } else {
+            resultMessage += '• Basic flight and passenger info only';
+          }
+
+          // Next steps
+          resultMessage += `\n\n📝 *Next Steps:*\n`;
+          resultMessage += `• Complete departure/arrival times in dashboard\n`;
+          if (!flight.from || !flight.to) {
+            resultMessage += `• Add airport information manually\n`;
+          }
+          if (!passengerMatch.passenger) {
+            resultMessage += `• Assign correct passenger in dashboard\n`;
+          }
+          if (flight.processingStatus === 'partial') {
+            resultMessage += `• Review and complete flight details\n`;
+          }
+
+          resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
+
+          // Update the processing message with results
+          await this.bot.editMessageText(resultMessage, {
+            chat_id: chatId,
+            message_id: processingMessage.message_id,
+            parse_mode: 'Markdown'
+          });
+
+          // Send additional technical details for debugging (if issues exist)
+          if (processingResult.issues.length > 0) {
+            const debugMessage = `🔧 *Processing Issues:*\n` +
+              processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
+              `\n\n📊 *Technical Details:*\n` +
+              `• Parse Strategy: ${extractedData.parseStrategy}\n` +
+              `• OCR Processing: ${processingResult.metadata.ocrResult.processingTimeMs}ms\n` +
+              `• Text Blocks Found: ${processingResult.metadata.ocrResult.detectionCount}`;
+            
+            await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+          }
+
+        } else {
+          // Processing failed
+          let errorMessage = `❌ *Ticket Processing Failed* (Document)\n\n`;
+          errorMessage += `Error: ${processingResult.error}\n\n`;
+          
+          if (processingResult.issues.length > 0) {
+            errorMessage += `Issues encountered:\n`;
+            errorMessage += processingResult.issues.map(issue => `• ${issue}`).join('\n') + '\n\n';
+          }
+          
+          errorMessage += `💡 *Troubleshooting Tips:*\n`;
+          errorMessage += `• Ensure image is clear and well-lit\n`;
+          errorMessage += `• Make sure ticket text is readable\n`;
+          errorMessage += `• Try sending as photo instead of document\n`;
+          errorMessage += `• Verify passenger name exists in the system\n\n`;
+          errorMessage += `If problems persist, contact your administrator.`;
+
+          await this.bot.editMessageText(errorMessage, {
+            chat_id: chatId,
+            message_id: processingMessage.message_id,
+            parse_mode: 'Markdown'
+          });
+        }
+
+      } catch (error) {
+        console.error('❌ DOCUMENT_HANDLER_ERROR: Comprehensive error occurred:', error);
+        
+        let errorDetails = '';
+        if (error.message.includes('credentials')) {
+          errorDetails = `\n\n🔐 *Credential Issue Detected*\n` +
+                        `The Google Vision API credentials may be invalid or missing. ` +
+                        `Please check the GOOGLE_CREDENTIALS_JSON environment variable.`;
+        } else if (error.message.includes('quota') || error.message.includes('billing')) {
+          errorDetails = `\n\n💳 *API Quota/Billing Issue*\n` +
+                        `Google Vision API quota may be exceeded or billing not enabled. ` +
+                        `Please check your Google Cloud Console.`;
+        } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
+          errorDetails = `\n\n🌐 *Network Issue*\n` +
+                        `Unable to connect to Google Vision API. Check your internet connection.`;
+        }
+
+        const errorMessage = `❌ *Document Ticket Processing Error*\n\n` +
                             `${error.message}${errorDetails}\n\n` +
                             `Please try again or contact your administrator if the problem persists.`;
 
