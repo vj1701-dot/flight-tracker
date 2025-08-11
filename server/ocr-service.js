@@ -123,25 +123,72 @@ async function extractTextFromImage(imageUrl) {
     
     // Make the API call with verbose request details
     console.log('📡 OCR_SERVICE: Sending request to Google Vision API...');
+    console.log('📡 OCR_SERVICE: Using textDetection method for ticket OCR');
     const [result] = await client.textDetection(imageUrl);
     
     const duration = Date.now() - startTime;
     console.log(`✅ OCR_SERVICE: API call completed in ${duration}ms`);
+    console.log(`🔍 OCR_SERVICE: Raw result keys: ${Object.keys(result).join(', ')}`);
+    console.log(`🔍 OCR_SERVICE: Full result structure: ${JSON.stringify(result, null, 2).substring(0, 500)}...`);
 
     const detections = result.textAnnotations;
+    console.log(`🔍 OCR_SERVICE: Text annotations array length: ${detections ? detections.length : 'null'}`);
+    console.log(`🔍 OCR_SERVICE: Text annotations type: ${typeof detections}`);
     
     if (!detections || detections.length === 0) {
-      console.warn('⚠️  OCR_SERVICE: No text annotations found in image');
+      console.warn('⚠️  OCR_SERVICE: No text annotations found with textDetection, trying documentTextDetection...');
+      
+      try {
+        const startTime2 = Date.now();
+        const [documentResult] = await client.documentTextDetection(imageUrl);
+        const duration2 = Date.now() - startTime2;
+        console.log(`✅ OCR_SERVICE: Document text detection completed in ${duration2}ms`);
+        
+        if (documentResult.textAnnotations && documentResult.textAnnotations.length > 0) {
+          console.log(`🎯 OCR_SERVICE: Document detection found ${documentResult.textAnnotations.length} text blocks!`);
+          
+          const fullText = documentResult.textAnnotations[0].description;
+          const individualTexts = documentResult.textAnnotations.slice(1).map((detection, index) => ({
+            text: detection.description,
+            confidence: detection.confidence || 'unknown',
+            boundingPoly: detection.boundingPoly,
+            index: index
+          }));
+
+          console.log(`📋 OCR_SERVICE: Document text extraction successful!`);
+          console.log(`   Total text blocks found: ${documentResult.textAnnotations.length}`);
+          console.log(`   Full text length: ${fullText.length} characters`);
+          console.log(`   Preview (first 200 chars): ${fullText.substring(0, 200)}${fullText.length > 200 ? '...' : ''}`);
+
+          return {
+            success: true,
+            fullText: fullText,
+            individualTexts: individualTexts,
+            method: 'documentTextDetection',
+            metadata: {
+              detectionCount: documentResult.textAnnotations.length,
+              processingTimeMs: duration + duration2,
+              imageUrl: imageUrl,
+              credentialProject: credentialsInfo?.projectId
+            }
+          };
+        }
+      } catch (docError) {
+        console.error('❌ OCR_SERVICE: Document text detection also failed:', docError.message);
+      }
+      
+      console.warn('⚠️  OCR_SERVICE: No text found with either method');
       console.log('   This could mean:');
       console.log('   - Image contains no readable text');
       console.log('   - Image quality is too poor');
       console.log('   - Text is in an unsupported language/format');
+      console.log('   - Try a clearer, higher-contrast image');
       
       return {
         success: false,
         fullText: '',
         individualTexts: [],
-        error: 'No text found in image',
+        error: 'No text found in image (tried both textDetection and documentTextDetection)',
         metadata: {
           detectionCount: 0,
           processingTimeMs: duration,
