@@ -900,7 +900,14 @@ class TelegramNotificationService {
 
     // Handle incoming photos for flight ticket processing
     this.bot.on('photo', async (msg) => {
-      if (await this.isMessageProcessed(msg)) return;
+      console.log('🎫 PHOTO_HANDLER: Photo event received, checking if processed...');
+      
+      if (await this.isMessageProcessed(msg)) {
+        console.log('⚠️ PHOTO_HANDLER: Message already processed, skipping');
+        return;
+      }
+      
+      console.log('✅ PHOTO_HANDLER: New photo message, starting processing...');
 
       const chatId = msg.chat.id;
       let processingMessage;
