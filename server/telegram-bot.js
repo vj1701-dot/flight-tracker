@@ -109,14 +109,14 @@ class TelegramNotificationService {
     return false;
   }
 
-  // Simplified version for photo handler only
+  // Separate message tracking for photo messages only
   async isPhotoMessageProcessed(msg) {
-    const messageId = `${msg.chat.id}_${msg.message_id}`;
+    const messageId = `photo_${msg.chat.id}_${msg.message_id}`;
     return this.processedMessages.has(messageId);
   }
 
   async markPhotoMessageAsProcessed(msg) {
-    const messageId = `${msg.chat.id}_${msg.message_id}`;
+    const messageId = `photo_${msg.chat.id}_${msg.message_id}`;
     this.processedMessages.add(messageId);
     
     // Keep only last 1000 processed messages to prevent memory leak
