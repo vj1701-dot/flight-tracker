@@ -131,6 +131,39 @@ class TelegramNotificationService {
     }
   }
 
+  // Check if user exists in any role
+  async checkExistingRoles(chatId) {
+    const existingRoles = [];
+    
+    try {
+      // Check passengers
+      const passengers = await readPassengers();
+      const passenger = passengers.find(p => p.telegramChatId === chatId);
+      if (passenger) {
+        existingRoles.push({ type: 'passenger', data: passenger });
+      }
+      
+      // Check users
+      const users = await readUsers();
+      const user = users.find(u => u.telegramChatId === chatId);
+      if (user) {
+        existingRoles.push({ type: 'user', data: user });
+      }
+      
+      // Check volunteers (in users file with role='volunteer')
+      const volunteer = users.find(u => u.telegramChatId === chatId && u.role === 'volunteer');
+      if (volunteer && !existingRoles.find(r => r.type === 'user')) {
+        // Only add as separate volunteer if not already a user
+        existingRoles.push({ type: 'volunteer', data: volunteer });
+      }
+      
+    } catch (error) {
+      console.error('Error checking existing roles:', error);
+    }
+    
+    return existingRoles;
+  }
+
   /**
    * Format airport display in proper format: IATA, City, State (no Country for USA)
    * @param {string} airportCode - Airport IATA code
@@ -280,11 +313,46 @@ class TelegramNotificationService {
       const chatId = msg.chat.id;
 
       try {
+        // Check if user already has any roles
+        const existingRoles = await this.checkExistingRoles(chatId);
+        const hasPassengerRole = existingRoles.find(r => r.type === 'passenger');
+        
+        if (hasPassengerRole) {
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `✅ You're already registered as a passenger!\n\n` +
+            `👤 **Name:** ${hasPassengerRole.data.name}\n` +
+            `📄 **Legal Name:** ${hasPassengerRole.data.legalName}\n\n` +
+            `You'll receive notifications for:\n` +
+            `🔔 Flight updates\n` +
+            `🔔 Pickup/dropoff information\n` +
+            `🔔 Important announcements\n\n` +
+            `Use /status to see all your roles.`,
+            { parse_mode: 'Markdown' }
+          );
+          return;
+        }
+        
+        // Show existing roles if any
+        if (existingRoles.length > 0) {
+          const rolesList = existingRoles.map(r => {
+            if (r.type === 'user') return `👥 Dashboard User (${r.data.role})`;
+            if (r.type === 'volunteer') return `🤝 Volunteer`;
+            return `👤 ${r.type}`;
+          }).join('\n');
+          
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `ℹ️ You currently have these roles:\n${rolesList}\n\n` +
+            `Adding passenger role as well...`
+          );
+        }
+
         // Start registration flow
         this.registrationStates.set(chatId, {
           type: 'passenger_new',
           step: 'full_name',
-          data: {}
+          data: { existingRoles }
         });
         
         await this.bot.sendMessage(chatId, 
@@ -750,6 +818,100 @@ class TelegramNotificationService {
           this.registrationStates.delete(chatId);
           return;
           
+        } else if (registrationState.type === 'passenger_new') {
+          if (registrationState.step === 'full_name') {
+            // Handle full name input for passenger registration
+            const fullName = text.trim();
+            
+            // Validate name format
+            const nameParts = fullName.split(/\s+/);
+            if (nameParts.length < 2 || fullName.length < 3) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter your name in First Name & Last Name format.\n\n` +
+                `Examples:\n` +
+                `• John Smith\n` +
+                `• Mary Johnson\n\n` +
+                `Please try again:`
+              );
+              return;
+            }
+            
+            // Store full name and move to legal name step
+            registrationState.data.fullName = fullName;
+            registrationState.step = 'legal_name';
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `✅ Full Name: ${fullName}\n\n` +
+              `📄 Please enter your *Legal Name* (as it appears on your ticket/ID).\n\n` +
+              `This should match exactly what's on your flight tickets.\n\n` +
+              `Enter your legal name:`,
+              { parse_mode: 'Markdown' }
+            );
+            
+          } else if (registrationState.step === 'legal_name') {
+            // Handle legal name input
+            const legalName = text.trim();
+            
+            // Validate legal name
+            if (legalName.length < 2) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter a valid legal name.\n\n` +
+                `Enter your legal name:`
+              );
+              return;
+            }
+            
+            // Create new passenger
+            try {
+              const passengers = await readPassengers();
+              const passenger = {
+                id: require('uuid').v4(),
+                name: registrationState.data.fullName,
+                legalName: legalName,
+                phone: null,
+                telegramChatId: chatId,
+                flightCount: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              passengers.push(passenger);
+              await writePassengers(passengers);
+              
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 *Welcome to West Sant Transportation!*\n\n` +
+                `✅ Successfully registered as passenger:\n` +
+                `👤 **Full Name:** ${passenger.name}\n` +
+                `📄 **Legal Name:** ${legalName}\n\n` +
+                `You'll receive notifications for:\n` +
+                `🔔 Flight updates\n` +
+                `🔔 Pickup/dropoff information\n` +
+                `🔔 Important announcements\n\n` +
+                `*Available commands:*\n` +
+                `/status - Check your registration status\n` +
+                `/help - Show help menu\n\n` +
+                `Welcome to the system! 🙏`,
+                { parse_mode: 'Markdown' }
+              );
+              
+              // Clear registration state
+              this.registrationStates.delete(chatId);
+              return;
+              
+            } catch (error) {
+              console.error('Error processing passenger registration:', error);
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Registration failed. Please try again later.`
+              );
+              this.registrationStates.delete(chatId);
+              return;
+            }
+          }
+          
         } else if (registrationState.type === 'volunteer_new') {
           if (registrationState.step === 'full_name') {
             // Handle full name input for volunteer registration
@@ -1194,6 +1356,11 @@ class TelegramNotificationService {
             resultMessage += `• Review and complete flight details\n`;
           }
 
+          // Add notes if available
+          if (flight.notes) {
+            resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
+          }
+
           resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
 
           // Update the processing message with results
@@ -1393,6 +1560,11 @@ class TelegramNotificationService {
           }
           if (flight.processingStatus === 'partial') {
             resultMessage += `• Review and complete flight details\n`;
+          }
+
+          // Add notes if available
+          if (flight.notes) {
+            resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
           }
 
           resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;

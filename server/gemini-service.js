@@ -94,40 +94,29 @@ class GeminiService {
       const prompt = `
 You are an expert flight ticket analyzer. Analyze this flight ticket image and extract the following information in valid JSON format.
 
-Please extract these fields (use null if not clearly visible):
+Please extract these fields exactly as specified below. If any information is missing or not clearly visible, use "missing" as the value:
+
 {
-  "airline": "airline name or code (e.g., 'United Airlines' or 'UA')",
-  "flightNumber": "flight number (e.g., 'UA1855')",
-  "passengers": [
-    {
-      "name": "passenger full name as appears on ticket",
-      "seatNumber": "seat assignment (e.g., '24A')"
-    }
-  ],
-  "departure": {
-    "airport": "departure airport code (e.g., 'SFO')",
-    "city": "departure city name",
-    "date": "departure date in YYYY-MM-DD format",
-    "time": "departure time in HH:MM format (24-hour)"
-  },
-  "arrival": {
-    "airport": "arrival airport code (e.g., 'LAX')",
-    "city": "arrival city name", 
-    "date": "arrival date in YYYY-MM-DD format",
-    "time": "arrival time in HH:MM format (24-hour)"
-  },
-  "confirmationCode": "booking reference or PNR code",
-  "gate": "departure gate if visible",
-  "terminal": "departure terminal if visible"
+  "airlineName": "full airline name (e.g., 'United Airlines')",
+  "flightNumber": "complete flight number (e.g., 'UA1855')",
+  "departureAirport": "departure airport 3-letter IATA code (e.g., 'SFO')",
+  "arrivalAirport": "arrival airport 3-letter IATA code (e.g., 'LAX')",
+  "departureDate": "departure date in YYYY-MM-DD format",
+  "departureTime": "departure time in HH:MM format (24-hour)",
+  "arrivalDate": "arrival date in YYYY-MM-DD format", 
+  "arrivalTime": "arrival time in HH:MM format (24-hour)",
+  "passengerName": "passenger full name as appears on ticket",
+  "seatNumber": "seat assignment (e.g., '24A')"
 }
 
-Important rules:
+CRITICAL INSTRUCTIONS:
 1. Return ONLY valid JSON, no additional text or explanation
-2. Use null for any field that is not clearly visible or readable
-3. For passenger names, extract exactly as they appear on the ticket
+2. Use exactly "missing" (lowercase) for any field that is not clearly visible or readable
+3. Extract passenger name exactly as it appears on the ticket
 4. Convert all times to 24-hour format (e.g., 8:30 AM becomes "08:30")
-5. If multiple passengers, include all of them in the passengers array
-6. For dates: SMART YEAR INFERENCE:
+5. Airport codes must be 3-letter IATA codes in UPPERCASE
+6. If only one date is visible, use it for BOTH departure and arrival dates
+7. For dates with smart year inference:
    - If full date with year is visible (e.g., "Dec 11, 2025"), use that year
    - If only month/day (e.g., "Dec 11" or "12/11"), apply smart logic:
    - Current date: ${new Date().toISOString().split('T')[0]}
@@ -135,7 +124,7 @@ Important rules:
    - If we're in November-December and flight date is January-April, use next year  
    - Otherwise use current year
    - Always convert to YYYY-MM-DD format
-7. Airport codes should be 3-letter IATA codes in uppercase
+8. For multiple passengers on one ticket, extract the primary passenger name only
 `;
 
       // Send request to Gemini
@@ -163,10 +152,11 @@ Important rules:
       
       console.log('✅ GEMINI_SERVICE: Flight data extraction completed');
       console.log('📊 GEMINI_SERVICE: Extracted data summary:', {
-        airline: processedData.airline,
-        flightNumber: processedData.flightNumber,
-        passengerCount: processedData.passengers?.length || 0,
-        route: `${processedData.departure?.airport || 'N/A'} → ${processedData.arrival?.airport || 'N/A'}`
+        airlineName: processedData.airlineName || 'missing',
+        flightNumber: processedData.flightNumber || 'missing',
+        passengerName: processedData.passengerName || 'missing',
+        route: `${processedData.departureAirport || 'missing'} → ${processedData.arrivalAirport || 'missing'}`,
+        seatNumber: processedData.seatNumber || 'missing'
       });
 
       return {
@@ -184,40 +174,39 @@ Important rules:
   }
 
   /**
-   * Process and validate extracted data from Gemini
+   * Process and validate extracted data from Gemini (simplified format)
    * @param {Object} rawData - Raw data from Gemini
    * @returns {Object} - Processed and validated data
    */
   processExtractedData(rawData) {
     const processed = { ...rawData };
 
-    // Ensure passengers is an array
-    if (processed.passengers && !Array.isArray(processed.passengers)) {
-      processed.passengers = [processed.passengers];
-    }
-
     // Clean up airport codes
-    if (processed.departure?.airport) {
-      processed.departure.airport = processed.departure.airport.toUpperCase();
+    if (processed.departureAirport && processed.departureAirport !== 'missing') {
+      processed.departureAirport = processed.departureAirport.toUpperCase();
     }
-    if (processed.arrival?.airport) {
-      processed.arrival.airport = processed.arrival.airport.toUpperCase();
+    if (processed.arrivalAirport && processed.arrivalAirport !== 'missing') {
+      processed.arrivalAirport = processed.arrivalAirport.toUpperCase();
     }
 
     // Standardize flight number format
-    if (processed.flightNumber) {
+    if (processed.flightNumber && processed.flightNumber !== 'missing') {
       processed.flightNumber = processed.flightNumber.toUpperCase().replace(/\s+/g, '');
     }
 
     // Smart date processing with year inference
-    processed.departure = this.processDateWithSmartYear(processed.departure);
-    processed.arrival = this.processDateWithSmartYear(processed.arrival);
+    if (processed.departureDate && processed.departureDate !== 'missing') {
+      processed.departureDate = this.processDateWithSmartYear(processed.departureDate);
+    }
+    if (processed.arrivalDate && processed.arrivalDate !== 'missing') {
+      processed.arrivalDate = this.processDateWithSmartYear(processed.arrivalDate);
+    }
 
-    // Add seat numbers to a separate field for easy access
-    if (processed.passengers && processed.passengers.length > 0) {
-      processed.seatNumbers = processed.passengers
-        .map(p => p.seatNumber)
-        .filter(seat => seat && seat !== null);
+    // If only one date is provided, use it for both departure and arrival
+    if (processed.departureDate && processed.departureDate !== 'missing' && 
+        (!processed.arrivalDate || processed.arrivalDate === 'missing')) {
+      processed.arrivalDate = processed.departureDate;
+      console.log('📅 GEMINI_SERVICE: Using departure date for arrival date (same-day flight)');
     }
 
     return processed;
@@ -225,19 +214,19 @@ Important rules:
 
   /**
    * Process date with smart year inference
-   * @param {Object} dateTimeObj - Object with date and time fields
-   * @returns {Object} - Processed object with smart year
+   * @param {string} dateString - Date string to process
+   * @returns {string} - Processed date string with smart year
    */
-  processDateWithSmartYear(dateTimeObj) {
-    if (!dateTimeObj || !dateTimeObj.date) {
-      return dateTimeObj;
+  processDateWithSmartYear(dateString) {
+    if (!dateString || dateString === 'missing') {
+      return dateString;
     }
 
-    let date = dateTimeObj.date;
+    let date = dateString;
     
     // If already in YYYY-MM-DD format, return as-is
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return dateTimeObj;
+      return date;
     }
 
     // Handle various date formats and apply smart year logic
@@ -267,7 +256,7 @@ Important rules:
       day = parseInt(parts[1]);
     } else {
       // Return original if we can't parse it
-      return dateTimeObj;
+      return date;
     }
 
     // Smart year inference logic
@@ -294,14 +283,11 @@ Important rules:
     
     console.log(`📅 GEMINI_SERVICE: Smart date inference: "${date}" → "${formattedDate}" (current: ${currentDate.toISOString().split('T')[0]})`);
 
-    return {
-      ...dateTimeObj,
-      date: formattedDate
-    };
+    return formattedDate;
   }
 
   /**
-   * Get a summary of extracted flight data for logging
+   * Get a summary of extracted flight data for logging (simplified format)
    * @param {Object} data - Extracted flight data
    * @returns {string} - Human readable summary
    */
@@ -309,13 +295,14 @@ Important rules:
     if (!data.success) return 'Extraction failed';
 
     const flight = data.data;
-    const passengers = flight.passengers?.map(p => `${p.name}${p.seatNumber ? ` (${p.seatNumber})` : ''}`).join(', ') || 'N/A';
+    const passenger = flight.passengerName !== 'missing' ? 
+      `${flight.passengerName}${flight.seatNumber !== 'missing' ? ` (${flight.seatNumber})` : ''}` : 'missing';
     
     return [
-      `Flight: ${flight.airline} ${flight.flightNumber}`,
-      `Route: ${flight.departure?.airport} → ${flight.arrival?.airport}`,
-      `Date: ${flight.departure?.date} ${flight.departure?.time}`,
-      `Passengers: ${passengers}`
+      `Flight: ${flight.airlineName || 'missing'} ${flight.flightNumber || 'missing'}`,
+      `Route: ${flight.departureAirport || 'missing'} → ${flight.arrivalAirport || 'missing'}`,
+      `Date: ${flight.departureDate || 'missing'} ${flight.departureTime || 'missing'}`,
+      `Passenger: ${passenger}`
     ].join(' | ');
   }
 }

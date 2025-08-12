@@ -87,55 +87,58 @@ const GENERIC_PATTERNS = {
 
 /**
  * Convert Gemini extracted data to our internal format
- * @param {Object} geminiData - Data from Gemini API
+ * @param {Object} geminiData - Data from Gemini API (new simplified format)
  * @returns {Object} - Data in our internal format
  */
 function convertGeminiDataToInternalFormat(geminiData) {
   console.log('🔄 FLIGHT_PROCESSING: Converting Gemini data to internal format...');
   
+  // Helper function to check if a value is missing
+  const isMissing = (value) => !value || value === 'missing' || value === null || value === undefined;
+  
   // Initialize the internal format structure
   const internalData = {
     // Basic flight information
-    flightNumber: geminiData.flightNumber || null,
-    airline: geminiData.airline || null,
+    flightNumber: isMissing(geminiData.flightNumber) ? null : geminiData.flightNumber,
+    airline: isMissing(geminiData.airlineName) ? null : geminiData.airlineName,
     
     // Route information
-    from: geminiData.departure?.airport || null,
-    to: geminiData.arrival?.airport || null,
-    fromCity: geminiData.departure?.city || null,
-    toCity: geminiData.arrival?.city || null,
+    from: isMissing(geminiData.departureAirport) ? null : geminiData.departureAirport?.toUpperCase(),
+    to: isMissing(geminiData.arrivalAirport) ? null : geminiData.arrivalAirport?.toUpperCase(),
+    fromCity: null, // Not provided in new format
+    toCity: null,   // Not provided in new format
     
     // Date and time information
-    departureDate: geminiData.departure?.date || null,
-    departureTime: geminiData.departure?.time || null,
-    arrivalDate: geminiData.arrival?.date || null,
-    arrivalTime: geminiData.arrival?.time || null,
+    departureDate: isMissing(geminiData.departureDate) ? null : geminiData.departureDate,
+    departureTime: isMissing(geminiData.departureTime) ? null : geminiData.departureTime,
+    arrivalDate: isMissing(geminiData.arrivalDate) ? null : geminiData.arrivalDate,
+    arrivalTime: isMissing(geminiData.arrivalTime) ? null : geminiData.arrivalTime,
     
-    // Passenger information - take the first passenger for now
-    passengerName: null,
-    seatNumbers: geminiData.seatNumbers || [],
+    // Passenger information
+    passengerName: isMissing(geminiData.passengerName) ? null : geminiData.passengerName,
+    seatNumbers: isMissing(geminiData.seatNumber) ? [] : [geminiData.seatNumber],
     
     // Additional information
-    confirmationCode: geminiData.confirmationCode || null,
-    gate: geminiData.gate || null,
-    terminal: geminiData.terminal || null,
+    confirmationCode: null, // Not in new simplified format
+    gate: null,             // Not in new simplified format
+    terminal: null,         // Not in new simplified format
     
     // Confidence and metadata
     confidence: {
       overall: 0.95, // Gemini generally has high confidence
-      flightNumber: geminiData.flightNumber ? 0.95 : 0,
-      passengerName: 0.95, // Will be updated below
-      airline: geminiData.airline ? 0.95 : 0,
-      route: (geminiData.departure?.airport && geminiData.arrival?.airport) ? 0.95 : 0
+      flightNumber: isMissing(geminiData.flightNumber) ? 0 : 0.95,
+      passengerName: isMissing(geminiData.passengerName) ? 0 : 0.95,
+      airline: isMissing(geminiData.airlineName) ? 0 : 0.95,
+      route: (isMissing(geminiData.departureAirport) || isMissing(geminiData.arrivalAirport)) ? 0 : 0.95
     },
     
-    parseStrategy: 'gemini_ai',
+    parseStrategy: 'gemini_ai_simplified',
     
     // Debug and tracking information
     allMatches: {
-      flightNumber: geminiData.flightNumber ? [{ value: geminiData.flightNumber, confidence: 0.95, source: 'gemini' }] : [],
-      passengerName: [],
-      airline: geminiData.airline ? [{ value: geminiData.airline, confidence: 0.95, source: 'gemini' }] : []
+      flightNumber: isMissing(geminiData.flightNumber) ? [] : [{ value: geminiData.flightNumber, confidence: 0.95, source: 'gemini' }],
+      passengerName: isMissing(geminiData.passengerName) ? [] : [{ value: geminiData.passengerName, confidence: 0.95, source: 'gemini' }],
+      airline: isMissing(geminiData.airlineName) ? [] : [{ value: geminiData.airlineName, confidence: 0.95, source: 'gemini' }]
     },
     
     debugInfo: {
@@ -145,28 +148,14 @@ function convertGeminiDataToInternalFormat(geminiData) {
     }
   };
   
-  // Handle passengers - extract names and update confidence
-  if (geminiData.passengers && geminiData.passengers.length > 0) {
-    // For now, take the first passenger as primary
-    const firstPassenger = geminiData.passengers[0];
-    if (firstPassenger.name) {
-      internalData.passengerName = firstPassenger.name;
-      internalData.confidence.passengerName = 0.95;
-      
-      // Add all passengers to allMatches for reference
-      internalData.allMatches.passengerName = geminiData.passengers.map(p => ({
-        value: p.name,
-        seatNumber: p.seatNumber,
-        confidence: 0.95,
-        source: 'gemini'
-      }));
-      
-      console.log(`✅ FLIGHT_PROCESSING: Primary passenger: ${internalData.passengerName}`);
-      if (internalData.seatNumbers.length > 0) {
-        console.log(`💺 FLIGHT_PROCESSING: Seat numbers: ${internalData.seatNumbers.join(', ')}`);
-      }
-    }
-  }
+  // Log extraction results
+  console.log(`✅ FLIGHT_PROCESSING: Airline: ${internalData.airline || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Flight Number: ${internalData.flightNumber || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Route: ${internalData.from || 'missing'} → ${internalData.to || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Passenger: ${internalData.passengerName || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Seat Number: ${internalData.seatNumbers.join(', ') || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Departure: ${internalData.departureDate || 'missing'} ${internalData.departureTime || 'missing'}`);
+  console.log(`✅ FLIGHT_PROCESSING: Arrival: ${internalData.arrivalDate || 'missing'} ${internalData.arrivalTime || 'missing'}`);
   
   // Calculate overall confidence based on available data
   const confidenceScores = Object.values(internalData.confidence).filter(score => score > 0);
@@ -310,6 +299,47 @@ async function findPassengerByExtractedName(extractedName) {
     extractedName,
     requiresManualLinking: true 
   };
+}
+
+/**
+ * Create a new passenger from extracted ticket data
+ * @param {string} extractedName - The name extracted from the ticket
+ * @returns {Promise<Object>} The newly created passenger
+ */
+async function createNewPassengerFromTicket(extractedName) {
+  console.log(`🆕 FLIGHT_PROCESSING: Creating new passenger: "${extractedName}"`);
+  
+  try {
+    const passengersData = await fs.readFile(passengersFilePath, 'utf-8');
+    const passengers = JSON.parse(passengersData);
+    
+    // Create a new passenger with extracted name
+    const newPassenger = {
+      id: uuidv4(),
+      name: extractedName, // Use extracted name as display name
+      legalName: extractedName, // Use same for legal name initially
+      phone: null,
+      telegramChatId: null,
+      extractedNames: [extractedName],
+      flightCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'ticket_processing_auto'
+    };
+    
+    // Add to passengers array
+    passengers.push(newPassenger);
+    
+    // Save back to file
+    await fs.writeFile(passengersFilePath, JSON.stringify(passengers, null, 2));
+    
+    console.log(`✅ FLIGHT_PROCESSING: Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+    
+    return newPassenger;
+  } catch (error) {
+    console.error('❌ FLIGHT_PROCESSING: Error creating new passenger:', error);
+    throw new Error(`Failed to create new passenger: ${error.message}`);
+  }
 }
 
 /**
@@ -742,10 +772,32 @@ async function processFlightTicket(imageUrl) {
         matchType: passengerMatch.matchType,
         matchConfidence: passengerMatch.confidence
       }];
+      console.log(`✅ FLIGHT_PROCESSING: Using existing passenger: ${passengerMatch.passenger.name}`);
     } else {
-      // No passenger match - we'll still create the flight but mark it for manual review
-      processingResult.issues.push(`No passenger match found for: ${extractedData.passengerName}`);
-      console.log('⚠️  FLIGHT_PROCESSING: No passenger match - flight will require manual passenger assignment');
+      // No passenger match found - create new passenger if we have a name
+      if (extractedData.passengerName && extractedData.passengerName !== 'missing') {
+        console.log('🆕 FLIGHT_PROCESSING: Creating new passenger from extracted data...');
+        try {
+          const newPassenger = await createNewPassengerFromTicket(extractedData.passengerName);
+          passengers = [{ 
+            id: newPassenger.id, 
+            name: newPassenger.name,
+            extractedName: extractedData.passengerName,
+            matchType: 'auto_created',
+            matchConfidence: 1.0
+          }];
+          console.log(`✅ FLIGHT_PROCESSING: Created and assigned new passenger: ${newPassenger.name}`);
+          processingResult.issues.push(`Auto-created new passenger: ${newPassenger.name}`);
+        } catch (createError) {
+          console.error('❌ FLIGHT_PROCESSING: Failed to create new passenger:', createError.message);
+          processingResult.issues.push(`Failed to create passenger "${extractedData.passengerName}": ${createError.message}`);
+          console.log('⚠️  FLIGHT_PROCESSING: Flight will require manual passenger assignment');
+        }
+      } else {
+        // No passenger name extracted - flight will need manual assignment
+        processingResult.issues.push('No passenger name extracted from ticket');
+        console.log('⚠️  FLIGHT_PROCESSING: No passenger name extracted - flight will require manual passenger assignment');
+      }
     }
 
     // Step 6: Load existing flights
@@ -775,8 +827,8 @@ async function processFlightTicket(imageUrl) {
       // Extracted data for reference and completion
       extractedData: {
         ...extractedData,
-        ocrFullText: ocrResult.fullText,
-        ocrConfidence: ocrResult.metadata
+        ocrFullText: extractionMethod === 'ocr' ? ocrResult?.fullText : null,
+        ocrConfidence: extractionMethod === 'ocr' ? ocrResult?.metadata : null
       },
       
       // Processing metadata
@@ -846,6 +898,7 @@ module.exports = {
   processFlightTicketLegacy,
   findPassengerByExtractedName,
   findPassengerByLegalName, // Keep for backward compatibility
+  createNewPassengerFromTicket,
   parseFlightDataWithMultipleStrategies,
   parseFlightData // Keep for backward compatibility
 };

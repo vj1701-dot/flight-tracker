@@ -795,7 +795,7 @@ app.get('/api/airports', async (req, res) => {
 // Data Management Endpoints (Superadmin only)
 
 // Passengers endpoints
-app.get('/api/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.get('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
     res.json(passengers);
@@ -805,7 +805,7 @@ app.get('/api/passengers', authenticateToken, authorizeRole(['superadmin']), asy
   }
 });
 
-app.post('/api/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
     const newPassenger = {
@@ -829,7 +829,7 @@ app.post('/api/passengers', authenticateToken, authorizeRole(['superadmin']), as
   }
 });
 
-app.put('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
     const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
@@ -856,7 +856,7 @@ app.put('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin']),
   }
 });
 
-app.delete('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
     const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
@@ -881,7 +881,7 @@ app.delete('/api/passengers/:id', authenticateToken, authorizeRole(['superadmin'
 });
 
 // Users endpoints
-app.get('/api/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.get('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
     // Remove password hashes from response
@@ -893,7 +893,7 @@ app.get('/api/users', authenticateToken, authorizeRole(['superadmin']), async (r
   }
 });
 
-app.post('/api/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.post('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
     
@@ -926,7 +926,7 @@ app.post('/api/users', authenticateToken, authorizeRole(['superadmin']), async (
   }
 });
 
-app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
     const userIndex = users.findIndex(u => u.id === req.params.id);
@@ -962,7 +962,7 @@ app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), asyn
   }
 });
 
-app.delete('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
     const userIndex = users.findIndex(u => u.id === req.params.id);
@@ -995,7 +995,7 @@ app.delete('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), a
 });
 
 // Volunteers endpoints
-app.get('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.get('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
     res.json(volunteers);
@@ -1005,7 +1005,7 @@ app.get('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), asy
   }
 });
 
-app.post('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
     
@@ -1036,7 +1036,7 @@ app.post('/api/volunteers', authenticateToken, authorizeRole(['superadmin']), as
   }
 });
 
-app.put('/api/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
     const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
@@ -1070,7 +1070,7 @@ app.put('/api/volunteers/:id', authenticateToken, authorizeRole(['superadmin']),
   }
 });
 
-app.delete('/api/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
     const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
     const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);

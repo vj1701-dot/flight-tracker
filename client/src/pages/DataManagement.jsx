@@ -23,10 +23,15 @@ const DataManagement = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+
       const [passengersRes, usersRes, volunteersRes] = await Promise.all([
-        fetch('/api/passengers'),
-        fetch('/api/users'),
-        fetch('/api/volunteers')
+        fetch('/api/data-management/passengers', { headers }),
+        fetch('/api/data-management/users', { headers }),
+        fetch('/api/data-management/volunteers', { headers })
       ]);
 
       if (!passengersRes.ok || !usersRes.ok || !volunteersRes.ok) {
@@ -54,7 +59,7 @@ const DataManagement = () => {
     setSaving(true);
     setError('');
     try {
-      const url = editingItem ? `/api/${type}/${editingItem.id}` : `/api/${type}`;
+      const url = editingItem ? `/api/data-management/${type}/${editingItem.id}` : `/api/data-management/${type}`;
       const method = editingItem ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -88,7 +93,7 @@ const DataManagement = () => {
     }
 
     try {
-      const response = await fetch(`/api/${type}/${id}`, {
+      const response = await fetch(`/api/data-management/${type}/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
