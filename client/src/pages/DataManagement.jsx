@@ -260,15 +260,15 @@ const DataManagement = () => {
     
     if (currentData.length === 0) {
       return (
-        <div className="text-center py-8 text-gray-500">
+        <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6b7280' }}>
           {searchTerm ? 'No items match your search.' : `No ${activeTab} found.`}
         </div>
       );
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ minWidth: '100%', backgroundColor: 'white', border: '1px solid #e5e7eb' }}>
           <thead className="bg-gray-50">
             <tr>
               {fields.slice(0, 4).map(field => (
@@ -334,73 +334,194 @@ const DataManagement = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Data Management</h1>
-        <p className="text-gray-600">Manage passengers, users, and volunteers</p>
+    <div style={{ padding: '1.5rem', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
+          Data Management
+        </h1>
+        <p style={{ color: '#6b7280' }}>Manage passengers, users, and volunteers</p>
       </div>
 
       {/* Alert Messages */}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          backgroundColor: '#fee2e2',
+          border: '1px solid #f87171',
+          color: '#991b1b',
+          borderRadius: '0.5rem',
+          position: 'relative'
+        }}>
           {error}
-          <button onClick={() => setError('')} className="float-right text-red-500 hover:text-red-700">×</button>
+          <button 
+            onClick={() => setError('')} 
+            style={{
+              position: 'absolute',
+              right: '1rem',
+              top: '1rem',
+              background: 'none',
+              border: 'none',
+              color: '#dc2626',
+              cursor: 'pointer',
+              fontSize: '1.25rem'
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
       
       {success && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+        <div style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          backgroundColor: '#d1fae5',
+          border: '1px solid #34d399',
+          color: '#059669',
+          borderRadius: '0.5rem',
+          position: 'relative'
+        }}>
           {success}
-          <button onClick={() => setSuccess('')} className="float-right text-green-500 hover:text-green-700">×</button>
+          <button 
+            onClick={() => setSuccess('')} 
+            style={{
+              position: 'absolute',
+              right: '1rem',
+              top: '1rem',
+              background: 'none',
+              border: 'none',
+              color: '#059669',
+              cursor: 'pointer',
+              fontSize: '1.25rem'
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          {['passengers', 'users', 'volunteers'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
-                activeTab === tab
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab} ({data[tab]?.length || 0})
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Controls */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder={`Search ${activeTab}...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+      {/* Card Container */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '0.75rem',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        padding: '1.5rem'
+      }}>
+        {/* Tabs */}
+        <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '1.5rem' }}>
+          <nav style={{ display: 'flex', gap: '2rem', marginBottom: '-1px' }}>
+            {['passengers', 'users', 'volunteers'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '0.5rem 0.25rem',
+                  borderBottom: activeTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
+                  fontWeight: '500',
+                  fontSize: '0.875rem',
+                  textTransform: 'capitalize',
+                  color: activeTab === tab ? '#2563eb' : '#6b7280',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== tab) {
+                    e.target.style.color = '#374151';
+                    e.target.style.borderBottomColor = '#d1d5db';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== tab) {
+                    e.target.style.color = '#6b7280';
+                    e.target.style.borderBottomColor = 'transparent';
+                  }
+                }}
+              >
+                {tab} ({data[tab]?.length || 0})
+              </button>
+            ))}
+          </nav>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Add {activeTab.slice(0, -1)}
-        </button>
-      </div>
 
-      {/* Data Table */}
-      {renderTable()}
+        {/* Controls */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ flex: '1', maxWidth: '24rem' }}>
+            <input
+              type="text"
+              placeholder={`Search ${activeTab}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#3b82f6';
+                e.target.style.boxShadow = '0 0 0 1px #3b82f6';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.75rem 1rem',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
+          >
+            Add {activeTab.slice(0, -1)}
+          </button>
+        </div>
+
+        {/* Data Table */}
+        {renderTable()}
+      </div>
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingItem) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div style={{
+          position: 'fixed',
+          inset: '0',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '50'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '0.75rem',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '32rem',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{
+              fontSize: '1.125rem',
+              fontWeight: '600',
+              color: '#1f2937',
+              marginBottom: '1.5rem'
+            }}>
               {editingItem ? `Edit ${activeTab.slice(0, -1)}` : `Add ${activeTab.slice(0, -1)}`}
             </h3>
             {renderForm(editingItem)}
