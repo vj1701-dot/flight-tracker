@@ -1376,8 +1376,8 @@ class TelegramNotificationService {
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
               `\n\n📊 *Technical Details:*\n` +
               `• Parse Strategy: ${extractedData.parseStrategy}\n` +
-              `• OCR Processing: ${processingResult.metadata.ocrResult.processingTimeMs}ms\n` +
-              `• Text Blocks Found: ${processingResult.metadata.ocrResult.detectionCount}`;
+              `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
+              `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
             await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
           }
@@ -1582,8 +1582,8 @@ class TelegramNotificationService {
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
               `\n\n📊 *Technical Details:*\n` +
               `• Parse Strategy: ${extractedData.parseStrategy}\n` +
-              `• OCR Processing: ${processingResult.metadata.ocrResult.processingTimeMs}ms\n` +
-              `• Text Blocks Found: ${processingResult.metadata.ocrResult.detectionCount}`;
+              `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
+              `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
             await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
           }

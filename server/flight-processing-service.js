@@ -663,6 +663,7 @@ async function processFlightTicket(imageUrl) {
   try {
     let extractedData = null;
     let extractionMethod = 'unknown';
+    let ocrResult = null;
 
     // Initialize Gemini service
     const geminiService = new GeminiService();
@@ -719,7 +720,7 @@ async function processFlightTicket(imageUrl) {
     // Step 1B: Fallback to OCR method if Gemini failed
     if (!extractedData) {
       console.log('🔍 FLIGHT_PROCESSING: Step 1B - OCR text extraction (fallback method)');
-      const ocrResult = await extractTextFromImage(imageUrl);
+      ocrResult = await extractTextFromImage(imageUrl);
       
       if (!ocrResult.success) {
         throw new Error(`Both Gemini and OCR failed. OCR error: ${ocrResult.error}`);
