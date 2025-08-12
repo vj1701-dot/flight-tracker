@@ -37,6 +37,13 @@ const DataManagement = () => {
     loadAirports();
   }, []);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('DataManagement data state:', data);
+    console.log('Active tab:', activeTab);
+    console.log('Current data for tab:', data[activeTab]);
+  }, [data, activeTab]);
+
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -557,88 +564,87 @@ const DataManagement = () => {
             </tr>
           </thead>
           <tbody style={{ backgroundColor: 'white' }}>
-            {currentData.map(item => (
-              <tr key={item.id} style={{
-                borderTop: '1px solid #e5e7eb',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}>
-                {fields.map(field => (
-                  <td key={field.name} style={{
+            {currentData.map(item => {
+              // Skip null/undefined items
+              if (!item || typeof item !== 'object') return null;
+              
+              return (
+                <tr key={item.id || Math.random()} style={{
+                  borderTop: '1px solid #e5e7eb',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}>
+                  {fields.map(field => (
+                    <td key={field.name} style={{
+                      padding: '1rem 1.5rem',
+                      whiteSpace: 'nowrap',
+                      fontSize: '0.875rem',
+                      color: '#111827'
+                    }}>
+                      {field.name === 'telegramChatId' ? (
+                        item[field.name] ? (
+                          <span style={{ color: '#059669' }}>✓ Linked</span>
+                        ) : (
+                          <span style={{ color: '#9ca3af' }}>Not linked</span>
+                        )
+                      ) : (
+                        item[field.name] || '-'
+                      )}
+                    </td>
+                  ))}
+                  <td style={{
                     padding: '1rem 1.5rem',
                     whiteSpace: 'nowrap',
                     fontSize: '0.875rem',
-                    color: '#111827'
+                    color: '#6b7280'
                   }}>
-                    {field.name === 'telegramChatId' ? (
-                      (item && item[field.name]) ? (
-                        <span style={{ color: '#059669' }}>✓ Linked</span>
-                      ) : (
-                        <span style={{ color: '#9ca3af' }}>Not linked</span>
-                      )
-                    ) : (
-                      (item && item[field.name]) || '-'
-                    )}
+                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}
                   </td>
-                ))}
-                <td style={{
-                  padding: '1rem 1.5rem',
-                  whiteSpace: 'nowrap',
-                  fontSize: '0.875rem',
-                  color: '#6b7280'
-                }}>
-                  {(item && item.createdAt) ? new Date(item.createdAt).toLocaleDateString() : '-'}
-                </td>
-                <td style={{
-                  padding: '1rem 1.5rem',
-                  whiteSpace: 'nowrap',
-                  fontSize: '0.875rem',
-                  fontWeight: '500'
-                }}>
-                  <button
-                    onClick={() => {
-                      if (item) {
+                  <td style={{
+                    padding: '1rem 1.5rem',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}>
+                    <button
+                      onClick={() => {
                         setEditingItem(item);
                         if (activeTab === 'users' && item.allowedAirports) {
                           setSelectedAirports(item.allowedAirports);
                         }
-                      }
-                    }}
-                    style={{
-                      color: '#2563eb',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      marginRight: '1rem',
-                      transition: 'color 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
-                    onMouseLeave={(e) => e.target.style.color = '#2563eb'}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (item && item.id) {
-                        deleteItem(item.id, activeTab);
-                      }
-                    }}
-                    style={{
-                      color: '#dc2626',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'color 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.color = '#991b1b'}
-                    onMouseLeave={(e) => e.target.style.color = '#dc2626'}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+                      }}
+                      style={{
+                        color: '#2563eb',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        marginRight: '1rem',
+                        transition: 'color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                      onMouseLeave={(e) => e.target.style.color = '#2563eb'}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteItem(item.id, activeTab)}
+                      style={{
+                        color: '#dc2626',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.color = '#991b1b'}
+                      onMouseLeave={(e) => e.target.style.color = '#dc2626'}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            }).filter(Boolean)}
           </tbody>
         </table>
       </div>
