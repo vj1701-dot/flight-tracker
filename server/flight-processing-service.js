@@ -986,7 +986,7 @@ async function processFlightTicket(imageUrl) {
     console.log('✅ FLIGHT_PROCESSING: Ticket processing completed successfully');
     console.log(`   Flight ID: ${newFlight.id}`);
     console.log(`   Flight Number: ${newFlight.flightNumber}`);
-    console.log(`   Passenger Match: ${passengerMatch.matchType}`);
+    console.log(`   Passengers Processed: ${passengers.length}`);
     console.log(`   Status: ${newFlight.processingStatus}`);
 
     return processingResult;
