@@ -90,14 +90,14 @@ const GENERIC_PATTERNS = {
  * @param {Object} geminiData - Data from Gemini API (new simplified format)
  * @returns {Object} - Data in our internal format
  */
-function convertGeminiDataToInternalFormat(geminiData) {
+async function convertGeminiDataToInternalFormat(geminiData) {
   console.log('🔄 FLIGHT_PROCESSING: Converting Gemini data to internal format...');
   
   // Helper function to check if a value is missing
   const isMissing = (value) => !value || value === 'missing' || value === null || value === undefined;
   
-  // Helper function to convert time from 12-hour format with AM/PM to proper datetime
-  const combineDateTimeToISO = (date, time) => {
+  // Helper function to convert time from 12-hour format with AM/PM to timezone-aware datetime
+  const combineDateTimeWithTimezone = async (date, time, airportCode) => {
     if (isMissing(date) || isMissing(time)) {
       return null;
     }
@@ -105,32 +105,86 @@ function convertGeminiDataToInternalFormat(geminiData) {
     try {
       // Parse the time (e.g., "8:30 AM" or "2:15 PM")
       let parsedTime = time.trim();
+      let hour24, minutes;
       
       // If time doesn't have AM/PM, assume it's already in 24-hour format
       if (!parsedTime.match(/AM|PM/i)) {
         // Ensure time is in HH:MM format
         if (parsedTime.match(/^\d{1,2}:\d{2}$/)) {
-          parsedTime = parsedTime.padStart(5, '0');
+          const [h, m] = parsedTime.split(':').map(num => parseInt(num));
+          hour24 = h;
+          minutes = m;
+        } else {
+          throw new Error('Invalid time format');
         }
-        return `${date}T${parsedTime}:00.000Z`;
+      } else {
+        // Parse 12-hour format
+        const [timeStr, period] = parsedTime.split(/\s+/);
+        const [hours, mins] = timeStr.split(':').map(num => parseInt(num));
+        
+        hour24 = hours;
+        minutes = mins;
+        if (period.toUpperCase() === 'PM' && hours !== 12) {
+          hour24 = hours + 12;
+        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+          hour24 = 0;
+        }
       }
       
-      // Parse 12-hour format
-      const [timeStr, period] = parsedTime.split(/\s+/);
-      const [hours, minutes] = timeStr.split(':').map(num => parseInt(num));
+      // Get airport timezone if available
+      const TimezoneService = require('./timezone-service');
+      const timezoneService = new TimezoneService();
       
-      let hour24 = hours;
-      if (period.toUpperCase() === 'PM' && hours !== 12) {
-        hour24 = hours + 12;
-      } else if (period.toUpperCase() === 'AM' && hours === 12) {
-        hour24 = 0;
+      // Wait for airports to load if needed
+      if (!timezoneService.airports) {
+        await timezoneService.loadAirports();
       }
       
-      const isoDateTime = `${date}T${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
-      console.log(`📅 FLIGHT_PROCESSING: Combined ${date} + ${time} → ${isoDateTime}`);
-      return isoDateTime;
+      const airportInfo = timezoneService.getAirportInfo(airportCode);
+      
+      if (airportInfo && airportInfo.timezone) {
+        // The photo shows times in the airport's local timezone, convert to UTC for storage
+        try {
+          // Create a date object representing the local time at the airport
+          // We'll use a simple approach: create the date/time and then adjust for timezone
+          const year = parseInt(date.split('-')[0]);
+          const month = parseInt(date.split('-')[1]) - 1; // JS months are 0-indexed
+          const day = parseInt(date.split('-')[2]);
+          
+          // Create Date object in local time (this will be treated as local system time)
+          const localDate = new Date(year, month, day, hour24, minutes, 0);
+          
+          // Now we need to convert this to UTC based on the airport's timezone
+          // We'll create two dates: one as UTC and one as the airport timezone, 
+          // then calculate the offset
+          const utcDate = new Date(year, month, day, hour24, minutes, 0);
+          const airportTimeString = utcDate.toLocaleString("sv-SE", {timeZone: airportInfo.timezone});
+          const airportAsLocal = new Date(airportTimeString);
+          
+          // Calculate the difference (timezone offset)
+          const offsetMs = utcDate.getTime() - airportAsLocal.getTime();
+          
+          // Apply offset to our local time to get the correct UTC time
+          const correctUtcTime = new Date(localDate.getTime() + offsetMs);
+          const isoDateTime = correctUtcTime.toISOString();
+          
+          console.log(`📅 FLIGHT_PROCESSING: Converted ${date} ${time} (${airportCode} ${airportInfo.timezone}) → ${isoDateTime} (UTC)`);
+          return isoDateTime;
+        } catch (tzError) {
+          console.error('❌ FLIGHT_PROCESSING: Timezone conversion error:', tzError.message);
+          // Fall back to basic conversion
+          const isoDateTime = `${date}T${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
+          console.log(`⚠️  FLIGHT_PROCESSING: Timezone conversion failed for ${airportCode}, using UTC: ${isoDateTime}`);
+          return isoDateTime;
+        }
+      } else {
+        // Fallback to simple UTC conversion if no timezone data
+        const isoDateTime = `${date}T${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
+        console.log(`⚠️  FLIGHT_PROCESSING: No timezone data for ${airportCode}, using UTC: ${date} + ${time} → ${isoDateTime}`);
+        return isoDateTime;
+      }
     } catch (error) {
-      console.error('❌ FLIGHT_PROCESSING: Error combining date/time:', error.message);
+      console.error('❌ FLIGHT_PROCESSING: Error combining date/time with timezone:', error.message);
       return `${date}T12:00:00.000Z`; // Fallback
     }
   };
@@ -156,9 +210,9 @@ function convertGeminiDataToInternalFormat(geminiData) {
     fromCity: null, // Not provided in new format
     toCity: null,   // Not provided in new format
     
-    // Combined date and time information (ISO format for consistency)
-    departureDateTime: combineDateTimeToISO(geminiData.departureDate, geminiData.departureTime),
-    arrivalDateTime: combineDateTimeToISO(geminiData.arrivalDate, geminiData.arrivalTime),
+    // Combined date and time information (timezone-aware ISO format)
+    departureDateTime: await combineDateTimeWithTimezone(geminiData.departureDate, geminiData.departureTime, geminiData.departureAirport),
+    arrivalDateTime: await combineDateTimeWithTimezone(geminiData.arrivalDate, geminiData.arrivalTime, geminiData.arrivalAirport),
     
     // Also keep separate fields for backward compatibility
     departureDate: isMissing(geminiData.departureDate) ? null : geminiData.departureDate,
@@ -755,7 +809,7 @@ async function processFlightTicket(imageUrl) {
           console.log('📊 FLIGHT_PROCESSING: Gemini summary:', geminiService.getDataSummary(geminiResult));
           
           // Convert Gemini data to our internal format
-          extractedData = convertGeminiDataToInternalFormat(geminiResult.data);
+          extractedData = await convertGeminiDataToInternalFormat(geminiResult.data);
           extractionMethod = 'gemini';
           processingResult.metadata.extractionMethod = 'gemini';
           processingResult.metadata.geminiConfidence = geminiResult.confidence;
