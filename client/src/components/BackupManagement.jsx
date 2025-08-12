@@ -12,6 +12,19 @@ export default function BackupManagement() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Add keyframe animation for spinner
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, [])
+
   useEffect(() => {
     fetchBackups()
     fetchStats()
@@ -26,12 +39,15 @@ export default function BackupManagement() {
       
       if (response.ok) {
         const data = await response.json()
-        setBackups(data.backups)
+        setBackups(data.backups || [])
       } else {
-        throw new Error('Failed to fetch backups')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to fetch backups (${response.status})`)
       }
     } catch (err) {
+      console.error('Backup fetch error:', err)
       setError(err.message)
+      setBackups([]) // Set empty array on error
     }
   }
 
@@ -45,9 +61,14 @@ export default function BackupManagement() {
       if (response.ok) {
         const data = await response.json()
         setStats(data)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Stats fetch failed:', errorData)
+        setStats({ error: errorData.error || 'Failed to fetch stats' })
       }
     } catch (err) {
       console.error('Error fetching stats:', err)
+      setStats({ error: err.message })
     } finally {
       setLoading(false)
     }

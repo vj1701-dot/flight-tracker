@@ -189,7 +189,7 @@ const DataManagement = () => {
     });
   };
 
-  const getFormFields = (type) => {
+  const getFormFields = (type, isEditing = false) => {
     switch (type) {
       case 'passengers':
         return [
@@ -202,7 +202,7 @@ const DataManagement = () => {
         return [
           { name: 'username', label: 'Username', type: 'text', required: true },
           { name: 'name', label: 'Full Name', type: 'text', required: true },
-          { name: 'password', label: 'Password', type: 'password', required: !editingItem },
+          { name: 'password', label: 'Password', type: 'password', required: !isEditing },
           { name: 'role', label: 'Role', type: 'select', options: ['user', 'admin', 'superadmin'], required: true },
           { name: 'phone', label: 'Phone Number', type: 'tel', required: false },
           { name: 'telegramChatId', label: 'Telegram Chat ID', type: 'number', required: false }
@@ -220,7 +220,7 @@ const DataManagement = () => {
   };
 
   const renderForm = (item = {}) => {
-    const fields = getFormFields(activeTab);
+    const fields = getFormFields(activeTab, !!editingItem);
     
     return (
       <form onSubmit={(e) => {
@@ -511,7 +511,7 @@ const DataManagement = () => {
 
   const renderTable = () => {
     const currentData = filteredData();
-    const fields = getFormFields(activeTab);
+    const fields = getFormFields(activeTab, false);
     
     if (currentData.length === 0) {
       return (
