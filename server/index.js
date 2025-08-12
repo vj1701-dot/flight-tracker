@@ -1941,44 +1941,6 @@ app.get('/api/timezones', (req, res) => {
   }
 });
 
-// Debug endpoint to view server files (only in development or with special header)
-app.get('/api/debug/files', (req, res) => {
-  // Security check
-  if (process.env.NODE_ENV === 'production' && req.headers['x-debug-key'] !== 'west-sant-debug-2024') {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-  
-  const allowedFiles = [
-    'flights.json',
-    'users.json',
-    'passengers.json',
-    'volunteers.json',
-    'audit_log.json'
-  ];
-  
-  const requestedFile = req.query.file;
-  if (!requestedFile || !allowedFiles.includes(requestedFile)) {
-    return res.json({ 
-      availableFiles: allowedFiles,
-      usage: '/api/debug/files?file=flights.json',
-      note: 'In production, add header: x-debug-key: west-sant-debug-2024'
-    });
-  }
-  
-  const filePath = path.join(__dirname, requestedFile);
-  fs.readFile(filePath, 'utf8')
-    .then(data => {
-      try {
-        const jsonData = JSON.parse(data);
-        res.json({ file: requestedFile, data: jsonData });
-      } catch (e) {
-        res.json({ file: requestedFile, data: data });
-      }
-    })
-    .catch(err => {
-      res.status(404).json({ error: `File not found: ${requestedFile}`, details: err.message });
-    });
-});
 
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
