@@ -96,6 +96,54 @@ function convertGeminiDataToInternalFormat(geminiData) {
   // Helper function to check if a value is missing
   const isMissing = (value) => !value || value === 'missing' || value === null || value === undefined;
   
+  // Helper function to convert time from 12-hour format with AM/PM to proper datetime
+  const combineDateTimeToISO = (date, time) => {
+    if (isMissing(date) || isMissing(time)) {
+      return null;
+    }
+    
+    try {
+      // Parse the time (e.g., "8:30 AM" or "2:15 PM")
+      let parsedTime = time.trim();
+      
+      // If time doesn't have AM/PM, assume it's already in 24-hour format
+      if (!parsedTime.match(/AM|PM/i)) {
+        // Ensure time is in HH:MM format
+        if (parsedTime.match(/^\d{1,2}:\d{2}$/)) {
+          parsedTime = parsedTime.padStart(5, '0');
+        }
+        return `${date}T${parsedTime}:00.000Z`;
+      }
+      
+      // Parse 12-hour format
+      const [timeStr, period] = parsedTime.split(/\s+/);
+      const [hours, minutes] = timeStr.split(':').map(num => parseInt(num));
+      
+      let hour24 = hours;
+      if (period.toUpperCase() === 'PM' && hours !== 12) {
+        hour24 = hours + 12;
+      } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        hour24 = 0;
+      }
+      
+      const isoDateTime = `${date}T${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
+      console.log(`📅 FLIGHT_PROCESSING: Combined ${date} + ${time} → ${isoDateTime}`);
+      return isoDateTime;
+    } catch (error) {
+      console.error('❌ FLIGHT_PROCESSING: Error combining date/time:', error.message);
+      return `${date}T12:00:00.000Z`; // Fallback
+    }
+  };
+  
+  // Handle passenger names - support both single name and array
+  let extractedPassengerNames = [];
+  if (!isMissing(geminiData.passengerNames) && Array.isArray(geminiData.passengerNames)) {
+    extractedPassengerNames = geminiData.passengerNames.filter(name => !isMissing(name));
+  } else if (!isMissing(geminiData.passengerName)) {
+    // Fallback for old format
+    extractedPassengerNames = [geminiData.passengerName];
+  }
+  
   // Initialize the internal format structure
   const internalData = {
     // Basic flight information
@@ -108,14 +156,19 @@ function convertGeminiDataToInternalFormat(geminiData) {
     fromCity: null, // Not provided in new format
     toCity: null,   // Not provided in new format
     
-    // Date and time information
+    // Combined date and time information (ISO format for consistency)
+    departureDateTime: combineDateTimeToISO(geminiData.departureDate, geminiData.departureTime),
+    arrivalDateTime: combineDateTimeToISO(geminiData.arrivalDate, geminiData.arrivalTime),
+    
+    // Also keep separate fields for backward compatibility
     departureDate: isMissing(geminiData.departureDate) ? null : geminiData.departureDate,
     departureTime: isMissing(geminiData.departureTime) ? null : geminiData.departureTime,
     arrivalDate: isMissing(geminiData.arrivalDate) ? null : geminiData.arrivalDate,
     arrivalTime: isMissing(geminiData.arrivalTime) ? null : geminiData.arrivalTime,
     
-    // Passenger information
-    passengerName: isMissing(geminiData.passengerName) ? null : geminiData.passengerName,
+    // Passenger information - use first passenger as primary
+    passengerName: extractedPassengerNames.length > 0 ? extractedPassengerNames[0] : null,
+    allPassengerNames: extractedPassengerNames, // Store all passenger names
     seatNumbers: isMissing(geminiData.seatNumber) ? [] : [geminiData.seatNumber],
     
     // Additional information
@@ -127,17 +180,17 @@ function convertGeminiDataToInternalFormat(geminiData) {
     confidence: {
       overall: 0.95, // Gemini generally has high confidence
       flightNumber: isMissing(geminiData.flightNumber) ? 0 : 0.95,
-      passengerName: isMissing(geminiData.passengerName) ? 0 : 0.95,
+      passengerName: extractedPassengerNames.length > 0 ? 0.95 : 0,
       airline: isMissing(geminiData.airlineName) ? 0 : 0.95,
       route: (isMissing(geminiData.departureAirport) || isMissing(geminiData.arrivalAirport)) ? 0 : 0.95
     },
     
-    parseStrategy: 'gemini_ai_simplified',
+    parseStrategy: 'gemini_ai_enhanced',
     
     // Debug and tracking information
     allMatches: {
       flightNumber: isMissing(geminiData.flightNumber) ? [] : [{ value: geminiData.flightNumber, confidence: 0.95, source: 'gemini' }],
-      passengerName: isMissing(geminiData.passengerName) ? [] : [{ value: geminiData.passengerName, confidence: 0.95, source: 'gemini' }],
+      passengerName: extractedPassengerNames.map(name => ({ value: name, confidence: 0.95, source: 'gemini' })),
       airline: isMissing(geminiData.airlineName) ? [] : [{ value: geminiData.airlineName, confidence: 0.95, source: 'gemini' }]
     },
     
@@ -818,9 +871,9 @@ async function processFlightTicket(imageUrl) {
       from: extractedData.from,
       to: extractedData.to,
       
-      // Temporal information (will need manual completion)
-      departureDateTime: null, // To be filled manually in dashboard
-      arrivalDateTime: null,   // To be filled manually in dashboard
+      // Temporal information (from extracted data)
+      departureDateTime: extractedData.departureDateTime,
+      arrivalDateTime: extractedData.arrivalDateTime,
       
       // Passenger information
       passengers: passengers,
@@ -834,7 +887,7 @@ async function processFlightTicket(imageUrl) {
       
       // Processing metadata
       processingStatus: passengerMatch.passenger ? 'partial' : 'requires_passenger_assignment',
-      extractedPassengerNames: [extractedData.passengerName],
+      extractedPassengerNames: extractedData.allPassengerNames || [extractedData.passengerName],
       parsingStrategy: extractedData.parseStrategy,
       overallConfidence: extractedData.confidence.overall,
       

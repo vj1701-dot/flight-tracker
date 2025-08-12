@@ -102,18 +102,18 @@ Please extract these fields exactly as specified below. If any information is mi
   "departureAirport": "departure airport 3-letter IATA code (e.g., 'SFO')",
   "arrivalAirport": "arrival airport 3-letter IATA code (e.g., 'LAX')",
   "departureDate": "departure date in YYYY-MM-DD format",
-  "departureTime": "departure time in HH:MM format (24-hour)",
+  "departureTime": "departure time with AM/PM (e.g., '8:30 AM' or '2:15 PM')",
   "arrivalDate": "arrival date in YYYY-MM-DD format", 
-  "arrivalTime": "arrival time in HH:MM format (24-hour)",
-  "passengerName": "passenger full name as appears on ticket",
+  "arrivalTime": "arrival time with AM/PM (e.g., '10:01 AM' or '6:45 PM')",
+  "passengerNames": ["array of ALL passenger names on this ticket/confirmation"],
   "seatNumber": "seat assignment (e.g., '24A')"
 }
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY valid JSON, no additional text or explanation
 2. Use exactly "missing" (lowercase) for any field that is not clearly visible or readable
-3. Extract passenger name exactly as it appears on the ticket
-4. Convert all times to 24-hour format (e.g., 8:30 AM becomes "08:30")
+3. Extract ALL passenger names from the ticket in the "passengerNames" array
+4. Keep times in 12-hour format with AM/PM (e.g., "8:30 AM", "2:15 PM")
 5. Airport codes must be 3-letter IATA codes in UPPERCASE
 6. If only one date is visible, use it for BOTH departure and arrival dates
 7. For dates with smart year inference:
@@ -124,7 +124,8 @@ CRITICAL INSTRUCTIONS:
    - If we're in November-December and flight date is January-April, use next year  
    - Otherwise use current year
    - Always convert to YYYY-MM-DD format
-8. For multiple passengers on one ticket, extract the primary passenger name only
+8. Look carefully for multiple passenger names on the ticket - they may be listed separately
+9. Even if there's only one passenger, put it in an array: ["JOHN DOE"]
 `;
 
       // Send request to Gemini
