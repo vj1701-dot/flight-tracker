@@ -820,7 +820,7 @@ app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['s
     await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'CREATE_PASSENGER', { passengerId: newPassenger.id, name: newPassenger.name });
+    await logAuditEvent('CREATE', 'PASSENGER', newPassenger.id, req.user.id, req.user.username, null, null, { passengerId: newPassenger.id, name: newPassenger.name });
     
     res.status(201).json(newPassenger);
   } catch (error) {
@@ -847,7 +847,7 @@ app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(
     await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'UPDATE_PASSENGER', { passengerId: req.params.id, name: passengers[passengerIndex].name });
+    await logAuditEvent('UPDATE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: passengers[passengerIndex].name });
     
     res.json(passengers[passengerIndex]);
   } catch (error) {
@@ -871,7 +871,7 @@ app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRo
     await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'DELETE_PASSENGER', { passengerId: req.params.id, name: deletedPassenger.name });
+    await logAuditEvent('DELETE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: deletedPassenger.name });
     
     res.json({ message: 'Passenger deleted successfully' });
   } catch (error) {
@@ -915,7 +915,7 @@ app.post('/api/data-management/users', authenticateToken, authorizeRole(['supera
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'CREATE_USER', { userId: newUser.id, username: newUser.username });
+    await logAuditEvent('CREATE', 'USER', newUser.id, req.user.id, req.user.username, null, null, { userId: newUser.id, username: newUser.username });
     
     // Remove password hash from response
     const { password, ...safeUser } = newUser;
@@ -951,7 +951,7 @@ app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['sup
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'UPDATE_USER', { userId: req.params.id, username: users[userIndex].username });
+    await logAuditEvent('UPDATE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: users[userIndex].username });
     
     // Remove password hash from response
     const { password, ...safeUser } = users[userIndex];
@@ -985,7 +985,7 @@ app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'DELETE_USER', { userId: req.params.id, username: deletedUser.username });
+    await logAuditEvent('DELETE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: deletedUser.username });
     
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -1027,7 +1027,7 @@ app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['s
     await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'CREATE_VOLUNTEER', { volunteerId: newVolunteer.id, username: newVolunteer.username });
+    await logAuditEvent('CREATE', 'VOLUNTEER', newVolunteer.id, req.user.id, req.user.username, null, null, { volunteerId: newVolunteer.id, username: newVolunteer.username });
     
     res.status(201).json(newVolunteer);
   } catch (error) {
@@ -1061,7 +1061,7 @@ app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(
     await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'UPDATE_VOLUNTEER', { volunteerId: req.params.id, username: volunteers[volunteerIndex].username });
+    await logAuditEvent('UPDATE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: volunteers[volunteerIndex].username });
     
     res.json(volunteers[volunteerIndex]);
   } catch (error) {
@@ -1085,7 +1085,7 @@ app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRo
     await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
     
     // Log the action
-    await logAudit(req.user.id, 'DELETE_VOLUNTEER', { volunteerId: req.params.id, username: deletedVolunteer.username });
+    await logAuditEvent('DELETE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: deletedVolunteer.username });
     
     res.json({ message: 'Volunteer deleted successfully' });
   } catch (error) {
