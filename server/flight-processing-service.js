@@ -859,53 +859,70 @@ async function processFlightTicket(imageUrl) {
       throw new Error(issue);
     }
 
-    // Step 4: Enhanced passenger matching
+    // Step 4: Enhanced passenger matching for all extracted passengers
     console.log('🔍 FLIGHT_PROCESSING: Step 3 - Enhanced passenger matching');
-    const passengerMatch = await findPassengerByExtractedName(extractedData.passengerName);
-    processingResult.passengerMatch = passengerMatch;
-    
-    console.log(`👤 FLIGHT_PROCESSING: Passenger match result: ${passengerMatch.matchType} (confidence: ${passengerMatch.confidence})`);
-
-    // Step 5: Handle passenger matching results
+    const allPassengerNames = extractedData.allPassengerNames || [extractedData.passengerName];
+    const passengerMatches = [];
     let passengers = [];
-    if (passengerMatch.passenger) {
-      // Update passenger with extracted name for future reference
-      if (passengerMatch.matchType !== 'extracted_existing') {
-        await updatePassengerWithExtractedName(passengerMatch.passenger, extractedData.passengerName);
+    
+    console.log(`👥 FLIGHT_PROCESSING: Processing ${allPassengerNames.length} extracted passenger(s): ${allPassengerNames.join(', ')}`);
+
+    // Step 5: Process each extracted passenger
+    for (const passengerName of allPassengerNames) {
+      if (!passengerName || passengerName === 'missing') {
+        console.log('⚠️  FLIGHT_PROCESSING: Skipping empty/missing passenger name');
+        continue;
       }
-      passengers = [{ 
-        id: passengerMatch.passenger.id, 
-        name: passengerMatch.passenger.name,
-        extractedName: extractedData.passengerName,
-        matchType: passengerMatch.matchType,
-        matchConfidence: passengerMatch.confidence
-      }];
-      console.log(`✅ FLIGHT_PROCESSING: Using existing passenger: ${passengerMatch.passenger.name}`);
-    } else {
-      // No passenger match found - create new passenger if we have a name
-      if (extractedData.passengerName && extractedData.passengerName !== 'missing') {
-        console.log('🆕 FLIGHT_PROCESSING: Creating new passenger from extracted data...');
+
+      console.log(`👤 FLIGHT_PROCESSING: Processing passenger: ${passengerName}`);
+      const passengerMatch = await findPassengerByExtractedName(passengerName);
+      passengerMatches.push(passengerMatch);
+      
+      console.log(`👤 FLIGHT_PROCESSING: Match result for "${passengerName}": ${passengerMatch.matchType} (confidence: ${passengerMatch.confidence})`);
+
+      if (passengerMatch.passenger) {
+        // Update passenger with extracted name for future reference
+        if (passengerMatch.matchType !== 'extracted_existing') {
+          await updatePassengerWithExtractedName(passengerMatch.passenger, passengerName);
+        }
+        passengers.push({ 
+          id: passengerMatch.passenger.id, 
+          name: passengerMatch.passenger.name,
+          extractedName: passengerName,
+          matchType: passengerMatch.matchType,
+          matchConfidence: passengerMatch.confidence
+        });
+        console.log(`✅ FLIGHT_PROCESSING: Using existing passenger: ${passengerMatch.passenger.name}`);
+      } else {
+        // No passenger match found - create new passenger
+        console.log(`🆕 FLIGHT_PROCESSING: Creating new passenger: ${passengerName}`);
         try {
-          const newPassenger = await createNewPassengerFromTicket(extractedData.passengerName);
-          passengers = [{ 
+          const newPassenger = await createNewPassengerFromTicket(passengerName);
+          passengers.push({ 
             id: newPassenger.id, 
             name: newPassenger.name,
-            extractedName: extractedData.passengerName,
+            extractedName: passengerName,
             matchType: 'auto_created',
             matchConfidence: 1.0
-          }];
+          });
           console.log(`✅ FLIGHT_PROCESSING: Created and assigned new passenger: ${newPassenger.name}`);
           processingResult.issues.push(`Auto-created new passenger: ${newPassenger.name}`);
         } catch (createError) {
-          console.error('❌ FLIGHT_PROCESSING: Failed to create new passenger:', createError.message);
-          processingResult.issues.push(`Failed to create passenger "${extractedData.passengerName}": ${createError.message}`);
-          console.log('⚠️  FLIGHT_PROCESSING: Flight will require manual passenger assignment');
+          console.error(`❌ FLIGHT_PROCESSING: Failed to create passenger "${passengerName}":`, createError.message);
+          processingResult.issues.push(`Failed to create passenger "${passengerName}": ${createError.message}`);
+          console.log('⚠️  FLIGHT_PROCESSING: This passenger will require manual assignment');
         }
-      } else {
-        // No passenger name extracted - flight will need manual assignment
-        processingResult.issues.push('No passenger name extracted from ticket');
-        console.log('⚠️  FLIGHT_PROCESSING: No passenger name extracted - flight will require manual passenger assignment');
       }
+    }
+
+    // Set the passenger match result (use the first match for compatibility)
+    processingResult.passengerMatch = passengerMatches[0] || { matchType: 'no_match', confidence: 0 };
+    
+    if (passengers.length === 0) {
+      processingResult.issues.push('No passengers could be processed from ticket');
+      console.log('⚠️  FLIGHT_PROCESSING: No passengers processed - flight will require manual passenger assignment');
+    } else {
+      console.log(`✅ FLIGHT_PROCESSING: Successfully processed ${passengers.length} passenger(s)`);
     }
 
     // Step 6: Load existing flights
@@ -940,7 +957,7 @@ async function processFlightTicket(imageUrl) {
       },
       
       // Processing metadata
-      processingStatus: passengerMatch.passenger ? 'partial' : 'requires_passenger_assignment',
+      processingStatus: passengers.length > 0 ? 'partial' : 'requires_passenger_assignment',
       extractedPassengerNames: extractedData.allPassengerNames || [extractedData.passengerName],
       parsingStrategy: extractedData.parseStrategy,
       overallConfidence: extractedData.confidence.overall,
@@ -951,7 +968,7 @@ async function processFlightTicket(imageUrl) {
       createdBy: 'telegram_ticket_processing',
       
       // Default fields for compatibility
-      notes: `Auto-created from ticket image using ${extractionMethod.toUpperCase()} processing.${extractedData.seatNumbers ? ` Seat Numbers: ${extractedData.seatNumbers.join(', ')}.` : ''} Extracted data: ${JSON.stringify(extractedData, null, 2)}`,
+      notes: `Auto-created from ticket image using ${extractionMethod.toUpperCase()} processing.${extractedData.seatNumbers && extractedData.seatNumbers.length > 0 ? ` Seat Numbers: ${extractedData.seatNumbers.join(', ')}.` : ''}`,
       pickupSevakName: null,
       dropoffSevakName: null,
       pickupSevakPhone: null,
