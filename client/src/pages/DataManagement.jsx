@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
 const DataManagement = () => {
+  // Add keyframe animation for spinner
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   const [activeTab, setActiveTab] = useState('passengers');
   const [data, setData] = useState({
     passengers: [],
@@ -14,10 +26,15 @@ const DataManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [airports, setAirports] = useState([]);
+  const [selectedAirports, setSelectedAirports] = useState([]);
+  const [airportInput, setAirportInput] = useState('');
+  const [filteredAirports, setFilteredAirports] = useState([]);
 
   // Load data on component mount
   useEffect(() => {
     loadAllData();
+    loadAirports();
   }, []);
 
   const loadAllData = async () => {
@@ -55,12 +72,41 @@ const DataManagement = () => {
     }
   };
 
+  const loadAirports = async () => {
+    try {
+      const response = await fetch('/api/airports');
+      if (response.ok) {
+        const data = await response.json();
+        setAirports(data);
+      }
+    } catch (error) {
+      console.error('Error loading airports:', error);
+    }
+  };
+
   const saveItem = async (item, type) => {
     setSaving(true);
     setError('');
     try {
-      const url = editingItem ? `/api/data-management/${type}/${editingItem.id}` : `/api/data-management/${type}`;
-      const method = editingItem ? 'PUT' : 'POST';
+      let url, method;
+      
+      if (type === 'users') {
+        // Use user management API for users
+        url = editingItem ? `/api/users/${editingItem.id}` : `/api/register`;
+        method = editingItem ? 'PUT' : 'POST';
+        
+        // Add selected airports to user data
+        item.allowedAirports = selectedAirports;
+        
+        // Don't send empty password for updates
+        if (editingItem && !item.password) {
+          delete item.password;
+        }
+      } else {
+        // Use data management API for passengers and volunteers
+        url = editingItem ? `/api/data-management/${type}/${editingItem.id}` : `/api/data-management/${type}`;
+        method = editingItem ? 'PUT' : 'POST';
+      }
 
       const response = await fetch(url, {
         method,
@@ -78,6 +124,9 @@ const DataManagement = () => {
       setSuccess(`${type.slice(0, -1)} ${editingItem ? 'updated' : 'created'} successfully!`);
       setEditingItem(null);
       setShowAddModal(false);
+      setSelectedAirports([]);
+      setAirportInput('');
+      setFilteredAirports([]);
       await loadAllData();
     } catch (error) {
       console.error('Error saving item:', error);
@@ -114,9 +163,12 @@ const DataManagement = () => {
 
   const filteredData = () => {
     const currentData = data[activeTab] || [];
-    if (!searchTerm) return currentData;
+    // Filter out null/undefined items
+    const validData = currentData.filter(item => item && typeof item === 'object');
     
-    return currentData.filter(item => {
+    if (!searchTerm) return validData;
+    
+    return validData.filter(item => {
       const searchableText = [
         item.name,
         item.username,
@@ -142,14 +194,14 @@ const DataManagement = () => {
       case 'users':
         return [
           { name: 'username', label: 'Username', type: 'text', required: true },
-          { name: 'name', label: 'Display Name', type: 'text', required: true },
+          { name: 'name', label: 'Full Name', type: 'text', required: true },
+          { name: 'password', label: 'Password', type: 'password', required: !editingItem },
           { name: 'role', label: 'Role', type: 'select', options: ['user', 'admin', 'superadmin'], required: true },
           { name: 'phone', label: 'Phone Number', type: 'tel', required: false },
           { name: 'telegramChatId', label: 'Telegram Chat ID', type: 'number', required: false }
         ];
       case 'volunteers':
         return [
-          { name: 'username', label: 'Username', type: 'text', required: true },
           { name: 'name', label: 'Full Name', type: 'text', required: true },
           { name: 'phone', label: 'Phone Number', type: 'tel', required: true },
           { name: 'city', label: 'City', type: 'text', required: false },
@@ -202,16 +254,39 @@ const DataManagement = () => {
         saveItem(itemData, activeTab);
       }}>
         {fields.map(field => (
-          <div key={field.name} className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {field.label} {field.required && <span className="text-red-500">*</span>}
+          <div key={field.name} style={{ marginBottom: '1rem' }}>
+            <label style={{ 
+              display: 'block', 
+              fontSize: '0.875rem', 
+              fontWeight: '500', 
+              color: '#374151', 
+              marginBottom: '0.5rem' 
+            }}>
+              {field.name === 'password' && editingItem ? 
+                `${field.label} (leave blank to keep current)` : 
+                field.label
+              } {field.required && <span style={{ color: '#ef4444' }}>*</span>}
             </label>
             {field.type === 'select' ? (
               <select
                 name={field.name}
                 defaultValue={item[field.name] || ''}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  outline: 'none'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.boxShadow = '0 0 0 1px #3b82f6';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
               >
                 <option value="">Select {field.label}</option>
                 {field.options.map(option => (
@@ -224,28 +299,201 @@ const DataManagement = () => {
                 name={field.name}
                 defaultValue={item[field.name] || ''}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoComplete={field.type === 'password' ? 'new-password' : field.name}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  outline: 'none'
+                }}
                 placeholder={`Enter ${field.label.toLowerCase()}`}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.boxShadow = '0 0 0 1px #3b82f6';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
               />
             )}
           </div>
         ))}
         
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        {/* Airport selection for users */}
+        {activeTab === 'users' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ 
+              display: 'block', 
+              fontSize: '0.875rem', 
+              fontWeight: '500', 
+              color: '#374151', 
+              marginBottom: '0.5rem' 
+            }}>
+              Allowed Airports {selectedAirports.length === 0 && <span style={{ color: '#ef4444' }}>*</span>}
+            </label>
+            
+            {/* Airport input */}
+            <input
+              type="text"
+              value={airportInput}
+              onChange={(e) => {
+                const value = e.target.value.toLowerCase();
+                setAirportInput(value);
+                
+                if (value.length >= 2) {
+                  const filtered = airports.filter(airport => 
+                    airport && airport.code && airport.name && airport.city &&
+                    (airport.code.toLowerCase().includes(value) ||
+                    airport.name.toLowerCase().includes(value) ||
+                    airport.city.toLowerCase().includes(value))
+                  ).slice(0, 10);
+                  setFilteredAirports(filtered);
+                } else {
+                  setFilteredAirports([]);
+                }
+              }}
+              placeholder="Search airports (code, name, or city)..."
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                outline: 'none',
+                marginBottom: '0.5rem'
+              }}
+            />
+            
+            {/* Filtered airports dropdown */}
+            {filteredAirports.length > 0 && (
+              <div style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                backgroundColor: 'white',
+                marginBottom: '0.5rem'
+              }}>
+                {filteredAirports.map(airport => (
+                  <div
+                    key={airport.code}
+                    onClick={() => {
+                      if (!selectedAirports.includes(airport.code)) {
+                        setSelectedAirports([...selectedAirports, airport.code]);
+                      }
+                      setAirportInput('');
+                      setFilteredAirports([]);
+                    }}
+                    style={{
+                      padding: '0.5rem',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                  >
+                    <strong>{airport.code}</strong> - {airport.name}, {airport.city}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Selected airports */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+              marginTop: '0.5rem'
+            }}>
+              {selectedAirports.map(airportCode => {
+                const airport = airports.find(a => a && a.code === airportCode);
+                return (
+                  <span
+                    key={airportCode}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '0.25rem 0.5rem',
+                      backgroundColor: '#dbeafe',
+                      color: '#1e40af',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.75rem',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    {airportCode} {airport ? `- ${airport.name}` : ''}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAirports(selectedAirports.filter(code => code !== airportCode));
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#1e40af',
+                        cursor: 'pointer',
+                        padding: '0',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          gap: '0.5rem', 
+          paddingTop: '1rem', 
+          borderTop: '1px solid #e5e7eb' 
+        }}>
           <button
             type="button"
             onClick={() => {
               setEditingItem(null);
               setShowAddModal(false);
+              setSelectedAirports([]);
+              setAirportInput('');
+              setFilteredAirports([]);
             }}
-            className="px-4 py-2 text-gray-600 bg-gray-200 rounded hover:bg-gray-300"
+            style={{
+              padding: '0.5rem 1rem',
+              color: '#4b5563',
+              backgroundColor: '#e5e7eb',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400"
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: saving ? '#93c5fd' : '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (!saving) e.target.style.backgroundColor = '#1d4ed8';
+            }}
+            onMouseLeave={(e) => {
+              if (!saving) e.target.style.backgroundColor = '#2563eb';
+            }}
           >
             {saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
           </button>
@@ -269,50 +517,122 @@ const DataManagement = () => {
     return (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ minWidth: '100%', backgroundColor: 'white', border: '1px solid #e5e7eb' }}>
-          <thead className="bg-gray-50">
+          <thead style={{ backgroundColor: '#f9fafb' }}>
             <tr>
-              {fields.slice(0, 4).map(field => (
-                <th key={field.name} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              {fields.map(field => (
+                <th key={field.name} style={{
+                  padding: '0.75rem 1.5rem',
+                  textAlign: 'left',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                  color: '#6b7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
                   {field.label}
                 </th>
               ))}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th style={{
+                padding: '0.75rem 1.5rem',
+                textAlign: 'left',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
                 Created
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th style={{
+                padding: '0.75rem 1.5rem',
+                textAlign: 'left',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody style={{ backgroundColor: 'white' }}>
             {currentData.map(item => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                {fields.slice(0, 4).map(field => (
-                  <td key={field.name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <tr key={item.id} style={{
+                borderTop: '1px solid #e5e7eb',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}>
+                {fields.map(field => (
+                  <td key={field.name} style={{
+                    padding: '1rem 1.5rem',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.875rem',
+                    color: '#111827'
+                  }}>
                     {field.name === 'telegramChatId' ? (
-                      item[field.name] ? (
-                        <span className="text-green-600">✓ Linked</span>
+                      (item && item[field.name]) ? (
+                        <span style={{ color: '#059669' }}>✓ Linked</span>
                       ) : (
-                        <span className="text-gray-400">Not linked</span>
+                        <span style={{ color: '#9ca3af' }}>Not linked</span>
                       )
                     ) : (
-                      item[field.name] || '-'
+                      (item && item[field.name]) || '-'
                     )}
                   </td>
                 ))}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}
+                <td style={{
+                  padding: '1rem 1.5rem',
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.875rem',
+                  color: '#6b7280'
+                }}>
+                  {(item && item.createdAt) ? new Date(item.createdAt).toLocaleDateString() : '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <td style={{
+                  padding: '1rem 1.5rem',
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.875rem',
+                  fontWeight: '500'
+                }}>
                   <button
-                    onClick={() => setEditingItem(item)}
-                    className="text-blue-600 hover:text-blue-900 mr-4"
+                    onClick={() => {
+                      if (item) {
+                        setEditingItem(item);
+                        if (activeTab === 'users' && item.allowedAirports) {
+                          setSelectedAirports(item.allowedAirports);
+                        }
+                      }
+                    }}
+                    style={{
+                      color: '#2563eb',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      marginRight: '1rem',
+                      transition: 'color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                    onMouseLeave={(e) => e.target.style.color = '#2563eb'}
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => deleteItem(item.id, activeTab)}
-                    className="text-red-600 hover:text-red-900"
+                    onClick={() => {
+                      if (item && item.id) {
+                        deleteItem(item.id, activeTab);
+                      }
+                    }}
+                    style={{
+                      color: '#dc2626',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.color = '#991b1b'}
+                    onMouseLeave={(e) => e.target.style.color = '#dc2626'}
                   >
                     Delete
                   </button>
@@ -327,8 +647,20 @@ const DataManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '16rem' 
+      }}>
+        <div style={{
+          width: '3rem',
+          height: '3rem',
+          border: '2px solid #e5e7eb',
+          borderBottom: '2px solid #2563eb',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
       </div>
     );
   }
@@ -473,7 +805,12 @@ const DataManagement = () => {
             />
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setShowAddModal(true);
+              setSelectedAirports([]);
+              setAirportInput('');
+              setFilteredAirports([]);
+            }}
             style={{
               marginLeft: '1rem',
               padding: '0.75rem 1rem',

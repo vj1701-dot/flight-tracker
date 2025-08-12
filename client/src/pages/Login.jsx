@@ -155,6 +155,7 @@ export default function Login() {
                 placeholder="Enter your username"
                 value={formData.username}
                 onChange={handleChange}
+                autoComplete="username"
                 style={{ 
                   width: '100%',
                   padding: '0.75rem 0.75rem 0.75rem 3rem',
@@ -202,6 +203,7 @@ export default function Login() {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
+                autoComplete="current-password"
                 style={{ 
                   width: '100%',
                   padding: '0.75rem 3rem 0.75rem 3rem',
