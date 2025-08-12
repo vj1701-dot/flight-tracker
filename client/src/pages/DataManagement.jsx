@@ -1,5 +1,42 @@
 import React, { useState, useEffect } from 'react';
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.setState({
+      error: error,
+      errorInfo: errorInfo
+    });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', color: 'red', border: '2px solid red', margin: '1rem' }}>
+          <h2>Something went wrong in DataManagement component.</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }}>
+            <summary>Error Details</summary>
+            <p><strong>Error:</strong> {this.state.error && this.state.error.toString()}</p>
+            <p><strong>Stack:</strong> {this.state.errorInfo.componentStack}</p>
+          </details>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const DataManagement = () => {
   // Add keyframe animation for spinner
   React.useEffect(() => {
@@ -43,6 +80,16 @@ const DataManagement = () => {
     console.log('Active tab:', activeTab);
     console.log('Current data for tab:', data[activeTab]);
   }, [data, activeTab]);
+
+  // Debug logging for modal states
+  useEffect(() => {
+    console.log('Modal states changed:', { 
+      showAddModal, 
+      editingItem: editingItem ? { id: editingItem.id, ...editingItem } : null,
+      loading,
+      saving 
+    });
+  }, [showAddModal, editingItem, loading, saving]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -220,9 +267,18 @@ const DataManagement = () => {
   };
 
   const renderForm = (item = {}) => {
-    const fields = getFormFields(activeTab, !!editingItem);
-    
-    return (
+    try {
+      console.log('renderForm called with:', { item, activeTab, editingItem: !!editingItem });
+      
+      const fields = getFormFields(activeTab, !!editingItem);
+      console.log('fields:', fields);
+      
+      if (!fields || fields.length === 0) {
+        console.error('No fields returned from getFormFields');
+        return <div>Error: No form fields available</div>;
+      }
+      
+      return (
       <form onSubmit={(e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -507,6 +563,16 @@ const DataManagement = () => {
         </div>
       </form>
     );
+    } catch (error) {
+      console.error('Error in renderForm:', error);
+      return (
+        <div style={{ padding: '1rem', color: 'red', border: '1px solid red', borderRadius: '4px' }}>
+          <h4>Form Rendering Error</h4>
+          <p>Error: {error.message}</p>
+          <p>Stack: {error.stack}</p>
+        </div>
+      );
+    }
   };
 
   const renderTable = () => {
@@ -609,9 +675,16 @@ const DataManagement = () => {
                   }}>
                     <button
                       onClick={() => {
-                        setEditingItem(item);
-                        if (activeTab === 'users' && item.allowedAirports) {
-                          setSelectedAirports(item.allowedAirports);
+                        console.log('Edit button clicked for item:', item);
+                        if (item) {
+                          setEditingItem(item);
+                          console.log('editingItem set to:', item);
+                          if (activeTab === 'users' && item.allowedAirports) {
+                            setSelectedAirports(item.allowedAirports);
+                            console.log('selectedAirports set to:', item.allowedAirports);
+                          }
+                        } else {
+                          console.error('Edit button clicked but item is null/undefined');
                         }
                       }}
                       style={{
@@ -672,6 +745,7 @@ const DataManagement = () => {
   }
 
   return (
+    <ErrorBoundary>
     <div style={{ padding: '1.5rem', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem' }}>
@@ -812,10 +886,12 @@ const DataManagement = () => {
           </div>
           <button
             onClick={() => {
+              console.log('Add button clicked for tab:', activeTab);
               setShowAddModal(true);
               setSelectedAirports([]);
               setAirportInput('');
               setFilteredAirports([]);
+              console.log('showAddModal set to true');
             }}
             style={{
               marginLeft: '1rem',
@@ -840,25 +916,48 @@ const DataManagement = () => {
       </div>
 
       {/* Add/Edit Modal */}
-      {(showAddModal || editingItem) && (
-        <div style={{
-          position: 'fixed',
-          inset: '0',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: '50'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '32rem',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
+      {(() => {
+        const shouldShowModal = showAddModal || editingItem;
+        console.log('Modal render check:', { showAddModal, editingItem, shouldShowModal });
+        return shouldShowModal;
+      })() && (
+        <div 
+          id="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: '0',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: '50'
+          }}
+          onClick={(e) => {
+            console.log('Modal overlay clicked', e.target);
+            if (e.target.id === 'modal-overlay') {
+              console.log('Clicking outside modal, closing...');
+              setShowAddModal(false);
+              setEditingItem(null);
+            }
+          }}
+        >
+          <div 
+            id="modal-content"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '0.75rem',
+              padding: '2rem',
+              width: '90%',
+              maxWidth: '32rem',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              border: '3px solid red' // Debug border
+            }}
+            onClick={(e) => {
+              console.log('Modal content clicked');
+              e.stopPropagation();
+            }}
+          >
             <h3 style={{
               fontSize: '1.125rem',
               fontWeight: '600',
@@ -872,6 +971,7 @@ const DataManagement = () => {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 };
 
