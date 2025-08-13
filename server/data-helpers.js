@@ -147,8 +147,27 @@ async function getFlightsWithResolvedNames(flights = null) {
   return resolvedFlights;
 }
 
+// Use the existing sophisticated fuzzy matching from flight-processing-service
+let fuzzy;
+try {
+  fuzzy = require('fuzzyset');
+} catch (e) {
+  console.warn('⚠️  DATA_HELPERS: fuzzyset not installed. Fuzzy matching will be disabled.');
+}
+
 /**
- * Find passenger by name or legal name (for passenger matching during flight creation)
+ * Normalize name for consistent matching
+ */
+function normalizeNameForMatching(name) {
+  return name?.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')  // Replace non-alphanumeric with spaces
+    .replace(/\s+/g, ' ')       // Collapse multiple spaces
+    .trim() || '';
+}
+
+/**
+ * Find passenger by name or legal name with advanced fuzzy matching
+ * Uses the same sophisticated algorithm as flight-processing-service
  * @param {string} searchName - Name to search for
  * @param {Array} passengers - Array of passengers (optional, will load if not provided)
  * @returns {Object|null} - Found passenger or null
@@ -161,34 +180,71 @@ async function findPassengerByName(searchName, passengers = null) {
   }
   
   const searchLower = searchName.toLowerCase().trim();
+  const normalizedSearch = normalizeNameForMatching(searchName);
   
-  // Try exact match on name first
+  // 1. Try exact match on name first (highest priority)
   let match = passengers.find(p => 
     p.name && p.name.toLowerCase().trim() === searchLower
   );
   
   if (match) return match;
   
-  // Try exact match on legal name
+  // 2. Try exact match on legal name
   match = passengers.find(p => 
     p.legalName && p.legalName.toLowerCase().trim() === searchLower
   );
   
   if (match) return match;
   
-  // Try partial matching for flexibility
+  // 3. Try partial matching for substrings
   match = passengers.find(p => {
     const name = p.name?.toLowerCase().trim() || '';
     const legalName = p.legalName?.toLowerCase().trim() || '';
     
-    // Check if search name contains passenger name or vice versa
     return name.includes(searchLower) || 
            searchLower.includes(name) ||
            legalName.includes(searchLower) || 
            searchLower.includes(legalName);
   });
   
-  return match || null;
+  if (match) return match;
+  
+  // 4. Advanced fuzzy matching (same as flight-processing-service)
+  if (fuzzy && passengers.length > 0) {
+    // Create fuzzy sets for legal names and display names
+    const legalNames = passengers.filter(p => p.legalName).map(p => normalizeNameForMatching(p.legalName));
+    const displayNames = passengers.map(p => normalizeNameForMatching(p.name));
+    
+    if (legalNames.length > 0) {
+      const legalFuzzySet = fuzzy(legalNames);
+      const legalMatches = legalFuzzySet.get(normalizedSearch);
+      
+      if (legalMatches && legalMatches.length > 0 && legalMatches[0][0] > 0.6) {
+        const matchedLegalName = legalMatches[0][1];
+        const passenger = passengers.find(p => normalizeNameForMatching(p.legalName) === matchedLegalName);
+        if (passenger) {
+          console.log(`🔍 Fuzzy legal name match: "${searchName}" → "${passenger.name}" (${legalMatches[0][0].toFixed(2)})`);
+          return passenger;
+        }
+      }
+    }
+    
+    if (displayNames.length > 0) {
+      const displayFuzzySet = fuzzy(displayNames);
+      const displayMatches = displayFuzzySet.get(normalizedSearch);
+      
+      if (displayMatches && displayMatches.length > 0 && displayMatches[0][0] > 0.6) {
+        const matchedDisplayName = displayMatches[0][1];
+        const passenger = passengers.find(p => normalizeNameForMatching(p.name) === matchedDisplayName);
+        if (passenger) {
+          console.log(`🔍 Fuzzy display name match: "${searchName}" → "${passenger.name}" (${displayMatches[0][0].toFixed(2)})`);
+          return passenger;
+        }
+      }
+    }
+  }
+  
+  return null;
 }
 
 module.exports = {
