@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Calendar, Clock, Users, MapPin } from 'lucide-react'
 import Filters from './Filters'
+import { formatAirportDisplay } from '../utils'
 
 const API_BASE = '/api'
 
@@ -201,7 +202,7 @@ export default function Archive() {
                     fontWeight: '600', 
                     color: '#374151' 
                   }}>
-                    {flight.from}
+                    {formatAirportDisplay(flight.from)}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                     {formatDateTime(flight.departureDateTime)}
@@ -232,7 +233,7 @@ export default function Archive() {
                     fontWeight: '600', 
                     color: '#374151' 
                   }}>
-                    {flight.to}
+                    {formatAirportDisplay(flight.to)}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                     {formatDateTime(flight.arrivalDateTime)}
