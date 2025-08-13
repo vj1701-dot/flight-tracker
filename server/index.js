@@ -843,7 +843,8 @@ app.get('/api/airlines', async (req, res) => {
 
 app.get('/api/airports', async (req, res) => {
   try {
-    const airports = JSON.parse(await fs.readFile(path.join(__dirname, 'data/airports.json'), 'utf8'));
+    const { cloudStorage } = require('./cloud-storage-helpers');
+    const airports = await cloudStorage.readAirports();
     res.json(airports);
   } catch (error) {
     console.error('Error reading airports:', error);
@@ -2341,6 +2342,17 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Migrate local data to Cloud Storage (one-time migration)
+  try {
+    const { cloudStorage } = require('./cloud-storage-helpers');
+    console.log('🚀 Starting data migration to Cloud Storage...');
+    await cloudStorage.migrateLocalToCloud();
+  } catch (error) {
+    console.error('Cloud Storage migration failed:', error.message);
+    console.log('Continuing with local file storage for now...');
+  }
+  
   await initializeDefaultUsers();
   await migrateFlightUserNames();
   

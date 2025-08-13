@@ -10,12 +10,9 @@ class TimezoneService {
 
   async loadAirports() {
     try {
-      const fs = require('fs').promises;
-      const path = require('path');
-      const airportsFile = path.join(__dirname, 'data', 'airports.json');
-      const data = await fs.readFile(airportsFile, 'utf8');
-      this.airports = JSON.parse(data);
-      console.log(`📍 Loaded ${this.airports.length} airports with timezone data`);
+      const { cloudStorage } = require('./cloud-storage-helpers');
+      this.airports = await cloudStorage.readAirports();
+      console.log(`📍 Loaded ${this.airports.length} airports with timezone data from Cloud Storage`);
     } catch (error) {
       console.error('Error loading airports:', error);
       this.airports = [];
