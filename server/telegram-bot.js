@@ -2774,6 +2774,10 @@ class TelegramNotificationService {
           // Handle other message types through normal processing
           this.bot.processUpdate(req.body);
         }
+      } else if (req.body.callback_query) {
+        // Handle callback queries (inline keyboard buttons)
+        console.log(`🔘 Processing callback query from chat ${req.body.callback_query.message.chat.id}`);
+        this.bot.processUpdate(req.body);
       }
       
       res.status(200).json({ ok: true });
