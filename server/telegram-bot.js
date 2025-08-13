@@ -230,6 +230,438 @@ class TelegramNotificationService {
     }
   }
 
+  // Handler functions for manual command processing in webhook mode
+  async handleHelpCommand(chatId) {
+    const helpMessage = 
+      `Jai Swaminarayan 🙏\n\n` +
+      `🤖 *West Sant Transportation Bot*\n\n` +
+      `*Registration Commands:*\n` +
+      `• /start - Start registration process\n` +
+      `• /register_volunteer - Register as Volunteer\n` +
+      `• /register_passenger - Register as Passenger\n` +
+      `• /register_user - Register as Dashboard User\n\n` +
+      `*Flight Commands:*\n` +
+      `• /flights - View your assigned flights (Volunteers)\n` +
+      `• /myflights - View your passenger flights\n` +
+      `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
+      `• /status - Check your registration status\n` +
+      `• /help - Show this help menu\n\n` +
+      `*Features:*\n` +
+      `✈️ Flight details and passenger information\n` +
+      `🚨 Automatic delay alerts (for flights in our system)\n` +
+      `🕐 Real-time notifications for changes\n\n` +
+      `*Notifications:*\n` +
+      `🔔 Flight confirmations (Passengers)\n` +
+      `🔔 24-hour check-in reminders (Passengers)\n` +
+      `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
+      `🔔 Pickup: 6-hour & 1-hour reminders (Volunteers)\n` +
+      `🔔 Flight changes or delays (All)\n` +
+      `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
+      `Need help? Contact your administrator.`;
+
+    await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+  }
+
+  async handleStartCommand(chatId) {
+    try {
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `Welcome to the West Sant Transportation Bot!\n\n` +
+        `Please choose your registration type:\n` +
+        `• /register_volunteer - If you help with transportation\n` +
+        `• /register_passenger - If you are a passenger\n` +
+        `• /register_user - If you need dashboard access\n\n` +
+        `Type /help for more commands.`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (error) {
+      console.error('Start command error:', error);
+    }
+  }
+
+  async handleStatusCommand(chatId) {
+    try {
+      // Check all registration types
+      const users = await readUsers();
+      const passengers = await readPassengers();
+      
+      const user = users.find(u => u.telegramChatId === chatId);
+      const passenger = passengers.find(p => p.telegramChatId === chatId);
+      
+      let status = `🎯 *Registration Status*\n\n`;
+      
+      if (user) {
+        status += `✅ *Dashboard User*: ${user.name}\n`;
+        status += `   Role: ${user.role || 'user'}\n`;
+        status += `   Registered: ${new Date(user.createdAt).toLocaleDateString()}\n\n`;
+      }
+      
+      if (passenger) {
+        status += `✅ *Passenger*: ${passenger.name}\n`;
+        if (passenger.legalName) {
+          status += `   Legal Name: ${passenger.legalName}\n`;
+        }
+        status += `   Flights: ${passenger.flightCount || 0}\n`;
+        status += `   Registered: ${new Date(passenger.createdAt).toLocaleDateString()}\n\n`;
+      }
+      
+      if (!user && !passenger) {
+        status += `❌ *Not Registered*\n\n`;
+        status += `Please use one of these commands to register:\n`;
+        status += `• /register_volunteer - Register as Volunteer\n`;
+        status += `• /register_passenger - Register as Passenger\n`;
+        status += `• /register_user - Register as Dashboard User\n\n`;
+        status += `Type /help for more information.`;
+      } else {
+        status += `Type /help to see available commands.`;
+      }
+      
+      await this.bot.sendMessage(chatId, status, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('Status command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error checking status. Please try again.');
+    }
+  }
+
+  async handleFlightsCommand(chatId) {
+    try {
+      const users = await readUsers();
+      const user = users.find(u => u.telegramChatId === chatId);
+
+      if (!user) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered. Send /start to register first.`
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const now = new Date();
+      const userFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now &&
+               (flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase()) ||
+                flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase()));
+      });
+
+      if (userFlights.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✈️ *Your Assigned Flights*\n\n` +
+          `No upcoming flights assigned to you at this time.\n\n` +
+          `Contact your coordinator if you think this is an error.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      userFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      let flightList = `Jai Swaminarayan 🙏\n\n✈️ *Your Assigned Flights*\n\n`;
+      
+      for (const flight of userFlights) {
+        const departureTime = new Date(flight.departureDateTime);
+        const arrivalTime = new Date(flight.arrivalDateTime);
+        
+        flightList += `🛫 *${flight.flightNumber}* - ${flight.airline}\n`;
+        flightList += `📍 ${flight.from} → ${flight.to}\n`;
+        flightList += `🕐 ${departureTime.toLocaleDateString()} ${departureTime.toLocaleTimeString()}\n`;
+        
+        if (flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase())) {
+          flightList += `🚗 *Pickup Assignment*\n`;
+        }
+        if (flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase())) {
+          flightList += `🏁 *Dropoff Assignment*\n`;
+        }
+        
+        if (flight.passengers?.length > 0) {
+          // Handle both old name format and new passengerId format
+          const passengerNames = [];
+          for (const p of flight.passengers) {
+            if (p.name) {
+              passengerNames.push(p.name);
+            } else if (p.passengerId) {
+              // Look up passenger name by ID
+              const passengers = await readPassengers();
+              const passenger = passengers.find(passenger => passenger.id === p.passengerId);
+              if (passenger) {
+                passengerNames.push(passenger.name);
+              } else {
+                passengerNames.push('Unknown Passenger');
+              }
+            }
+          }
+          flightList += `👥 Passengers: ${passengerNames.join(', ')}\n`;
+        }
+        
+        flightList += `\n`;
+      }
+
+      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('Flights command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error retrieving flights. Please try again.');
+    }
+  }
+
+  async handleMyFlightsCommand(chatId) {
+    try {
+      const passengers = await readPassengers();
+      const passenger = passengers.find(p => p.telegramChatId === chatId);
+
+      if (!passenger) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered as a passenger. Send /start to register first.`
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const now = new Date();
+      const passengerFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now &&
+               flight.passengers?.some(p => {
+                 // Handle new passengerId format
+                 if (p.passengerId === passenger.id) {
+                   return true;
+                 }
+                 // Handle old name format for backward compatibility
+                 if (p.name?.toLowerCase().includes(passenger.name.toLowerCase())) {
+                   return true;
+                 }
+                 return false;
+               });
+      });
+
+      if (passengerFlights.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✈️ *Your Upcoming Flights*\n\n` +
+          `No upcoming flights found.\n\n` +
+          `Your flights will appear here once they are added to the system.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      passengerFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      let flightList = `Jai Swaminarayan 🙏\n\n✈️ *Your Upcoming Flights*\n\n`;
+      
+      for (const flight of passengerFlights) {
+        const departureTime = new Date(flight.departureDateTime);
+        const arrivalTime = new Date(flight.arrivalDateTime);
+        
+        flightList += `🛫 *${flight.flightNumber}* - ${flight.airline}\n`;
+        flightList += `📍 ${flight.from} → ${flight.to}\n`;
+        flightList += `🕐 ${departureTime.toLocaleDateString()} ${departureTime.toLocaleTimeString()}\n`;
+        flightList += `🛬 Arrival: ${arrivalTime.toLocaleTimeString()}\n`;
+        
+        if (flight.pickupSevakName) {
+          flightList += `🚗 Pickup: ${flight.pickupSevakName}`;
+          if (flight.pickupSevakPhone) {
+            flightList += ` (${flight.pickupSevakPhone})`;
+          }
+          flightList += `\n`;
+        }
+        
+        if (flight.dropoffSevakName) {
+          flightList += `🏁 Dropoff: ${flight.dropoffSevakName}`;
+          if (flight.dropoffSevakPhone) {
+            flightList += ` (${flight.dropoffSevakPhone})`;
+          }
+          flightList += `\n`;
+        }
+        
+        flightList += `\n`;
+      }
+
+      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('MyFlights command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error retrieving your flights. Please try again.');
+    }
+  }
+
+  async handleFlightInfoCommand(chatId, match) {
+    const params = match[1].trim().split(' ');
+
+    if (params.length < 2) {
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `❌ Invalid format. Please use:\n` +
+        `/flightinfo FLIGHT_NUMBER DATE\n\n` +
+        `Example: /flightinfo UA100 2024-12-01`
+      );
+      return;
+    }
+
+    const flightNumber = params[0].toUpperCase();
+    const flightDate = params[1];
+
+    try {
+      await this.bot.sendMessage(chatId,
+        `🔍 Looking up flight ${flightNumber} for ${flightDate}...\n\n` +
+        `Please wait while I fetch the flight information.`
+      );
+
+      const flightInfo = await this.flightInfoService.getFlightInfo(flightNumber, flightDate);
+      
+      if (flightInfo && flightInfo.success) {
+        const info = flightInfo.data;
+        let message = `✈️ *Flight Information*\n\n`;
+        message += `🛫 *${info.flightNumber}* - ${info.airline}\n`;
+        message += `📍 ${info.departure.airport} (${info.departure.code}) → ${info.arrival.airport} (${info.arrival.code})\n\n`;
+        
+        message += `🕐 *Scheduled Departure:*\n`;
+        message += `${info.departure.scheduled}\n\n`;
+        
+        message += `🛬 *Scheduled Arrival:*\n`;
+        message += `${info.arrival.scheduled}\n\n`;
+        
+        if (info.status) {
+          message += `📊 *Status:* ${info.status}\n\n`;
+        }
+        
+        if (info.departure.actual) {
+          message += `✅ *Actual Departure:*\n${info.departure.actual}\n\n`;
+        }
+        
+        if (info.arrival.actual) {
+          message += `✅ *Actual Arrival:*\n${info.arrival.actual}\n\n`;
+        }
+        
+        if (info.gate) {
+          message += `🚪 *Gate:* ${info.gate}\n`;
+        }
+        
+        if (info.terminal) {
+          message += `🏢 *Terminal:* ${info.terminal}\n`;
+        }
+
+        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      } else {
+        await this.bot.sendMessage(chatId,
+          `❌ Could not find flight information for ${flightNumber} on ${flightDate}.\n\n` +
+          `Please check:\n` +
+          `• Flight number spelling\n` +
+          `• Date format (YYYY-MM-DD)\n` +
+          `• Flight operates on this date`
+        );
+      }
+    } catch (error) {
+      console.error('FlightInfo command error:', error);
+      await this.bot.sendMessage(chatId,
+        `❌ Error looking up flight information. Please try again later.`
+      );
+    }
+  }
+
+  async handleRegisterVolunteerCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasVolunteerRole = existingRoles.find(r => r.type === 'user');
+      
+      if (hasVolunteerRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a volunteer!\n\n` +
+          `Type /status to see your registration details.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `🚗 *Volunteer Registration*\n\n` +
+        `Please enter your full name as it appears in the system:`,
+        { parse_mode: 'Markdown' }
+      );
+      
+      // Set registration state
+      this.registrationStates.set(chatId, { 
+        type: 'volunteer', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register volunteer command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
+  async handleRegisterPassengerCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasPassengerRole = existingRoles.find(r => r.type === 'passenger');
+      
+      if (hasPassengerRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a passenger!\n\n` +
+          `Type /status to see your registration details.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `✈️ *Passenger Registration*\n\n` +
+        `Please enter your full name as it appears on your travel documents:`,
+        { parse_mode: 'Markdown' }
+      );
+      
+      // Set registration state
+      this.registrationStates.set(chatId, { 
+        type: 'passenger', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register passenger command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
+  async handleRegisterUserCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasUserRole = existingRoles.find(r => r.type === 'user');
+      
+      if (hasUserRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a dashboard user!\n\n` +
+          `Type /status to see your registration details.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `📊 *Dashboard User Registration*\n\n` +
+        `Please enter your full name as it appears in the system:`,
+        { parse_mode: 'Markdown' }
+      );
+      
+      // Set registration state
+      this.registrationStates.set(chatId, { 
+        type: 'user', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register user command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
   setupCommands() {
     if (!this.bot) return;
 
@@ -2126,34 +2558,37 @@ class TelegramNotificationService {
       
       console.log(`🎯 Manual command processing for: ${text}`);
       
-      // Since onText handlers might not work in webhook mode, manually trigger them
-      if (text === '/start') {
-        console.log('Triggering /start command manually');
-        this.bot.emit('text', message);
-      } else if (text === '/help') {
-        console.log('Triggering /help command manually');
-        this.bot.emit('text', message);
+      // Since onText handlers might not work in webhook mode, directly execute command logic
+      if (text === '/help') {
+        console.log('Processing /help command manually');
+        await this.handleHelpCommand(chatId);
+      } else if (text === '/start') {
+        console.log('Processing /start command manually');
+        await this.handleStartCommand(chatId);
       } else if (text === '/status') {
-        console.log('Triggering /status command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /status command manually');
+        await this.handleStatusCommand(chatId);
       } else if (text === '/flights') {
-        console.log('Triggering /flights command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /flights command manually');
+        await this.handleFlightsCommand(chatId);
       } else if (text === '/myflights') {
-        console.log('Triggering /myflights command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /myflights command manually');
+        await this.handleMyFlightsCommand(chatId);
       } else if (text.startsWith('/flightinfo ')) {
-        console.log('Triggering /flightinfo command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /flightinfo command manually');
+        const match = text.match(/\/flightinfo\s+(.+)/);
+        if (match) {
+          await this.handleFlightInfoCommand(chatId, match);
+        }
       } else if (text === '/register_volunteer') {
-        console.log('Triggering /register_volunteer command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /register_volunteer command manually');
+        await this.handleRegisterVolunteerCommand(chatId);
       } else if (text === '/register_passenger') {
-        console.log('Triggering /register_passenger command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /register_passenger command manually');
+        await this.handleRegisterPassengerCommand(chatId);
       } else if (text === '/register_user') {
-        console.log('Triggering /register_user command manually');
-        this.bot.emit('text', message);
+        console.log('Processing /register_user command manually');
+        await this.handleRegisterUserCommand(chatId);
       }
     } catch (error) {
       console.error('Error in manual command processing:', error);
