@@ -2230,8 +2230,9 @@ class TelegramNotificationService {
       
       if (data.startsWith('flight_nav_')) {
         try {
-          const [, , index, passengerName] = data.split('_');
+          const [, , index, encodedPassengerName] = data.split('_');
           const currentIndex = parseInt(index);
+          const passengerName = decodeURIComponent(encodedPassengerName);
           
           // Find the passenger and get their flights
           const passengers = await readPassengers();
@@ -3187,14 +3188,14 @@ class TelegramNotificationService {
       if (currentIndex > 0) {
         navRow.push({ 
           text: '⬅️ Previous', 
-          callback_data: `flight_nav_${currentIndex - 1}_${passengerName}` 
+          callback_data: `flight_nav_${currentIndex - 1}_${encodeURIComponent(passengerName)}` 
         });
       }
       
       if (currentIndex < flights.length - 1) {
         navRow.push({ 
           text: 'Next ➡️', 
-          callback_data: `flight_nav_${currentIndex + 1}_${passengerName}` 
+          callback_data: `flight_nav_${currentIndex + 1}_${encodeURIComponent(passengerName)}` 
         });
       }
       
