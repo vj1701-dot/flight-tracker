@@ -74,22 +74,6 @@ const DataManagement = () => {
     loadAirports();
   }, []);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('DataManagement data state:', data);
-    console.log('Active tab:', activeTab);
-    console.log('Current data for tab:', data[activeTab]);
-  }, [data, activeTab]);
-
-  // Debug logging for modal states
-  useEffect(() => {
-    console.log('Modal states changed:', { 
-      showAddModal, 
-      editingItem: editingItem ? { id: editingItem.id, ...editingItem } : null,
-      loading,
-      saving 
-    });
-  }, [showAddModal, editingItem, loading, saving]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -268,10 +252,7 @@ const DataManagement = () => {
 
   const renderForm = (item = {}) => {
     try {
-      console.log('renderForm called with:', { item, activeTab, editingItem: !!editingItem });
-      
       const fields = getFormFields(activeTab, !!editingItem);
-      console.log('fields:', fields);
       
       if (!fields || fields.length === 0) {
         console.error('No fields returned from getFormFields');
@@ -333,7 +314,7 @@ const DataManagement = () => {
             {field.type === 'select' ? (
               <select
                 name={field.name}
-                defaultValue={item[field.name] || ''}
+                defaultValue={(item && item[field.name]) || ''}
                 required={field.required}
                 style={{
                   width: '100%',
@@ -360,7 +341,7 @@ const DataManagement = () => {
               <input
                 type={field.type}
                 name={field.name}
-                defaultValue={item[field.name] || ''}
+                defaultValue={(item && item[field.name]) || ''}
                 required={field.required}
                 autoComplete={field.type === 'password' ? 'new-password' : field.name}
                 style={{
@@ -675,16 +656,11 @@ const DataManagement = () => {
                   }}>
                     <button
                       onClick={() => {
-                        console.log('Edit button clicked for item:', item);
                         if (item) {
                           setEditingItem(item);
-                          console.log('editingItem set to:', item);
                           if (activeTab === 'users' && item.allowedAirports) {
                             setSelectedAirports(item.allowedAirports);
-                            console.log('selectedAirports set to:', item.allowedAirports);
                           }
-                        } else {
-                          console.error('Edit button clicked but item is null/undefined');
                         }
                       }}
                       style={{
@@ -886,12 +862,10 @@ const DataManagement = () => {
           </div>
           <button
             onClick={() => {
-              console.log('Add button clicked for tab:', activeTab);
               setShowAddModal(true);
               setSelectedAirports([]);
               setAirportInput('');
               setFilteredAirports([]);
-              console.log('showAddModal set to true');
             }}
             style={{
               marginLeft: '1rem',
@@ -916,11 +890,7 @@ const DataManagement = () => {
       </div>
 
       {/* Add/Edit Modal */}
-      {(() => {
-        const shouldShowModal = showAddModal || editingItem;
-        console.log('Modal render check:', { showAddModal, editingItem, shouldShowModal });
-        return shouldShowModal;
-      })() && (
+      {(showAddModal || editingItem) && (
         <div 
           id="modal-overlay"
           style={{
@@ -933,9 +903,7 @@ const DataManagement = () => {
             zIndex: '50'
           }}
           onClick={(e) => {
-            console.log('Modal overlay clicked', e.target);
             if (e.target.id === 'modal-overlay') {
-              console.log('Clicking outside modal, closing...');
               setShowAddModal(false);
               setEditingItem(null);
             }
@@ -951,10 +919,8 @@ const DataManagement = () => {
               maxWidth: '32rem',
               maxHeight: '80vh',
               overflow: 'auto',
-              border: '3px solid red' // Debug border
             }}
             onClick={(e) => {
-              console.log('Modal content clicked');
               e.stopPropagation();
             }}
           >
