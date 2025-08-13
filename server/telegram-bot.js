@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs').promises;
 const path = require('path');
-const { readUsers, writeUsers, readFlights, readPassengers, writePassengers } = require('./data-helpers');
+const { readUsers, writeUsers, readFlights, readPassengers, writePassengers, findPassengerByName } = require('./data-helpers');
 const FlightInfoService = require('./flight-info-service');
 const TimezoneService = require('./timezone-service');
 const { processFlightTicket } = require('./flight-processing-service');
@@ -427,6 +427,20 @@ class TelegramNotificationService {
       const user = users.find(u => u.telegramChatId === chatId);
 
       if (!user) {
+        // Check if they're registered as a passenger instead
+        const passengers = await readPassengers();
+        const passenger = passengers.find(p => p.telegramChatId === chatId);
+        
+        if (passenger) {
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `ℹ️ You're registered as a passenger. For your flights, please use:\n\n` +
+            `/myflights - View your passenger flights\n\n` +
+            `The /flights command is for volunteers only.`
+          );
+          return;
+        }
+        
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `❌ You're not registered. Please send /start to register first.`
@@ -661,7 +675,7 @@ class TelegramNotificationService {
         }
       }
       
-      flightList += `\n💡 *Need help?* Contact your transportation coordinator or use /status to check your registration details.`;
+      flightList += `\n💡 *Need help?* Contact your transportation coordinator or use /help for more commands.`;
 
       await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -756,7 +770,7 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ You're already registered as a volunteer!\n\n` +
-          `Type /status to see your registration details.`
+          `Use /help to see available commands.`
         );
         return;
       }
@@ -790,7 +804,7 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ You're already registered as a passenger!\n\n` +
-          `Type /status to see your registration details.`
+          `Use /help to see available commands.`
         );
         return;
       }
@@ -824,7 +838,7 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ You're already registered as a dashboard user!\n\n` +
-          `Type /status to see your registration details.`
+          `Use /help to see available commands.`
         );
         return;
       }
@@ -1052,6 +1066,20 @@ class TelegramNotificationService {
         const user = users.find(u => u.telegramChatId === chatId);
 
         if (!user) {
+          // Check if they're registered as a passenger instead
+          const passengers = await readPassengers();
+          const passenger = passengers.find(p => p.telegramChatId === chatId);
+          
+          if (passenger) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `ℹ️ You're registered as a passenger. For your flights, please use:\n\n` +
+              `/myflights - View your passenger flights\n\n` +
+              `The /flights command is for volunteers only.`
+            );
+            return;
+          }
+          
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
             `❌ You're not registered. Send /start to register first.`
@@ -1299,8 +1327,8 @@ class TelegramNotificationService {
         `*Flight Commands:*\n` +
         `• /flights - View your assigned flights (Volunteers)\n` +
         `• /myflights - View your passenger flights\n` +
+        `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
         `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
-        `• /status - Check your registration status\n` +
         `• /help - Show this help menu\n\n` +
         `*Features:*\n` +
         `✈️ Flight details and passenger information\n` +
@@ -1310,7 +1338,6 @@ class TelegramNotificationService {
         `🔔 Flight confirmations (Passengers)\n` +
         `🔔 24-hour check-in reminders (Passengers)\n` +
         `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
-        `🔔 Pickup: 6-hour & 1-hour reminders (Volunteers)\n` +
         `🔔 Flight changes or delays (All)\n` +
         `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
         `Need help? Contact your administrator.`;
@@ -1386,6 +1413,111 @@ class TelegramNotificationService {
             `Thank you for registering! 🙏`,
             { parse_mode: 'Markdown' }
           );
+          
+          // Clear registration state
+          this.registrationStates.delete(chatId);
+          return;
+          
+        } else if (registrationState.type === 'passenger' && registrationState.step === 'waiting_name') {
+          // Handle name input for passenger registration
+          const fullName = text.trim();
+          
+          // Validate name format (First Name & Last Name)
+          const nameParts = fullName.split(/\s+/);
+          if (nameParts.length < 2 || fullName.length < 3) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `❌ Please enter your name in First Name & Last Name format.\n\n` +
+              `Examples:\n` +
+              `• John Smith\n` +
+              `• Mary Johnson\n` +
+              `• Harinivas Swami\n\n` +
+              `Please try again:`
+            );
+            return;
+          }
+          
+          // First, search for existing passenger using fuzzy matching
+          console.log(`🔍 Searching for existing passenger: "${fullName}" for chatId ${chatId}`);
+          const existingPassenger = await findPassengerByName(fullName);
+          
+          if (existingPassenger) {
+            // Link existing passenger to Telegram chat ID
+            console.log(`✅ Found existing passenger: ${existingPassenger.name} (ID: ${existingPassenger.id})`);
+            
+            // Check if already linked to a different chat ID
+            if (existingPassenger.telegramChatId && existingPassenger.telegramChatId !== chatId) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `⚠️ This passenger account is already linked to another Telegram account.\n\n` +
+                `If this is your account and you need to update the link, please contact your administrator.\n\n` +
+                `👤 *Found:* ${existingPassenger.name}`
+              );
+              this.registrationStates.delete(chatId);
+              return;
+            }
+            
+            // Link the existing passenger to this chat ID
+            const passengers = await readPassengers();
+            const passengerIndex = passengers.findIndex(p => p.id === existingPassenger.id);
+            if (passengerIndex !== -1) {
+              passengers[passengerIndex].telegramChatId = chatId;
+              passengers[passengerIndex].updatedAt = new Date().toISOString();
+              await writePassengers(passengers);
+              
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 *Welcome back to West Sant Transportation!*\n\n` +
+                `✅ Successfully linked your Telegram to existing passenger account:\n` +
+                `👤 *Name:* ${existingPassenger.name}\n` +
+                `📊 *Previous Flights:* ${existingPassenger.flightCount || 0}\n\n` +
+                `You'll receive notifications for:\n` +
+                `🔔 Flight confirmations\n` +
+                `🔔 Flight updates and changes\n` +
+                `🔔 24-hour check-in reminders\n` +
+                `🔔 Volunteer contact information\n\n` +
+                `*Available commands:*\n` +
+                `/myflights - View your upcoming flights\n` +
+                `/help - Show help menu\n\n` +
+                `Welcome back! 🙏`,
+                { parse_mode: 'Markdown' }
+              );
+            }
+          } else {
+            // No existing passenger found, create new one
+            console.log(`➕ No existing passenger found for "${fullName}", creating new passenger`);
+            const passengers = await readPassengers();
+            const newPassenger = {
+              id: require('uuid').v4(),
+              name: fullName,
+              legalName: fullName, // Use same name for legal name
+              telegramChatId: chatId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              flightCount: 0
+            };
+            
+            passengers.push(newPassenger);
+            await writePassengers(passengers);
+            console.log(`✅ Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `🎉 *Welcome to West Sant Transportation!*\n\n` +
+              `✅ Successfully registered as new passenger:\n` +
+              `👤 *Name:* ${newPassenger.name}\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight confirmations\n` +
+              `🔔 Flight updates and changes\n` +
+              `🔔 24-hour check-in reminders\n` +
+              `🔔 Volunteer contact information\n\n` +
+              `*Available commands:*\n` +
+              `/myflights - View your upcoming flights\n` +
+              `/help - Show help menu\n\n` +
+              `Thank you for registering! 🙏`,
+              { parse_mode: 'Markdown' }
+            );
+          }
           
           // Clear registration state
           this.registrationStates.delete(chatId);
@@ -1579,7 +1711,6 @@ class TelegramNotificationService {
                   `🔔 Flight delays and updates\n` +
                   `🔔 System notifications\n\n` +
                   `Available commands:\n` +
-                  `/status - Check your registration status\n` +
                   `/help - Show help menu`
                 );
                 this.registrationStates.delete(chatId);
