@@ -2515,7 +2515,7 @@ class TelegramNotificationService {
   }
 
   // Process webhook update
-  processWebhookUpdate(req, res) {
+  async processWebhookUpdate(req, res) {
     if (!this.bot) {
       console.error('Webhook called but bot not initialized');
       return res.status(500).json({ error: 'Bot not initialized' });
