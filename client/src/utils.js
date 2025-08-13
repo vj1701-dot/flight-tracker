@@ -62,6 +62,7 @@ const airportData = [
   { "code": "BUR", "name": "Hollywood Burbank Airport", "city": "Burbank", "state": "CA", "country": "USA" },
   { "code": "BDL", "name": "Bradley International Airport", "city": "Hartford", "state": "CT", "country": "USA" },
   { "code": "BUF", "name": "Buffalo Niagara International Airport", "city": "Buffalo", "state": "NY", "country": "USA" },
+  { "code": "BOI", "name": "Boise Airport", "city": "Boise", "state": "ID", "country": "USA" },
   { "code": "CHS", "name": "Charleston International Airport", "city": "Charleston", "state": "SC", "country": "USA" },
   { "code": "CLT", "name": "Charlotte Douglas International Airport", "city": "Charlotte", "state": "NC", "country": "USA" },
   { "code": "CLE", "name": "Cleveland Hopkins International Airport", "city": "Cleveland", "state": "OH", "country": "USA" },

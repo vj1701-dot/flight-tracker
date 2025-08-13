@@ -690,16 +690,16 @@ class TelegramNotificationService {
         `Jai Swaminarayan 🙏\n\n` +
         `🤖 *West Sant Transportation Bot*\n\n` +
         `*Registration Commands:*\n` +
-        `/start - Start registration process\n` +
-        `/register_volunteer - Register as Volunteer\n` +
-        `/register_passenger - Register as Passenger\n` +
-        `/register_user - Register as Dashboard User\n\n` +
+        `• /start - Start registration process\n` +
+        `• /register_volunteer - Register as Volunteer\n` +
+        `• /register_passenger - Register as Passenger\n` +
+        `• /register_user - Register as Dashboard User\n\n` +
         `*Flight Commands:*\n` +
-        `/flights - View your assigned flights (Volunteers)\n` +
-        `/myflights - View your passenger flights\n` +
-        `/flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
-        `/status - Check your registration status\n` +
-        `/help - Show this help menu\n\n` +
+        `• /flights - View your assigned flights (Volunteers)\n` +
+        `• /myflights - View your passenger flights\n` +
+        `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
+        `• /status - Check your registration status\n` +
+        `• /help - Show this help menu\n\n` +
         `*Features:*\n` +
         `✈️ Flight details and passenger information\n` +
         `🚨 Automatic delay alerts (for flights in our system)\n` +
@@ -1320,12 +1320,12 @@ class TelegramNotificationService {
           resultMessage += `\n👤 *Passenger Information:*\n`;
           if (passengerMatch.passenger) {
             resultMessage += `• Matched: *${passengerMatch.passenger.name}*\n`;
-            resultMessage += `• Extracted Name: "${passengerMatch.extractedName}"\n`;
+            resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: "${extractedData.passengerName}"\n`;
+            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
             resultMessage += `• *Requires manual passenger assignment*\n`;
           }
 
@@ -1361,7 +1361,7 @@ class TelegramNotificationService {
             resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
           }
 
-          resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
+          resultMessage += `\n🆔 Flight ID: ${flight.id}`;
 
           // Update the processing message with results
           await this.bot.editMessageText(resultMessage, {
@@ -1526,12 +1526,12 @@ class TelegramNotificationService {
           resultMessage += `\n👤 *Passenger Information:*\n`;
           if (passengerMatch.passenger) {
             resultMessage += `• Matched: *${passengerMatch.passenger.name}*\n`;
-            resultMessage += `• Extracted Name: "${passengerMatch.extractedName}"\n`;
+            resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: "${extractedData.passengerName}"\n`;
+            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
             resultMessage += `• *Requires manual passenger assignment*\n`;
           }
 
@@ -1567,7 +1567,7 @@ class TelegramNotificationService {
             resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
           }
 
-          resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
+          resultMessage += `\n🆔 Flight ID: ${flight.id}`;
 
           // Update the processing message with results
           await this.bot.editMessageText(resultMessage, {
