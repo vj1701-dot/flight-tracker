@@ -2550,11 +2550,13 @@ class TelegramNotificationService {
       const text = message.text;
       const chatId = message.chat.id;
       
-      // Check if message was already processed
-      if (await this.isMessageProcessed(message)) {
+      // Mark message as processed to prevent duplicate processing
+      const messageId = `${message.chat.id}_${message.message_id}`;
+      if (this.processedMessages.has(messageId)) {
         console.log('Message already processed, skipping');
         return;
       }
+      this.processedMessages.add(messageId);
       
       console.log(`🎯 Manual command processing for: ${text}`);
       
