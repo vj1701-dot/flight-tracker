@@ -2228,11 +2228,16 @@ class TelegramNotificationService {
       const chatId = callbackQuery.message.chat.id;
       const data = callbackQuery.data;
       
+      console.log('🔍 CALLBACK_QUERY received:', data);
+      
       if (data.startsWith('flight_nav_')) {
+        console.log('🔍 FLIGHT_NAV callback processing...');
         try {
           const [, , index, encodedPassengerName] = data.split('_');
           const currentIndex = parseInt(index);
           const passengerName = decodeURIComponent(encodedPassengerName);
+          
+          console.log('🔍 Parsed data:', { currentIndex, passengerName });
           
           // Find the passenger and get their flights
           const passengers = await readPassengers();
@@ -2241,7 +2246,10 @@ class TelegramNotificationService {
             p.telegramChatId === chatId
           );
           
+          console.log('🔍 Passenger search result:', passenger ? 'Found' : 'Not found');
+          
           if (!passenger) {
+            console.log('❌ Passenger not found for navigation');
             await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Passenger not found' });
             return;
           }
@@ -2264,12 +2272,21 @@ class TelegramNotificationService {
           // Sort flights by departure time
           passengerFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
           
+          console.log('🔍 Flight navigation:', { 
+            totalFlights: passengerFlights.length, 
+            currentIndex, 
+            validIndex: currentIndex >= 0 && currentIndex < passengerFlights.length 
+          });
+          
           if (currentIndex >= 0 && currentIndex < passengerFlights.length) {
+            console.log('✅ Navigating to flight:', currentIndex);
             // Delete the old message
             await this.bot.deleteMessage(chatId, callbackQuery.message.message_id);
             
             // Show the new flight
             await this.showFlightWithNavigation(chatId, passengerFlights, currentIndex, passenger.name, passengers);
+          } else {
+            console.log('❌ Invalid flight index for navigation');
           }
           
           await this.bot.answerCallbackQuery(callbackQuery.id);
