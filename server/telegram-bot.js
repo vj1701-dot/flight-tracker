@@ -2091,12 +2091,72 @@ class TelegramNotificationService {
 
     try {
       console.log('Processing webhook update:', JSON.stringify(req.body, null, 2));
+      
+      // Process the update through the bot's normal processing
       this.bot.processUpdate(req.body);
+      
+      // Additional manual processing for webhook mode to ensure commands work
+      if (req.body.message && req.body.message.text) {
+        const message = req.body.message;
+        console.log(`📨 Processing message: "${message.text}" from chat ${message.chat.id}`);
+        
+        // Trigger manual command processing to ensure webhook mode works
+        this.processManualCommand(message);
+      }
+      
       res.status(200).json({ ok: true });
     } catch (error) {
       console.error('Error processing webhook update:', error);
       console.error('Request body:', JSON.stringify(req.body, null, 2));
       res.status(500).json({ error: 'Failed to process update', details: error.message });
+    }
+  }
+
+  // Manual command processing for webhook mode
+  async processManualCommand(message) {
+    try {
+      const text = message.text;
+      const chatId = message.chat.id;
+      
+      // Check if message was already processed
+      if (await this.isMessageProcessed(message)) {
+        console.log('Message already processed, skipping');
+        return;
+      }
+      
+      console.log(`🎯 Manual command processing for: ${text}`);
+      
+      // Since onText handlers might not work in webhook mode, manually trigger them
+      if (text === '/start') {
+        console.log('Triggering /start command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/help') {
+        console.log('Triggering /help command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/status') {
+        console.log('Triggering /status command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/flights') {
+        console.log('Triggering /flights command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/myflights') {
+        console.log('Triggering /myflights command manually');
+        this.bot.emit('text', message);
+      } else if (text.startsWith('/flightinfo ')) {
+        console.log('Triggering /flightinfo command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/register_volunteer') {
+        console.log('Triggering /register_volunteer command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/register_passenger') {
+        console.log('Triggering /register_passenger command manually');
+        this.bot.emit('text', message);
+      } else if (text === '/register_user') {
+        console.log('Triggering /register_user command manually');
+        this.bot.emit('text', message);
+      }
+    } catch (error) {
+      console.error('Error in manual command processing:', error);
     }
   }
 

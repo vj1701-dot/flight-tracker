@@ -244,6 +244,24 @@ class BackupService {
             await bucket.file(sourceFile).download({ destination: localPath });
             console.log(`✅ Restored: ${fileName}`);
             restoredCount++;
+            
+            // Run migration for flights.json to convert name-based passengers to ID-based
+            if (fileName === 'flights.json') {
+              console.log('🔄 Running passenger reference migration on restored flights...');
+              try {
+                const DataMigration = require('./data-migration');
+                const migrationResult = await DataMigration.runMigration();
+                if (migrationResult.success && migrationResult.migratedFlights > 0) {
+                  console.log(`✅ Migration completed: ${migrationResult.migratedFlights} flights migrated`);
+                } else if (migrationResult.success) {
+                  console.log('ℹ️  No flights needed migration (already using ID references)');
+                } else {
+                  console.warn(`⚠️  Migration failed: ${migrationResult.error}`);
+                }
+              } catch (migrationError) {
+                console.warn('⚠️  Migration error:', migrationError.message);
+              }
+            }
           } else {
             console.log(`⚠️  File not found in backup: ${fileName}`);
           }

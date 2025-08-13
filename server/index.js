@@ -10,6 +10,7 @@ const TelegramNotificationService = require('./telegram-bot');
 const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
+const { getFlightsWithResolvedNames, findPassengerByName } = require('./data-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -1200,7 +1201,7 @@ app.get('/health', (req, res) => {
 
 app.get('/api/flights', authenticateToken, async (req, res) => {
   try {
-    const flights = await readFlights();
+    const flights = await getFlightsWithResolvedNames();
     let filteredFlights = flights;
 
     // Filter flights based on user's allowed airports
@@ -1276,9 +1277,36 @@ app.post('/api/flights', authenticateToken, async (req, res) => {
       });
     }
 
+    // Convert passenger names to passenger IDs
+    let processedPassengers = [];
+    if (flightData.passengers && Array.isArray(flightData.passengers)) {
+      for (const passenger of flightData.passengers) {
+        if (passenger.name && passenger.name.trim()) {
+          const matchedPassenger = await findPassengerByName(passenger.name.trim());
+          if (matchedPassenger) {
+            // Use passenger ID reference
+            processedPassengers.push({
+              passengerId: matchedPassenger.id,
+              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
+              ...(passenger.notes && { notes: passenger.notes })
+            });
+          } else {
+            // Keep original format if no match found (backward compatibility)
+            processedPassengers.push({
+              id: passenger.id || Date.now() + Math.random(),
+              name: passenger.name.trim(),
+              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
+              ...(passenger.notes && { notes: passenger.notes })
+            });
+          }
+        }
+      }
+    }
+
     const flight = {
       id: uuidv4(),
       ...flightData,
+      passengers: processedPassengers, // Use processed passengers with IDs
       createdBy: req.user.username,
       createdByName: req.user.name,
       createdByUserId: req.user.id,
@@ -1299,10 +1327,11 @@ app.post('/api/flights', authenticateToken, async (req, res) => {
       console.warn('Auto-backup after flight creation failed:', backupError.message);
     }
 
-    // Add passengers to passenger database
+    // Add passengers to passenger database (only for name-based passengers that weren't matched)
     if (flight.passengers && Array.isArray(flight.passengers)) {
       for (const passenger of flight.passengers) {
-        if (passenger.name && passenger.name.trim()) {
+        // Only add to passenger database if it's name-based (not ID-based)
+        if (passenger.name && passenger.name.trim() && !passenger.passengerId) {
           await addOrUpdatePassenger(passenger.name.trim());
         }
       }
@@ -1525,10 +1554,37 @@ app.put('/api/flights/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Flight not found' });
     }
 
+    // Convert passenger names to passenger IDs (same as creation logic)
+    let processedPassengers = [];
+    if (flightData.passengers && Array.isArray(flightData.passengers)) {
+      for (const passenger of flightData.passengers) {
+        if (passenger.name && passenger.name.trim()) {
+          const matchedPassenger = await findPassengerByName(passenger.name.trim());
+          if (matchedPassenger) {
+            // Use passenger ID reference
+            processedPassengers.push({
+              passengerId: matchedPassenger.id,
+              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
+              ...(passenger.notes && { notes: passenger.notes })
+            });
+          } else {
+            // Keep original format if no match found (backward compatibility)
+            processedPassengers.push({
+              id: passenger.id || Date.now() + Math.random(),
+              name: passenger.name.trim(),
+              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
+              ...(passenger.notes && { notes: passenger.notes })
+            });
+          }
+        }
+      }
+    }
+
     const oldFlight = { ...flights[flightIndex] };
     const updatedFlight = {
       ...flights[flightIndex],
       ...flightData,
+      passengers: processedPassengers.length > 0 ? processedPassengers : flightData.passengers, // Use processed passengers if any
       id,
       updatedBy: req.user.username,
       updatedByName: req.user.name,
@@ -1782,6 +1838,22 @@ app.post('/api/backup/upload-restore', authenticateToken, authorizeRole(['supera
       await writeFlights(processedFiles['flights.json']);
       restoredFiles++;
       console.log('✅ Flights data restored');
+      
+      // Run migration for uploaded flights to convert name-based passengers to ID-based
+      console.log('🔄 Running passenger reference migration on uploaded flights...');
+      try {
+        const DataMigration = require('./data-migration');
+        const migrationResult = await DataMigration.runMigration();
+        if (migrationResult.success && migrationResult.migratedFlights > 0) {
+          console.log(`✅ Migration completed: ${migrationResult.migratedFlights} flights migrated`);
+        } else if (migrationResult.success) {
+          console.log('ℹ️  No flights needed migration (already using ID references)');
+        } else {
+          console.warn(`⚠️  Migration failed: ${migrationResult.error}`);
+        }
+      } catch (migrationError) {
+        console.warn('⚠️  Migration error:', migrationError.message);
+      }
     }
     
     if (processedFiles['users.json']) {
