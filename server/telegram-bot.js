@@ -237,13 +237,13 @@ class TelegramNotificationService {
       `🤖 *West Sant Transportation Bot*\n\n` +
       `*Registration Commands:*\n` +
       `• /start - Start registration process\n` +
-      `• /register_volunteer - Register as Volunteer\n` +
-      `• /register_passenger - Register as Passenger\n` +
-      `• /register_user - Register as Dashboard User\n\n` +
+      `• /register\\_volunteer - Register as Volunteer\n` +
+      `• /register\\_passenger - Register as Passenger\n` +
+      `• /register\\_user - Register as Dashboard User\n\n` +
       `*Flight Commands:*\n` +
       `• /flights - View your assigned flights (Volunteers)\n` +
       `• /myflights - View your passenger flights\n` +
-      `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
+      `• /flightinfo FLIGHT\\_NUMBER DATE - Get flight details from our system\n` +
       `• /status - Check your registration status\n` +
       `• /help - Show this help menu\n\n` +
       `*Features:*\n` +
