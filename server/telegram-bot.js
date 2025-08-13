@@ -2834,6 +2834,121 @@ class TelegramNotificationService {
       
       console.log(`🎯 Manual command processing for: ${text}`);
       
+      // First check if user is in a registration state (for non-command text)
+      if (!text.startsWith('/')) {
+        const registrationState = this.registrationStates.get(chatId);
+        if (registrationState) {
+          console.log(`📝 Processing registration input for chatId ${chatId}: type=${registrationState.type}, step=${registrationState.step}`);
+          
+          // Handle passenger registration name input
+          if (registrationState.type === 'passenger' && registrationState.step === 'waiting_name') {
+            const fullName = text.trim();
+            
+            // Validate name format (First Name & Last Name)
+            const nameParts = fullName.split(/\s+/);
+            if (nameParts.length < 2 || fullName.length < 3) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter your name in First Name & Last Name format.\n\n` +
+                `Examples:\n` +
+                `• John Smith\n` +
+                `• Mary Johnson\n` +
+                `• Harinivas Swami\n\n` +
+                `Please try again:`
+              );
+              return;
+            }
+            
+            // First, search for existing passenger using fuzzy matching
+            console.log(`🔍 Searching for existing passenger: "${fullName}" for chatId ${chatId}`);
+            const existingPassenger = await findPassengerByName(fullName);
+            
+            if (existingPassenger) {
+              // Link existing passenger to Telegram chat ID
+              console.log(`✅ Found existing passenger: ${existingPassenger.name} (ID: ${existingPassenger.id})`);
+              
+              // Check if already linked to a different chat ID
+              if (existingPassenger.telegramChatId && existingPassenger.telegramChatId !== chatId) {
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `⚠️ This passenger account is already linked to another Telegram account.\n\n` +
+                  `If this is your account and you need to update the link, please contact your administrator.\n\n` +
+                  `👤 Found: ${existingPassenger.name}`
+                );
+                this.registrationStates.delete(chatId);
+                return;
+              }
+              
+              // Link the existing passenger to this chat ID
+              const passengers = await readPassengers();
+              const passengerIndex = passengers.findIndex(p => p.id === existingPassenger.id);
+              if (passengerIndex !== -1) {
+                passengers[passengerIndex].telegramChatId = chatId;
+                passengers[passengerIndex].updatedAt = new Date().toISOString();
+                await writePassengers(passengers);
+                
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `🎉 Welcome back to West Sant Transportation!\n\n` +
+                  `✅ Successfully linked your Telegram to existing passenger account:\n` +
+                  `👤 Name: ${existingPassenger.name}\n` +
+                  `📊 Previous Flights: ${existingPassenger.flightCount || 0}\n\n` +
+                  `You'll receive notifications for:\n` +
+                  `🔔 Flight confirmations\n` +
+                  `🔔 Flight updates and changes\n` +
+                  `🔔 24-hour check-in reminders\n` +
+                  `🔔 Volunteer contact information\n\n` +
+                  `Available commands:\n` +
+                  `/myflights - View your upcoming flights\n` +
+                  `/help - Show help menu\n\n` +
+                  `Welcome back! 🙏`
+                );
+              }
+            } else {
+              // No existing passenger found, create new one
+              console.log(`➕ No existing passenger found for "${fullName}", creating new passenger`);
+              const passengers = await readPassengers();
+              const newPassenger = {
+                id: require('uuid').v4(),
+                name: fullName,
+                legalName: fullName, // Use same name for legal name
+                telegramChatId: chatId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                flightCount: 0
+              };
+              
+              passengers.push(newPassenger);
+              await writePassengers(passengers);
+              console.log(`✅ Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+              
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 Welcome to West Sant Transportation!\n\n` +
+                `✅ Successfully registered as new passenger:\n` +
+                `👤 Name: ${newPassenger.name}\n\n` +
+                `You'll receive notifications for:\n` +
+                `🔔 Flight confirmations\n` +
+                `🔔 Flight updates and changes\n` +
+                `🔔 24-hour check-in reminders\n` +
+                `🔔 Volunteer contact information\n\n` +
+                `Available commands:\n` +
+                `/myflights - View your upcoming flights\n` +
+                `/help - Show help menu\n\n` +
+                `Thank you for registering! 🙏`
+              );
+            }
+            
+            // Clear registration state
+            this.registrationStates.delete(chatId);
+            return;
+          }
+          
+          // Handle other registration types if needed
+          // (volunteer, user registration states would go here)
+        }
+      }
+      
       // Since onText handlers might not work in webhook mode, directly execute command logic
       if (text === '/help') {
         console.log('Processing /help command manually');
