@@ -11,6 +11,8 @@ export default function BackupManagement() {
   const [selectedBackup, setSelectedBackup] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [uploadFiles, setUploadFiles] = useState([])
+  const [uploadOperation, setUploadOperation] = useState(null)
 
   // Add keyframe animation for spinner
   React.useEffect(() => {
@@ -165,14 +167,105 @@ export default function BackupManagement() {
     }
   }
 
+  const handleFileUpload = (event) => {
+    const files = Array.from(event.target.files)
+    setUploadFiles(files)
+  }
+
+  const uploadAndRestoreBackup = async () => {
+    if (uploadFiles.length === 0) {
+      setError('Please select backup files to upload')
+      return
+    }
+
+    // Validate that we have the required files
+    const requiredFiles = ['flights.json', 'users.json', 'passengers.json', 'volunteers.json']
+    const uploadedFileNames = uploadFiles.map(f => f.name)
+    const missingFiles = requiredFiles.filter(file => !uploadedFileNames.includes(file))
+    
+    if (missingFiles.length > 0) {
+      if (!confirm(`Missing files: ${missingFiles.join(', ')}.\n\nDo you want to continue with partial restore? This may cause data inconsistencies.`)) {
+        return
+      }
+    }
+
+    if (!confirm(`Are you sure you want to restore from uploaded backup files?\n\nThis will overwrite all current data. A backup of current data will be created first.`)) {
+      return
+    }
+
+    setUploadOperation('uploading')
+    setError('')
+    setSuccess('')
+    
+    try {
+      const token = localStorage.getItem('token')
+      const formData = new FormData()
+      
+      uploadFiles.forEach(file => {
+        formData.append('backupFiles', file, file.name)
+      })
+      
+      const response = await fetch(`${API_BASE}/backup/upload-restore`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+        },
+        body: formData
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setSuccess('Backup files uploaded and restored successfully! Please refresh the page to see changes.')
+        setUploadFiles([])
+        fetchBackups()
+        fetchStats()
+      } else {
+        throw new Error(data.error || 'Failed to upload and restore backup')
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploadOperation(null)
+    }
+  }
+
   const formatBackupName = (backup) => {
     if (!backup || typeof backup !== 'string') {
-      return { type: 'Unknown', date: 'Invalid backup name' }
+      return { type: 'Unknown', date: 'Invalid backup name', operationType: 'unknown' }
     }
-    const parts = backup.split('-')
-    const type = parts[0] === 'auto' ? '🤖 Automatic' : '👤 Manual'
-    const dateStr = parts.slice(1).join('-').replace(/T/, ' ').replace(/Z$/, ' UTC')
-    return { type, date: dateStr }
+    
+    // Handle new date-based structure: YYYY-MM-DD/auto-timestamp-operation or YYYY-MM-DD/manual-timestamp
+    if (backup.includes('/')) {
+      const [dateFolder, backupSubfolder] = backup.split('/')
+      const parts = backupSubfolder.split('-')
+      const type = parts[0] === 'auto' ? '🤖 Automatic' : '👤 Manual'
+      
+      // Extract operation type if available (for auto backups)
+      let operationType = 'general'
+      if (parts[0] === 'auto' && parts.length > 4) {
+        operationType = parts.slice(4).join('-') // Everything after timestamp
+      }
+      
+      // Use the date folder as the main date, with time from the backup subfolder
+      const timestampParts = parts.slice(1, 4) // Get timestamp parts
+      const timeStr = timestampParts.join('-').replace(/T/, ' ').replace(/Z$/, '')
+      const dateStr = `${dateFolder} ${timeStr}`
+      
+      return { 
+        type, 
+        date: dateStr,
+        operationType,
+        dateFolder,
+        backupSubfolder
+      }
+    } else {
+      // Handle legacy flat structure: auto-timestamp or manual-timestamp
+      const parts = backup.split('-')
+      const type = parts[0] === 'auto' ? '🤖 Automatic' : '👤 Manual'
+      const dateStr = parts.slice(1).join('-').replace(/T/, ' ').replace(/Z$/, ' UTC')
+      return { type, date: dateStr, operationType: 'legacy' }
+    }
   }
 
   if (loading) {
@@ -273,7 +366,10 @@ export default function BackupManagement() {
               <strong>Total Size:</strong> {stats.totalSizeMB} MB
             </div>
             <div>
-              <strong>Latest Backup:</strong> {stats.latestBackup !== 'None' ? formatBackupName(stats.latestBackup).date : 'None'}
+              <strong>Latest Backup:</strong> {stats.latestBackup !== 'None' ? (() => {
+                const formatted = formatBackupName(stats.latestBackup);
+                return `${formatted.date}${formatted.operationType && formatted.operationType !== 'general' && formatted.operationType !== 'legacy' ? ` (${formatted.operationType})` : ''}`;
+              })() : 'None'}
             </div>
             <div>
               <strong>Storage:</strong> {stats.storageType}
@@ -307,8 +403,8 @@ export default function BackupManagement() {
       {/* Actions */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-        gap: '2rem',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gap: '1.5rem',
         marginBottom: '2rem'
       }}>
         {/* Create Backup */}
@@ -378,9 +474,23 @@ export default function BackupManagement() {
             <option value="">Select backup to restore</option>
             {backups.map(backup => {
               const backupId = backup.folder || backup;
-              const displayName = backup.folder ? 
-                `${backup.type} - ${backup.created} (${backup.filesCount} files)` :
-                formatBackupName(backup).type + ' - ' + formatBackupName(backup).date;
+              let displayName;
+              
+              if (backup.folder) {
+                // New structure with manifest data
+                const operationType = backup.operationType && backup.operationType !== 'general' 
+                  ? ` (${backup.operationType})` 
+                  : '';
+                displayName = `${backup.type} - ${backup.created}${operationType} (${backup.filesCount} files)`;
+              } else {
+                // Legacy structure or fallback
+                const formatted = formatBackupName(backup);
+                const operationType = formatted.operationType && formatted.operationType !== 'general' && formatted.operationType !== 'legacy'
+                  ? ` (${formatted.operationType})`
+                  : '';
+                displayName = `${formatted.type} - ${formatted.date}${operationType}`;
+              }
+              
               return (
                 <option key={backupId} value={backupId}>
                   {displayName}
@@ -414,6 +524,93 @@ export default function BackupManagement() {
             {operation === 'restoring' ? 'Restoring...' : 'Restore Backup'}
           </button>
         </div>
+
+        {/* Upload Backup */}
+        <div style={{
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '0.5rem',
+          padding: '1.5rem'
+        }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+            Upload & Restore
+          </h3>
+          <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+            Upload backup files from your computer and restore data
+          </p>
+          
+          <input
+            type="file"
+            multiple
+            accept=".json"
+            onChange={handleFileUpload}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.375rem',
+              marginBottom: '1rem',
+              fontSize: '0.875rem'
+            }}
+          />
+          
+          {uploadFiles.length > 0 && (
+            <div style={{
+              background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.375rem',
+              padding: '0.75rem',
+              marginBottom: '1rem'
+            }}>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+                Selected Files ({uploadFiles.length}):
+              </h4>
+              <ul style={{ 
+                margin: 0, 
+                padding: 0, 
+                listStyle: 'none',
+                fontSize: '0.75rem',
+                color: '#6b7280'
+              }}>
+                {uploadFiles.map((file, index) => (
+                  <li key={index} style={{ 
+                    padding: '0.25rem 0',
+                    borderBottom: index < uploadFiles.length - 1 ? '1px solid #f3f4f6' : 'none'
+                  }}>
+                    📄 {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <button
+            onClick={uploadAndRestoreBackup}
+            disabled={uploadOperation === 'uploading' || uploadFiles.length === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              background: uploadOperation === 'uploading' || uploadFiles.length === 0 ? '#9ca3af' : '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: uploadOperation === 'uploading' || uploadFiles.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              width: '100%',
+              justifyContent: 'center'
+            }}
+          >
+            {uploadOperation === 'uploading' ? (
+              <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Upload size={16} />
+            )}
+            {uploadOperation === 'uploading' ? 'Uploading...' : 'Upload & Restore'}
+          </button>
+        </div>
       </div>
 
       {/* Backup List */}
@@ -445,9 +642,24 @@ export default function BackupManagement() {
           ) : (
             backups.map((backup, index) => {
               const backupId = backup.folder || backup;
-              const backupType = backup.type || formatBackupName(backup).type;
-              const backupDate = backup.created || formatBackupName(backup).date;
-              const fileCount = backup.filesCount || 'Unknown';
+              let backupType, backupDate, operationType, fileCount, dateFolder;
+              
+              if (backup.folder) {
+                // New structure with manifest data
+                backupType = backup.type;
+                backupDate = backup.created;
+                operationType = backup.operationType;
+                fileCount = backup.filesCount || 'Unknown';
+                dateFolder = backup.dateFolder;
+              } else {
+                // Legacy structure or fallback
+                const formatted = formatBackupName(backup);
+                backupType = formatted.type;
+                backupDate = formatted.date;
+                operationType = formatted.operationType;
+                fileCount = 'Unknown';
+                dateFolder = formatted.dateFolder;
+              }
               
               return (
                 <div
@@ -460,8 +672,8 @@ export default function BackupManagement() {
                     alignItems: 'center'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: '500', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '500', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <span style={{ 
                         background: backupType === 'manual' ? '#10b981' : '#6366f1',
                         color: 'white',
@@ -473,7 +685,31 @@ export default function BackupManagement() {
                       }}>
                         {backupType}
                       </span>
-                      <span>{fileCount} files</span>
+                      <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{fileCount} files</span>
+                      {operationType && operationType !== 'general' && operationType !== 'legacy' && (
+                        <span style={{
+                          background: '#f3f4f6',
+                          color: '#374151',
+                          padding: '0.125rem 0.375rem',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.625rem',
+                          fontWeight: '500'
+                        }}>
+                          {operationType}
+                        </span>
+                      )}
+                      {dateFolder && (
+                        <span style={{
+                          background: '#fef3c7',
+                          color: '#92400e',
+                          padding: '0.125rem 0.375rem',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.625rem',
+                          fontWeight: '500'
+                        }}>
+                          📅 {dateFolder}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                       {backupDate}
@@ -488,7 +724,8 @@ export default function BackupManagement() {
                       border: '1px solid #3b82f6',
                       borderRadius: '0.25rem',
                       cursor: 'pointer',
-                      fontSize: '0.75rem'
+                      fontSize: '0.75rem',
+                      minWidth: '80px'
                     }}
                   >
                     {selectedBackup === backupId ? 'Selected' : 'Select'}
@@ -517,12 +754,14 @@ export default function BackupManagement() {
           Important Notes:
         </h4>
         <ul style={{ color: '#92400e', fontSize: '0.875rem', margin: 0, paddingLeft: '1.5rem' }}>
-          <li>Automatic backups are created every 24 hours in production</li>
-          <li>Backups are stored securely in Google Cloud Storage</li>
-          <li>Old automatic backups are automatically deleted after 90 days</li>
+          <li>Automatic backups are created after every data operation (flights, passengers, users, volunteers)</li>
+          <li>Backups are organized by date in folders (YYYY-MM-DD format) in Google Cloud Storage</li>
+          <li>Old backups are automatically deleted after 30 days</li>
           <li>Manual backups are preserved until manually deleted</li>
+          <li>You can upload backup files from your computer to restore data</li>
           <li>Restoring a backup will create a backup of current data first</li>
           <li>All backup operations are logged in the audit trail</li>
+          <li>Backup files include: flights.json, users.json, passengers.json, volunteers.json, audit_log.json</li>
         </ul>
       </div>
     </div>

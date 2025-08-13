@@ -39,6 +39,20 @@ if (process.env.NODE_ENV === 'production') {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Add multer for file uploads
+const multer = require('multer');
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JSON files are allowed'));
+    }
+  }
+});
+
 // Security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1725,6 +1739,107 @@ app.get('/api/backup/stats', authenticateToken, authorizeRole(['superadmin']), a
   } catch (error) {
     console.error('Error getting backup stats:', error);
     res.status(500).json({ error: 'Failed to get backup statistics' });
+  }
+});
+
+app.post('/api/backup/upload-restore', authenticateToken, authorizeRole(['superadmin']), upload.array('backupFiles', 10), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No backup files uploaded' });
+    }
+
+    // Create pre-restore backup first
+    console.log('💾 Creating pre-restore backup...');
+    const preRestoreResult = await backupService.createBackup(true, true); // manual backup, skip pre-backup
+    if (preRestoreResult.success) {
+      console.log(`✅ Pre-restore backup created: ${preRestoreResult.backupFolder}`);
+    } else {
+      console.warn(`⚠️ Pre-restore backup failed: ${preRestoreResult.error}`);
+    }
+
+    // Validate and process uploaded files
+    const allowedFiles = ['flights.json', 'users.json', 'passengers.json', 'volunteers.json', 'audit_log.json'];
+    const processedFiles = {};
+    
+    for (const file of req.files) {
+      if (!allowedFiles.includes(file.originalname)) {
+        return res.status(400).json({ error: `Invalid file: ${file.originalname}. Allowed files: ${allowedFiles.join(', ')}` });
+      }
+      
+      try {
+        const fileContent = JSON.parse(file.buffer.toString());
+        processedFiles[file.originalname] = fileContent;
+        console.log(`📄 Processed ${file.originalname}: ${Array.isArray(fileContent) ? fileContent.length : 'object'} ${Array.isArray(fileContent) ? 'items' : ''}`);
+      } catch (parseError) {
+        return res.status(400).json({ error: `Invalid JSON in ${file.originalname}: ${parseError.message}` });
+      }
+    }
+
+    // Write the uploaded data to the respective files
+    let restoredFiles = 0;
+    
+    if (processedFiles['flights.json']) {
+      await writeFlights(processedFiles['flights.json']);
+      restoredFiles++;
+      console.log('✅ Flights data restored');
+    }
+    
+    if (processedFiles['users.json']) {
+      await writeUsers(processedFiles['users.json']);
+      restoredFiles++;
+      console.log('✅ Users data restored');
+    }
+    
+    if (processedFiles['passengers.json']) {
+      await writePassengers(processedFiles['passengers.json']);
+      restoredFiles++;
+      console.log('✅ Passengers data restored');
+    }
+    
+    if (processedFiles['volunteers.json']) {
+      await writeVolunteers(processedFiles['volunteers.json']);
+      restoredFiles++;
+      console.log('✅ Volunteers data restored');
+    }
+    
+    if (processedFiles['audit_log.json']) {
+      await writeAuditLog(processedFiles['audit_log.json']);
+      restoredFiles++;
+      console.log('✅ Audit log restored');
+    }
+
+    // Create backup after successful restore
+    try {
+      await backupService.createAutoBackup('upload-restore');
+    } catch (backupError) {
+      console.warn('Auto-backup after upload restore failed:', backupError.message);
+    }
+
+    // Log audit event
+    await logAuditEvent(
+      'RESTORE',
+      'BACKUP_UPLOAD',
+      'upload-restore',
+      req.user.id,
+      req.user.username,
+      null,
+      null,
+      { 
+        uploadedFiles: req.files.map(f => f.originalname),
+        restoredFiles,
+        preRestoreBackup: preRestoreResult.backupFolder
+      }
+    );
+
+    res.json({ 
+      message: 'Backup files uploaded and restored successfully',
+      restoredFiles,
+      uploadedFiles: req.files.map(f => f.originalname),
+      preRestoreBackup: preRestoreResult.backupFolder
+    });
+  } catch (error) {
+    console.error('Error uploading and restoring backup:', error);
+    res.status(500).json({ error: 'Failed to upload and restore backup' });
   }
 });
 
