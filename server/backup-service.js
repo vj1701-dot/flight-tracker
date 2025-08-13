@@ -68,7 +68,14 @@ class BackupService {
     return pacificTime.toISOString().replace(/[:.]/g, '-');
   }
 
-  async createBackup(manual = false, skipPreBackup = false) {
+  generateDateFolder() {
+    // Generate date folder in YYYY-MM-DD format using Pacific Time
+    const now = new Date();
+    const pacificTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+    return pacificTime.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+  }
+
+  async createBackup(manual = false, skipPreBackup = false, backupType = 'general') {
     try {
       const storageReady = await this.initializeStorage();
       if (!storageReady) {
@@ -76,11 +83,13 @@ class BackupService {
       }
       
       const timestamp = this.generateTimestamp();
-      const backupFolder = manual ? `manual-${timestamp}` : `auto-${timestamp}`;
+      const dateFolder = this.generateDateFolder();
+      const backupSubfolder = manual ? `manual-${timestamp}` : `auto-${timestamp}-${backupType}`;
+      const backupFolder = `${dateFolder}/${backupSubfolder}`;
       
-      console.log(`📦 Creating backup: ${backupFolder}`);
+      console.log(`📦 Creating backup: ${backupFolder} (type: ${backupType})`);
       
-      const result = await this.createGCSBackup(backupFolder, manual, timestamp, skipPreBackup);
+      const result = await this.createGCSBackup(backupFolder, manual, timestamp, skipPreBackup, backupType);
       console.log(`✅ Backup creation completed: ${result.success ? 'SUCCESS' : 'FAILED'}`);
       return result;
     } catch (error) {
@@ -89,7 +98,13 @@ class BackupService {
     }
   }
 
-  async createGCSBackup(backupFolder, manual, timestamp, skipPreBackup = false) {
+  // Create automatic backups triggered by data operations
+  async createAutoBackup(backupType = 'data-operation') {
+    console.log(`🔄 Auto-backup triggered for: ${backupType}`);
+    return await this.createBackup(false, false, backupType);
+  }
+
+  async createGCSBackup(backupFolder, manual, timestamp, skipPreBackup = false, backupType = 'general') {
     try {
       const bucket = this.storage.bucket(this.bucketName);
       const uploadPromises = [];
@@ -143,21 +158,23 @@ class BackupService {
       const manifest = {
         timestamp,
         backupType: manual ? 'manual' : 'automatic',
+        operationType: backupType,
         environment: process.env.NODE_ENV || 'development',
         files: uploadedFiles,
         totalFiles: uploadedFiles.length,
         created: new Date().toISOString(),
         createdPacific: pacificTime,
-        backupFolder
+        backupFolder,
+        dateFolder: backupFolder.split('/')[0]
       };
 
       await bucket.file(`${backupFolder}/manifest.json`).save(JSON.stringify(manifest, null, 2));
       console.log(`📋 Manifest created for backup: ${backupFolder}`);
       
-      // Clean up old automatic backups (keep last 30) - but skip during restore operations
+      // Clean up old automatic backups (30-day retention) - but skip during restore operations
       if (!manual && !skipPreBackup) {
         try {
-          await this.cleanupOldBackups();
+          await this.cleanupOldDateBasedBackups();
         } catch (cleanupError) {
           console.warn('Cleanup warning:', cleanupError.message);
           // Don't fail the backup if cleanup fails
@@ -296,35 +313,53 @@ class BackupService {
       for (const file of files) {
         const parts = file.name.split('/');
         if (parts.length >= 2) {
-          const folderName = parts[0];
+          let folderName, manifestPath;
+          
+          // Handle both old flat structure and new date-based structure
+          if (parts.length === 2) {
+            // Old structure: backup-folder/file.json
+            folderName = parts[0];
+            manifestPath = parts[1];
+          } else if (parts.length === 3) {
+            // New structure: YYYY-MM-DD/backup-folder/file.json
+            folderName = `${parts[0]}/${parts[1]}`;
+            manifestPath = parts[2];
+          } else {
+            continue; // Skip deeply nested files
+          }
           
           // Only include folders that match backup naming pattern
-          if (folderName.startsWith('auto-') || folderName.startsWith('manual-')) {
+          const backupFolderName = parts.length === 3 ? parts[1] : parts[0];
+          if (backupFolderName.includes('auto-') || backupFolderName.includes('manual-')) {
             backupFolders.add(folderName);
             
             // If this is a manifest file, get additional details
-            if (parts[1] === 'manifest.json') {
+            if (manifestPath === 'manifest.json') {
               try {
                 const [manifestContent] = await file.download();
                 const manifest = JSON.parse(manifestContent.toString());
                 backupDetails.set(folderName, {
                   folder: folderName,
                   type: manifest.backupType,
+                  operationType: manifest.operationType || 'general',
                   created: manifest.createdPacific || manifest.created,
                   createdISO: manifest.created,
                   filesCount: manifest.totalFiles || manifest.files?.length || 0,
-                  environment: manifest.environment
+                  environment: manifest.environment,
+                  dateFolder: manifest.dateFolder || (parts.length === 3 ? parts[0] : null)
                 });
               } catch (manifestError) {
                 console.warn(`Could not read manifest for ${folderName}:`, manifestError.message);
                 // Add basic info even if manifest can't be read
                 backupDetails.set(folderName, {
                   folder: folderName,
-                  type: folderName.startsWith('manual-') ? 'manual' : 'automatic',
+                  type: backupFolderName.includes('manual-') ? 'manual' : 'automatic',
+                  operationType: 'unknown',
                   created: 'Unknown',
                   createdISO: null,
                   filesCount: 0,
-                  environment: 'unknown'
+                  environment: 'unknown',
+                  dateFolder: parts.length === 3 ? parts[0] : null
                 });
               }
             }
@@ -338,11 +373,13 @@ class BackupService {
         .reverse()
         .map(folder => backupDetails.get(folder) || {
           folder,
-          type: folder.startsWith('manual-') ? 'manual' : 'automatic',
+          type: folder.includes('manual-') ? 'manual' : 'automatic',
+          operationType: 'unknown',
           created: 'Unknown',
           createdISO: null,
           filesCount: 0,
-          environment: 'unknown'
+          environment: 'unknown',
+          dateFolder: folder.includes('/') ? folder.split('/')[0] : null
         });
 
       console.log(`✅ Found ${backupList.length} backups in GCS bucket`);
@@ -371,7 +408,7 @@ class BackupService {
       const { success, backups } = await this.listBackups();
       if (!success) return;
 
-      const autoBackups = backups.filter(b => b.folder && b.folder.startsWith('auto-')).sort((a, b) => b.folder.localeCompare(a.folder));
+      const autoBackups = backups.filter(b => b.folder && b.folder.includes('auto-')).sort((a, b) => b.folder.localeCompare(a.folder));
       
       if (autoBackups.length > keepCount) {
         const toDelete = autoBackups.slice(keepCount);
@@ -379,6 +416,70 @@ class BackupService {
       }
     } catch (error) {
       console.error('Cleanup failed:', error.message);
+    }
+  }
+
+  // New method for date-based cleanup (30-day retention)
+  async cleanupOldDateBasedBackups(retentionDays = 30) {
+    try {
+      console.log(`🧹 Starting cleanup of backups older than ${retentionDays} days...`);
+      
+      const bucket = this.storage.bucket(this.bucketName);
+      const [files] = await bucket.getFiles();
+      
+      // Get cutoff date (30 days ago)
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+      const cutoffDateStr = cutoffDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      console.log(`🗓️ Cutoff date for cleanup: ${cutoffDateStr}`);
+      
+      // Group files by date folders
+      const dateFolders = new Set();
+      for (const file of files) {
+        const parts = file.name.split('/');
+        if (parts.length >= 2 && parts[0].match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const dateFolder = parts[0];
+          if (dateFolder < cutoffDateStr) {
+            dateFolders.add(dateFolder);
+          }
+        }
+      }
+      
+      if (dateFolders.size === 0) {
+        console.log(`✅ No date folders older than ${retentionDays} days found`);
+        return;
+      }
+      
+      console.log(`🗑️ Found ${dateFolders.size} date folders to delete: ${Array.from(dateFolders).join(', ')}`);
+      
+      // Delete each old date folder
+      for (const dateFolder of dateFolders) {
+        await this.deleteEntireDateFolder(dateFolder);
+      }
+      
+      console.log(`✅ Cleanup completed: ${dateFolders.size} date folders removed`);
+    } catch (error) {
+      console.error('Date-based cleanup failed:', error.message);
+      throw error;
+    }
+  }
+
+  async deleteEntireDateFolder(dateFolder) {
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      console.log(`🗑️ Deleting all backups in date folder: ${dateFolder}`);
+      
+      // Get all files in this date folder
+      const [files] = await bucket.getFiles({ prefix: `${dateFolder}/` });
+      
+      // Delete all files in parallel
+      await Promise.all(files.map(file => file.delete()));
+      
+      console.log(`✅ Deleted ${files.length} files from date folder: ${dateFolder}`);
+    } catch (error) {
+      console.error(`Error deleting date folder ${dateFolder}:`, error.message);
+      throw error;
     }
   }
 

@@ -142,6 +142,13 @@ async function addOrUpdatePassenger(name, telegramChatId = null) {
         existingPassenger.telegramChatId = telegramChatId;
         existingPassenger.updatedAt = new Date().toISOString();
         await writePassengers(passengers);
+        
+        // Create automatic backup after passenger update during flight processing
+        try {
+          await backupService.createAutoBackup('passenger-auto-update');
+        } catch (backupError) {
+          console.warn('Auto-backup after passenger auto-update failed:', backupError.message);
+        }
       }
       return existingPassenger;
     } else {
@@ -155,6 +162,14 @@ async function addOrUpdatePassenger(name, telegramChatId = null) {
       };
       passengers.push(newPassenger);
       await writePassengers(passengers);
+      
+      // Create automatic backup after passenger creation during flight processing
+      try {
+        await backupService.createAutoBackup('passenger-auto-add');
+      } catch (backupError) {
+        console.warn('Auto-backup after passenger auto-add failed:', backupError.message);
+      }
+      
       return newPassenger;
     }
   } catch (error) {
@@ -183,6 +198,13 @@ async function addOrUpdateVolunteer(name, phone = null, telegramChatId = null) {
       if (updated) {
         existingVolunteer.updatedAt = new Date().toISOString();
         await writeVolunteers(volunteers);
+        
+        // Create automatic backup after volunteer update during flight processing
+        try {
+          await backupService.createAutoBackup('volunteer-auto-update');
+        } catch (backupError) {
+          console.warn('Auto-backup after volunteer auto-update failed:', backupError.message);
+        }
       }
       return existingVolunteer;
     } else {
@@ -197,6 +219,14 @@ async function addOrUpdateVolunteer(name, phone = null, telegramChatId = null) {
       };
       volunteers.push(newVolunteer);
       await writeVolunteers(volunteers);
+      
+      // Create automatic backup after volunteer creation during flight processing
+      try {
+        await backupService.createAutoBackup('volunteer-auto-add');
+      } catch (backupError) {
+        console.warn('Auto-backup after volunteer auto-add failed:', backupError.message);
+      }
+      
       return newVolunteer;
     }
   } catch (error) {
@@ -492,6 +522,13 @@ app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin
     users.push(newUser);
     await writeUsers(users);
 
+    // Create automatic backup after user creation
+    try {
+      await backupService.createAutoBackup('user-add');
+    } catch (backupError) {
+      console.warn('Auto-backup after user creation failed:', backupError.message);
+    }
+
     // Log audit event for user creation
     await logAuditEvent(
       'CREATE',
@@ -595,6 +632,13 @@ app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin
 
     users[userIndex] = updatedUser;
     await writeUsers(users);
+
+    // Create automatic backup after user update
+    try {
+      await backupService.createAutoBackup('user-update');
+    } catch (backupError) {
+      console.warn('Auto-backup after user update failed:', backupError.message);
+    }
 
     // Log audit event with changes
     const changes = getChanges(
@@ -819,6 +863,13 @@ app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['s
     passengers.push(newPassenger);
     await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
     
+    // Create automatic backup after passenger creation
+    try {
+      await backupService.createAutoBackup('passenger-add');
+    } catch (backupError) {
+      console.warn('Auto-backup after passenger creation failed:', backupError.message);
+    }
+    
     // Log the action
     await logAuditEvent('CREATE', 'PASSENGER', newPassenger.id, req.user.id, req.user.username, null, null, { passengerId: newPassenger.id, name: newPassenger.name });
     
@@ -845,6 +896,13 @@ app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(
     };
     
     await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    
+    // Create automatic backup after passenger update
+    try {
+      await backupService.createAutoBackup('passenger-update');
+    } catch (backupError) {
+      console.warn('Auto-backup after passenger update failed:', backupError.message);
+    }
     
     // Log the action
     await logAuditEvent('UPDATE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: passengers[passengerIndex].name });
@@ -914,6 +972,13 @@ app.post('/api/data-management/users', authenticateToken, authorizeRole(['supera
     users.push(newUser);
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     
+    // Create automatic backup after data management user creation
+    try {
+      await backupService.createAutoBackup('data-mgmt-user-add');
+    } catch (backupError) {
+      console.warn('Auto-backup after data management user creation failed:', backupError.message);
+    }
+    
     // Log the action
     await logAuditEvent('CREATE', 'USER', newUser.id, req.user.id, req.user.username, null, null, { userId: newUser.id, username: newUser.username });
     
@@ -949,6 +1014,13 @@ app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['sup
     };
     
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    // Create automatic backup after data management user update
+    try {
+      await backupService.createAutoBackup('data-mgmt-user-update');
+    } catch (backupError) {
+      console.warn('Auto-backup after data management user update failed:', backupError.message);
+    }
     
     // Log the action
     await logAuditEvent('UPDATE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: users[userIndex].username });
@@ -1026,6 +1098,13 @@ app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['s
     volunteers.push(newVolunteer);
     await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
     
+    // Create automatic backup after volunteer creation
+    try {
+      await backupService.createAutoBackup('volunteer-add');
+    } catch (backupError) {
+      console.warn('Auto-backup after volunteer creation failed:', backupError.message);
+    }
+    
     // Log the action
     await logAuditEvent('CREATE', 'VOLUNTEER', newVolunteer.id, req.user.id, req.user.username, null, null, { volunteerId: newVolunteer.id, username: newVolunteer.username });
     
@@ -1059,6 +1138,13 @@ app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(
     };
     
     await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    
+    // Create automatic backup after volunteer update
+    try {
+      await backupService.createAutoBackup('volunteer-update');
+    } catch (backupError) {
+      console.warn('Auto-backup after volunteer update failed:', backupError.message);
+    }
     
     // Log the action
     await logAuditEvent('UPDATE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: volunteers[volunteerIndex].username });
@@ -1192,6 +1278,13 @@ app.post('/api/flights', authenticateToken, async (req, res) => {
     flights.push(flight);
     await writeFlights(flights);
 
+    // Create automatic backup after flight creation
+    try {
+      await backupService.createAutoBackup('flight-add');
+    } catch (backupError) {
+      console.warn('Auto-backup after flight creation failed:', backupError.message);
+    }
+
     // Add passengers to passenger database
     if (flight.passengers && Array.isArray(flight.passengers)) {
       for (const passenger of flight.passengers) {
@@ -1320,6 +1413,13 @@ app.post('/api/flights/public', async (req, res) => {
     flights.push(flight);
     await writeFlights(flights);
 
+    // Create automatic backup after flight creation
+    try {
+      await backupService.createAutoBackup('flight-add-public');
+    } catch (backupError) {
+      console.warn('Auto-backup after public flight creation failed:', backupError.message);
+    }
+
     // Add passengers to passenger database
     if (flight.passengers && Array.isArray(flight.passengers)) {
       for (const passenger of flight.passengers) {
@@ -1425,6 +1525,13 @@ app.put('/api/flights/:id', authenticateToken, async (req, res) => {
     flights[flightIndex] = updatedFlight;
     await writeFlights(flights);
 
+    // Create automatic backup after flight update
+    try {
+      await backupService.createAutoBackup('flight-update');
+    } catch (backupError) {
+      console.warn('Auto-backup after flight update failed:', backupError.message);
+    }
+
     // Send flight update notification
     try {
       await telegramBot.sendFlightUpdateNotification(updatedFlight, 'updated');
@@ -1472,6 +1579,13 @@ app.delete('/api/flights/:id', authenticateToken, async (req, res) => {
     const deletedFlight = flights[flightIndex];
     flights.splice(flightIndex, 1);
     await writeFlights(flights);
+
+    // Create automatic backup after flight deletion
+    try {
+      await backupService.createAutoBackup('flight-delete');
+    } catch (backupError) {
+      console.warn('Auto-backup after flight deletion failed:', backupError.message);
+    }
 
     // Log audit event
     await logAuditEvent(
