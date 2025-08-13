@@ -1932,6 +1932,42 @@
     "type": "small_airport"
   },
   {
+    "code": "FAI",
+    "name": "Fairbanks International Airport",
+    "display": "FAI, Fairbanks, AK, USA",
+    "city": "Fairbanks",
+    "state": "AK",
+    "country": "USA",
+    "timezone": "America/Anchorage",
+    "lat": 64.8151,
+    "lon": -147.8560,
+    "type": "medium_airport"
+  },
+  {
+    "code": "PAE",
+    "name": "Paine Field Airport",
+    "display": "PAE, Everett, WA, USA",
+    "city": "Everett",
+    "state": "WA",
+    "country": "USA",
+    "timezone": "America/Los_Angeles",
+    "lat": 47.9063,
+    "lon": -122.2815,
+    "type": "medium_airport"
+  },
+  {
+    "code": "CLD",
+    "name": "McClellan-Palomar Airport",
+    "display": "CLD, Carlsbad, CA, USA",
+    "city": "Carlsbad",
+    "state": "CA",
+    "country": "USA",
+    "timezone": "America/Los_Angeles",
+    "lat": 33.1283,
+    "lon": -117.2806,
+    "type": "small_airport"
+  },
+  {
     "code": "YUM",
     "name": "Yuma International Airport",
     "display": "YUM, Yuma, AZ, USA",
