@@ -914,9 +914,13 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ Welcome to West Sant Transportation passenger registration!\n\n` +
-          `📝 Please enter your Full Name in First Name & Last Name format.\n\n` +
-          `Example: John Smith\n\n` +
-          `Enter your full name:`,
+          `📝 Please enter your Full Name exactly as it appears in the system.\n\n` +
+          `Format: First Name Last Name\n` +
+          `Example: Sadhu Keshavjivandas\n\n` +
+          `💡 Instructions:\n` +
+          `1. Send: /register_passenger\n` +
+          `2. Enter your full name when prompted\n\n` +
+          `Enter your full name now:`,
         );
 
       } catch (error) {
