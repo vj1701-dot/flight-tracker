@@ -2024,6 +2024,19 @@ app.post('/api/monitoring/check-now', authenticateToken, authorizeRole(['superad
   }
 });
 
+// Catchall route for SPA - serve index.html for non-API routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    // Only serve index.html for non-API routes
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    } else {
+      // If it's an API route that wasn't found, return 404
+      res.status(404).json({ error: 'API endpoint not found' });
+    }
+  });
+}
+
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

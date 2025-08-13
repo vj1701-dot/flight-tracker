@@ -38,11 +38,21 @@ export default function BackupManagement() {
       })
       
       if (response.ok) {
-        const data = await response.json()
-        setBackups(data.backups || [])
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json()
+          setBackups(data.backups || [])
+        } else {
+          throw new Error('Server returned non-JSON response')
+        }
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Failed to fetch backups (${response.status})`)
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch backups`)
+        } else {
+          throw new Error(`HTTP ${response.status}: Server error`)
+        }
       }
     } catch (err) {
       console.error('Backup fetch error:', err)
@@ -59,12 +69,24 @@ export default function BackupManagement() {
       })
       
       if (response.ok) {
-        const data = await response.json()
-        setStats(data)
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json()
+          setStats(data)
+        } else {
+          console.error('Expected JSON but received:', contentType)
+          setStats({ error: 'Server returned invalid response format' })
+        }
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Stats fetch failed:', errorData)
-        setStats({ error: errorData.error || 'Failed to fetch stats' })
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('Stats fetch failed:', errorData)
+          setStats({ error: errorData.error || `HTTP ${response.status}: Failed to fetch stats` })
+        } else {
+          console.error('Stats fetch failed with non-JSON response')
+          setStats({ error: `HTTP ${response.status}: Server error` })
+        }
       }
     } catch (err) {
       console.error('Error fetching stats:', err)
@@ -144,6 +166,9 @@ export default function BackupManagement() {
   }
 
   const formatBackupName = (backup) => {
+    if (!backup || typeof backup !== 'string') {
+      return { type: 'Unknown', date: 'Invalid backup name' }
+    }
     const parts = backup.split('-')
     const type = parts[0] === 'auto' ? '🤖 Automatic' : '👤 Manual'
     const dateStr = parts.slice(1).join('-').replace(/T/, ' ').replace(/Z$/, ' UTC')
