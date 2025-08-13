@@ -2524,10 +2524,7 @@ class TelegramNotificationService {
     try {
       console.log('Processing webhook update:', JSON.stringify(req.body, null, 2));
       
-      // Process the update through the bot's normal processing
-      this.bot.processUpdate(req.body);
-      
-      // Additional manual processing for webhook mode to ensure commands work
+      // Manual processing for webhook mode (skip normal processing to avoid conflicts)
       if (req.body.message && req.body.message.text) {
         const message = req.body.message;
         console.log(`📨 Processing message: "${message.text}" from chat ${message.chat.id}`);
