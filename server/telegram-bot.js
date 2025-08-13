@@ -19,6 +19,7 @@ class TelegramNotificationService {
   constructor() {
     // Track registration states for multi-step registration
     this.registrationStates = new Map();
+    this.registrationStatesFile = path.join(__dirname, 'registration-states.json');
     
     if (!BOT_TOKEN) {
       console.log('⚠️  Telegram bot token not configured. Set TELEGRAM_BOT_TOKEN environment variable.');
@@ -50,6 +51,7 @@ class TelegramNotificationService {
     }
     
     this.loadProcessedMessages();
+    this.loadRegistrationStates();
     this.setupCommands();
     this.setupErrorHandling();
   }
@@ -86,6 +88,39 @@ class TelegramNotificationService {
     } catch (error) {
       console.error('Error saving processed messages:', error);
     }
+  }
+
+  async loadRegistrationStates() {
+    try {
+      const data = await fs.readFile(this.registrationStatesFile, 'utf8');
+      const states = JSON.parse(data);
+      this.registrationStates = new Map(Object.entries(states));
+      console.log(`Loaded ${this.registrationStates.size} registration states from storage`);
+    } catch (error) {
+      // File doesn't exist or is invalid, start fresh
+      this.registrationStates = new Map();
+      console.log('Starting with fresh registration states cache');
+    }
+  }
+
+  async saveRegistrationStates() {
+    try {
+      const states = Object.fromEntries(this.registrationStates);
+      await fs.writeFile(this.registrationStatesFile, JSON.stringify(states, null, 2));
+    } catch (error) {
+      console.error('Error saving registration states:', error);
+    }
+  }
+
+  // Helper methods to automatically save when modifying registration states
+  async setRegistrationState(chatId, state) {
+    this.registrationStates.set(chatId, state);
+    await this.saveRegistrationStates();
+  }
+
+  async deleteRegistrationState(chatId) {
+    this.registrationStates.delete(chatId);
+    await this.saveRegistrationStates();
   }
 
   async isMessageProcessed(msg) {
@@ -696,7 +731,7 @@ class TelegramNotificationService {
       );
       
       // Set registration state
-      this.registrationStates.set(chatId, { 
+      await this.setRegistrationState(chatId, { 
         type: 'volunteer', 
         step: 'waiting_name',
         startedAt: new Date()
@@ -729,7 +764,7 @@ class TelegramNotificationService {
       );
       
       // Set registration state
-      this.registrationStates.set(chatId, { 
+      await this.setRegistrationState(chatId, { 
         type: 'passenger', 
         step: 'waiting_name',
         startedAt: new Date()
@@ -762,7 +797,7 @@ class TelegramNotificationService {
       );
       
       // Set registration state
-      this.registrationStates.set(chatId, { 
+      await this.setRegistrationState(chatId, { 
         type: 'user', 
         step: 'waiting_name',
         startedAt: new Date()
@@ -811,7 +846,7 @@ class TelegramNotificationService {
 
       try {
         // Start registration flow
-        this.registrationStates.set(chatId, {
+        await this.setRegistrationState(chatId, {
           type: 'volunteer_new',
           step: 'full_name',
           data: {}
@@ -905,7 +940,7 @@ class TelegramNotificationService {
 
         // Start registration flow
         console.log(`Starting passenger registration for chatId ${chatId}`);
-        this.registrationStates.set(chatId, {
+        await this.setRegistrationState(chatId, {
           type: 'passenger_new',
           step: 'full_name',
           data: { existingRoles }
@@ -940,7 +975,7 @@ class TelegramNotificationService {
 
       try {
         // Start registration flow
-        this.registrationStates.set(chatId, {
+        await this.setRegistrationState(chatId, {
           type: 'user_new',
           step: 'username',
           data: {}
@@ -1206,7 +1241,7 @@ class TelegramNotificationService {
       const chatId = msg.chat.id;
       
       if (this.registrationStates.has(chatId)) {
-        this.registrationStates.delete(chatId);
+        await this.deleteRegistrationState(chatId);
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ Registration state cleared. You can now start fresh with /register_passenger, /register_volunteer, or /register_user.`
@@ -1322,7 +1357,7 @@ class TelegramNotificationService {
           );
           
           // Clear registration state
-          this.registrationStates.delete(chatId);
+          await this.deleteRegistrationState(chatId);
           return;
           
         } else if (registrationState.type === 'passenger' && registrationState.step === 'waiting_name') {
@@ -1360,7 +1395,7 @@ class TelegramNotificationService {
                 `If this is your account and you need to update the link, please contact your administrator.\n\n` +
                 `👤 Found: ${existingPassenger.name}`
               );
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
             }
             
@@ -1425,7 +1460,7 @@ class TelegramNotificationService {
           }
           
           // Clear registration state
-          this.registrationStates.delete(chatId);
+          await this.deleteRegistrationState(chatId);
           return;
           
         } else if (registrationState.type === 'passenger_new') {
@@ -1481,7 +1516,7 @@ class TelegramNotificationService {
               );
               
               // Clear registration state
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
               
             } catch (error) {
@@ -1490,7 +1525,7 @@ class TelegramNotificationService {
                 `Jai Swaminarayan 🙏\n\n` +
                 `❌ Registration failed. Please try again later.`
               );
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
             }
           }
@@ -1585,7 +1620,7 @@ class TelegramNotificationService {
                   `• Your account is active\n\n` +
                   `Contact your administrator if you need help.`
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1597,7 +1632,7 @@ class TelegramNotificationService {
                   `Please use: \`/register_volunteer\`\n\n` +
                   `If you need dashboard access, contact your administrator.`, 
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1615,7 +1650,7 @@ class TelegramNotificationService {
                   `Available commands:\n` +
                   `/help - Show help menu`
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1646,7 +1681,7 @@ class TelegramNotificationService {
               );
               
               // Clear registration state
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
               
             } catch (error) {
@@ -1655,7 +1690,7 @@ class TelegramNotificationService {
                 `Jai Swaminarayan 🙏\n\n` +
                 `❌ Registration failed. Please try again later.`
               );
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
             }
           }
@@ -1815,7 +1850,7 @@ class TelegramNotificationService {
           }
           
           // Clear registration state
-          this.registrationStates.delete(chatId);
+          await this.deleteRegistrationState(chatId);
         }
         
       } catch (error) {
@@ -1825,7 +1860,7 @@ class TelegramNotificationService {
           `❌ Registration failed. Please try again later.`
         );
         // Clear registration state on error
-        this.registrationStates.delete(chatId);
+        await this.deleteRegistrationState(chatId);
       }
     });
 
@@ -2845,7 +2880,7 @@ class TelegramNotificationService {
                   `If this is your account and you need to update the link, please contact your administrator.\n\n` +
                   `👤 Found: ${existingPassenger.name}`
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
               
@@ -2910,7 +2945,7 @@ class TelegramNotificationService {
             }
             
             // Clear registration state
-            this.registrationStates.delete(chatId);
+            await this.deleteRegistrationState(chatId);
             return;
           }
           
