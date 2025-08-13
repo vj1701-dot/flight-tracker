@@ -234,23 +234,23 @@ class TelegramNotificationService {
   async handleHelpCommand(chatId) {
     const helpMessage = 
       `Jai Swaminarayan 🙏\n\n` +
-      `🤖 *West Sant Transportation Bot*\n\n` +
-      `*Registration Commands:*\n` +
+      `🤖 West Sant Transportation Bot\n\n` +
+      `Registration Commands:\n` +
       `• /start - Start registration process\n` +
       `• /register_volunteer - Register as Volunteer\n` +
       `• /register_passenger - Register as Passenger\n` +
       `• /register_user - Register as Dashboard User\n\n` +
-      `*Flight Commands:*\n` +
+      `Flight Commands:\n` +
       `• /flights - View your assigned flights (Volunteers)\n` +
       `• /myflights - View your passenger flights\n` +
       `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
       `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
       `• /help - Show this help menu\n\n` +
-      `*Features:*\n` +
+      `Features:\n` +
       `✈️ Flight details and passenger information\n` +
       `🚨 Automatic delay alerts (for flights in our system)\n` +
       `🕐 Real-time notifications for changes\n\n` +
-      `*Notifications:*\n` +
+      `Notifications:\n` +
       `🔔 Flight confirmations (Passengers)\n` +
       `🔔 24-hour check-in reminders (Passengers)\n` +
       `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
@@ -259,7 +259,7 @@ class TelegramNotificationService {
       `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
       `Need help? Contact your administrator.`;
 
-    await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    await this.bot.sendMessage(chatId, helpMessage);
   }
 
   async handleStartCommand(chatId) {
@@ -271,8 +271,7 @@ class TelegramNotificationService {
         `• /register_volunteer - If you help with transportation\n` +
         `• /register_passenger - If you are a passenger\n` +
         `• /register_user - If you need dashboard access\n\n` +
-        `Type /help for more commands.`,
-        { parse_mode: 'Markdown' }
+        `Type /help for more commands.`
       );
     } catch (error) {
       console.error('Start command error:', error);
@@ -412,7 +411,7 @@ class TelegramNotificationService {
       
       flightList += `\n💡 *Your airport assignments can be updated by your administrator.*`;
 
-      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(chatId, flightList);
     } catch (error) {
       console.error('UpcomingFlights command error:', error);
       await this.bot.sendMessage(chatId, 
@@ -541,7 +540,7 @@ class TelegramNotificationService {
       
       flightList += `\n💡 *Need help?* Contact your transportation coordinator for assistance.`;
 
-      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(chatId, flightList);
     } catch (error) {
       console.error('Flights command error:', error);
       await this.bot.sendMessage(chatId, 
@@ -677,7 +676,7 @@ class TelegramNotificationService {
       
       flightList += `\n💡 *Need help?* Contact your transportation coordinator or use /help for more commands.`;
 
-      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(chatId, flightList);
     } catch (error) {
       console.error('MyFlights command error:', error);
       await this.bot.sendMessage(chatId, 
@@ -742,7 +741,7 @@ class TelegramNotificationService {
           message += `🏢 *Terminal:* ${info.terminal}\n`;
         }
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
       } else {
         await this.bot.sendMessage(chatId,
           `❌ Could not find flight information for ${flightNumber} on ${flightDate}.\n\n` +
@@ -777,7 +776,7 @@ class TelegramNotificationService {
 
       await this.bot.sendMessage(chatId, 
         `Jai Swaminarayan 🙏\n\n` +
-        `🚗 *Volunteer Registration*\n\n` +
+        `🚗 Volunteer Registration\n\n` +
         `Please enter your full name as it appears in the system:`,
         { parse_mode: 'Markdown' }
       );
@@ -811,7 +810,7 @@ class TelegramNotificationService {
 
       await this.bot.sendMessage(chatId, 
         `Jai Swaminarayan 🙏\n\n` +
-        `✈️ *Passenger Registration*\n\n` +
+        `✈️ Passenger Registration\n\n` +
         `Please enter your full name as it appears on your travel documents:`,
         { parse_mode: 'Markdown' }
       );
@@ -845,7 +844,7 @@ class TelegramNotificationService {
 
       await this.bot.sendMessage(chatId, 
         `Jai Swaminarayan 🙏\n\n` +
-        `📊 *Dashboard User Registration*\n\n` +
+        `📊 Dashboard User Registration\n\n` +
         `Please enter your full name as it appears in the system:`,
         { parse_mode: 'Markdown' }
       );
@@ -1115,7 +1114,7 @@ class TelegramNotificationService {
           message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
         });
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error fetching flights:', error);
@@ -1174,7 +1173,7 @@ class TelegramNotificationService {
           message += `\n`;
         });
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error fetching passenger flights:', error);
@@ -1279,7 +1278,7 @@ class TelegramNotificationService {
 
         message += `📝 *Notes*\n${flight.notes || 'No additional notes'}`;
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error getting flight info:', error);
@@ -1318,23 +1317,23 @@ class TelegramNotificationService {
       
       const helpMessage = 
         `Jai Swaminarayan 🙏\n\n` +
-        `🤖 *West Sant Transportation Bot*\n\n` +
-        `*Registration Commands:*\n` +
+        `🤖 West Sant Transportation Bot\n\n` +
+        `Registration Commands:\n` +
         `• /start - Start registration process\n` +
         `• /register_volunteer - Register as Volunteer\n` +
         `• /register_passenger - Register as Passenger\n` +
         `• /register_user - Register as Dashboard User\n\n` +
-        `*Flight Commands:*\n` +
+        `Flight Commands:\n` +
         `• /flights - View your assigned flights (Volunteers)\n` +
         `• /myflights - View your passenger flights\n` +
         `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
         `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
         `• /help - Show this help menu\n\n` +
-        `*Features:*\n` +
+        `Features:\n` +
         `✈️ Flight details and passenger information\n` +
         `🚨 Automatic delay alerts (for flights in our system)\n` +
         `🕐 Real-time notifications for changes\n\n` +
-        `*Notifications:*\n` +
+        `Notifications:\n` +
         `🔔 Flight confirmations (Passengers)\n` +
         `🔔 24-hour check-in reminders (Passengers)\n` +
         `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
@@ -1342,7 +1341,7 @@ class TelegramNotificationService {
         `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
         `Need help? Contact your administrator.`;
 
-      await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(chatId, helpMessage);
     });
 
     // Handle general messages (for phone number collection and other registration steps)
@@ -1399,7 +1398,7 @@ class TelegramNotificationService {
           // Send greeting message
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
-            `🎉 *Welcome to West Sant Transportation!*\n\n` +
+            `🎉 Welcome to West Sant Transportation!\n\n` +
             `✅ Successfully registered as passenger:\n` +
             `👤 *Name:* ${newPassenger.name}\n\n` +
             `You'll receive notifications for:\n` +
@@ -1407,7 +1406,7 @@ class TelegramNotificationService {
             `🔔 Flight updates and changes\n` +
             `🔔 24-hour check-in reminders\n` +
             `🔔 Volunteer contact information\n\n` +
-            `*Available commands:*\n` +
+            `Available commands:\n` +
             `/myflights - View your upcoming flights\n` +
             `/help - Show help menu\n\n` +
             `Thank you for registering! 🙏`,
@@ -1451,7 +1450,7 @@ class TelegramNotificationService {
                 `Jai Swaminarayan 🙏\n\n` +
                 `⚠️ This passenger account is already linked to another Telegram account.\n\n` +
                 `If this is your account and you need to update the link, please contact your administrator.\n\n` +
-                `👤 *Found:* ${existingPassenger.name}`
+                `👤 Found: ${existingPassenger.name}`
               );
               this.registrationStates.delete(chatId);
               return;
@@ -1467,16 +1466,16 @@ class TelegramNotificationService {
               
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
-                `🎉 *Welcome back to West Sant Transportation!*\n\n` +
+                `🎉 Welcome back to West Sant Transportation!\n\n` +
                 `✅ Successfully linked your Telegram to existing passenger account:\n` +
-                `👤 *Name:* ${existingPassenger.name}\n` +
-                `📊 *Previous Flights:* ${existingPassenger.flightCount || 0}\n\n` +
+                `👤 Name: ${existingPassenger.name}\n` +
+                `📊 Previous Flights: ${existingPassenger.flightCount || 0}\n\n` +
                 `You'll receive notifications for:\n` +
                 `🔔 Flight confirmations\n` +
                 `🔔 Flight updates and changes\n` +
                 `🔔 24-hour check-in reminders\n` +
                 `🔔 Volunteer contact information\n\n` +
-                `*Available commands:*\n` +
+                `Available commands:\n` +
                 `/myflights - View your upcoming flights\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome back! 🙏`,
@@ -1503,15 +1502,15 @@ class TelegramNotificationService {
             
             await this.bot.sendMessage(chatId, 
               `Jai Swaminarayan 🙏\n\n` +
-              `🎉 *Welcome to West Sant Transportation!*\n\n` +
+              `🎉 Welcome to West Sant Transportation!\n\n` +
               `✅ Successfully registered as new passenger:\n` +
-              `👤 *Name:* ${newPassenger.name}\n\n` +
+              `👤 Name: ${newPassenger.name}\n\n` +
               `You'll receive notifications for:\n` +
               `🔔 Flight confirmations\n` +
               `🔔 Flight updates and changes\n` +
               `🔔 24-hour check-in reminders\n` +
               `🔔 Volunteer contact information\n\n` +
-              `*Available commands:*\n` +
+              `Available commands:\n` +
               `/myflights - View your upcoming flights\n` +
               `/help - Show help menu\n\n` +
               `Thank you for registering! 🙏`,
@@ -1562,14 +1561,14 @@ class TelegramNotificationService {
               
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
-                `🎉 *Welcome to West Sant Transportation!*\n\n` +
+                `🎉 Welcome to West Sant Transportation!\n\n` +
                 `✅ Successfully registered as passenger:\n` +
                 `👤 *Name:* ${passenger.name}\n\n` +
                 `You'll receive notifications for:\n` +
                 `🔔 Flight updates\n` +
                 `🔔 Pickup/dropoff information\n` +
                 `🔔 Important announcements\n\n` +
-                `*Available commands:*\n` +
+                `Available commands:\n` +
                 `/myflights - View your upcoming flights\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome to the system! 🙏`,
@@ -1737,7 +1736,7 @@ class TelegramNotificationService {
                 `🔔 Flight delays and updates\n` +
                 `🔔 System notifications\n` +
                 `🔔 Administrative alerts (if applicable)\n\n` +
-                `*Available commands:*\n` +
+                `Available commands:\n` +
                 `/status - Check your registration status\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome to the system! 🙏`,
@@ -1796,7 +1795,7 @@ class TelegramNotificationService {
             
             await this.bot.sendMessage(chatId, 
               `Jai Swaminarayan 🙏\n\n` +
-              `🎉 *Welcome to West Sant Transportation!*\n\n` +
+              `🎉 Welcome to West Sant Transportation!\n\n` +
               `✅ Successfully registered as volunteer:\n` +
               `👤 *Name:* ${user.name}\n` +
               `🏙️ *City:* ${registrationState.data.city}\n` +
@@ -1807,7 +1806,7 @@ class TelegramNotificationService {
               `🔔 Flight assignments\n` +
               `🔔 Passenger contact information\n` +
               `🔔 Schedule updates\n\n` +
-              `*Available commands:*\n` +
+              `Available commands:\n` +
               `/flights - View your assigned flights\n` +
               `/help - Show help menu\n\n` +
               `Thank you for volunteering! 🙏`,
@@ -2057,7 +2056,7 @@ class TelegramNotificationService {
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
-            await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, debugMessage);
           }
 
         } else {
@@ -2114,10 +2113,10 @@ class TelegramNotificationService {
             });
           } catch (editError) {
             // If edit fails, send new message
-            await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, errorMessage);
           }
         } else {
-          await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+          await this.bot.sendMessage(chatId, errorMessage);
         }
       }
       
@@ -2263,7 +2262,7 @@ class TelegramNotificationService {
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
-            await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, debugMessage);
           }
 
         } else {
@@ -2320,10 +2319,10 @@ class TelegramNotificationService {
             });
           } catch (editError) {
             // If edit fails, send new message
-            await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, errorMessage);
           }
         } else {
-          await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+          await this.bot.sendMessage(chatId, errorMessage);
         }
       }
       
@@ -2456,7 +2455,7 @@ class TelegramNotificationService {
       `\nHave a safe journey! ✈️`;
 
     try {
-      await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(passenger.telegramChatId, message);
       return true;
     } catch (error) {
       console.error('Error sending flight confirmation:', error);
@@ -2545,7 +2544,7 @@ class TelegramNotificationService {
       const results = await Promise.all(
         eligibleUsers.map(async (user) => {
           try {
-            await this.bot.sendMessage(user.telegramChatId, message, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(user.telegramChatId, message);
             return true;
           } catch (error) {
             console.error(`Failed to send notification to dashboard user ${user.username}:`, error.message);
@@ -2689,7 +2688,7 @@ class TelegramNotificationService {
               `\n💡 Use /flightinfo ${flight.flightNumber} ${new Date(flight.departureDateTime).toISOString().split('T')[0]} for latest updates.`;
 
     try {
-      await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(passenger.telegramChatId, message);
       return true;
     } catch (error) {
       console.error('Error sending passenger flight update:', error);
@@ -2880,10 +2879,7 @@ class TelegramNotificationService {
     }
 
     try {
-      await this.bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...options
-      });
+      await this.bot.sendMessage(chatId, message, options);
       return true;
     } catch (error) {
       console.error('Error sending Telegram message:', error);
@@ -3036,7 +3032,7 @@ class TelegramNotificationService {
             `\n💡 Use /flightinfo ${flight.flightNumber} ${new Date(flight.departureDateTime).toISOString().split('T')[0]} for latest flight updates.`;
 
           try {
-            await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(passenger.telegramChatId, message);
             remindersSent++;
             console.log(`✅ Check-in reminder sent to passenger: ${passenger.name}`);
           } catch (error) {
