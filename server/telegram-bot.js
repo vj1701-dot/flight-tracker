@@ -237,14 +237,14 @@ class TelegramNotificationService {
       `🤖 *West Sant Transportation Bot*\n\n` +
       `*Registration Commands:*\n` +
       `• /start - Start registration process\n` +
-      `• /register\\_volunteer - Register as Volunteer\n` +
-      `• /register\\_passenger - Register as Passenger\n` +
-      `• /register\\_user - Register as Dashboard User\n\n` +
+      `• /register_volunteer - Register as Volunteer\n` +
+      `• /register_passenger - Register as Passenger\n` +
+      `• /register_user - Register as Dashboard User\n\n` +
       `*Flight Commands:*\n` +
       `• /flights - View your assigned flights (Volunteers)\n` +
       `• /myflights - View your passenger flights\n` +
       `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
-      `• /flightinfo FLIGHT\\_NUMBER DATE - Get flight details from our system\n` +
+      `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
       `• /help - Show this help menu\n\n` +
       `*Features:*\n` +
       `✈️ Flight details and passenger information\n` +
@@ -862,11 +862,11 @@ class TelegramNotificationService {
           `Jai Swaminarayan 🙏\n\n` +
           `👋 Welcome to West Sant Transportation!\n\n` +
           `Choose your registration type:\n\n` +
-          `🚗 **For Volunteers (Pickup/Dropoff volunteers):**\n` +
+          `🚗 *For Volunteers (Pickup/Dropoff volunteers):*\n` +
           `Send: /register_volunteer\n\n` +
-          `✈️ **For Passengers:**\n` +
+          `✈️ *For Passengers:*\n` +
           `Send: /register_passenger\n\n` +
-          `👤 **For Dashboard Users (Admin/User access holders):**\n` +
+          `👤 *For Dashboard Users (Admin/User access holders):*\n` +
           `Send: /register_user\n\n` +
           `Example:\n` +
           `/register_volunteer\n` +
@@ -924,6 +924,24 @@ class TelegramNotificationService {
       );
     });
 
+    // Handle passenger registration with arguments (guide to proper usage)
+    this.bot.onText(/\/register_passenger (.+)/, async (msg, match) => {
+      if (await this.isMessageProcessed(msg)) return;
+      
+      const chatId = msg.chat.id;
+      const providedName = match[1].trim();
+      
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `ℹ️ I see you're trying to register with the name "${providedName}".\n\n` +
+        `Please use the interactive registration flow instead:\n\n` +
+        `1. Send: /register_passenger\n` +
+        `2. Follow the step-by-step prompts\n\n` +
+        `This ensures your registration is completed properly.`, 
+        { parse_mode: 'Markdown' }
+      );
+    });
+
     // Handle passenger registration - new multi-step flow
     this.bot.onText(/\/register_passenger$/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
@@ -939,8 +957,7 @@ class TelegramNotificationService {
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
             `✅ You're already registered as a passenger!\n\n` +
-            `👤 **Name:** ${hasPassengerRole.data.name}\n` +
-            `📄 **Legal Name:** ${hasPassengerRole.data.legalName}\n\n` +
+            `👤 *Name:* ${hasPassengerRole.data.name}\n\n` +
             `You'll receive notifications for:\n` +
             `🔔 Flight updates\n` +
             `🔔 Pickup/dropoff information\n` +
@@ -967,6 +984,7 @@ class TelegramNotificationService {
         }
 
         // Start registration flow
+        console.log(`Starting passenger registration for chatId ${chatId}`);
         this.registrationStates.set(chatId, {
           type: 'passenger_new',
           step: 'full_name',
@@ -1245,6 +1263,26 @@ class TelegramNotificationService {
     });
 
     // Handle /help command
+    // Clear registration state command (for debugging/recovery)
+    this.bot.onText(/\/clear_registration/, async (msg) => {
+      if (await this.isMessageProcessed(msg)) return;
+      
+      const chatId = msg.chat.id;
+      
+      if (this.registrationStates.has(chatId)) {
+        this.registrationStates.delete(chatId);
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ Registration state cleared. You can now start fresh with /register_passenger, /register_volunteer, or /register_user.`
+        );
+      } else {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `ℹ️ You don't have any active registration state to clear.`
+        );
+      }
+    });
+
     this.bot.onText(/\/help/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
@@ -1294,6 +1332,8 @@ class TelegramNotificationService {
       const registrationState = this.registrationStates.get(chatId);
       if (!registrationState) return;
       
+      console.log(`Processing registration step for chatId ${chatId}: type=${registrationState.type}, step=${registrationState.step}`);
+      
       try {
         if (registrationState.step === 'full_name') {
           // Handle full name input for new passenger registration
@@ -1314,42 +1354,12 @@ class TelegramNotificationService {
             return;
           }
           
-          // Store full name and move to legal name step
-          registrationState.data.fullName = fullName;
-          registrationState.step = 'legal_name';
-          
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `✅ Full Name: ${fullName}\n\n` +
-            `📄 Now please enter your *Legal Name* as it appears on your tickets and travel documents.\n\n` +
-            `This may be different from your full name if you have a different legal name.\n\n` +
-            `Enter your legal name:`,
-            { parse_mode: 'Markdown' }
-          );
-          
-        } else if (registrationState.step === 'legal_name') {
-          // Handle legal name input
-          const legalName = text.trim();
-          
-          // Validate legal name
-          if (legalName.length < 2) {
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `❌ Please enter a valid legal name.\n\n` +
-              `Enter your legal name as it appears on tickets:`
-            );
-            return;
-          }
-          
-          // Store legal name and complete registration
-          registrationState.data.legalName = legalName;
-          
-          // Create new passenger
+          // Create new passenger immediately (no legal name step)
           const passengers = await readPassengers();
           const newPassenger = {
             id: require('uuid').v4(),
-            name: registrationState.data.fullName,
-            legalName: legalName,
+            name: fullName,
+            legalName: fullName, // Use same name for legal name
             telegramChatId: chatId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -1364,8 +1374,7 @@ class TelegramNotificationService {
             `Jai Swaminarayan 🙏\n\n` +
             `🎉 *Welcome to West Sant Transportation!*\n\n` +
             `✅ Successfully registered as passenger:\n` +
-            `👤 **Name:** ${newPassenger.name}\n` +
-            `📄 **Legal Name:** ${legalName}\n\n` +
+            `👤 *Name:* ${newPassenger.name}\n\n` +
             `You'll receive notifications for:\n` +
             `🔔 Flight confirmations\n` +
             `🔔 Flight updates and changes\n` +
@@ -1401,40 +1410,14 @@ class TelegramNotificationService {
               return;
             }
             
-            // Store full name and move to legal name step
-            registrationState.data.fullName = fullName;
-            registrationState.step = 'legal_name';
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Full Name: ${fullName}\n\n` +
-              `📄 Please enter your *Legal Name* (as it appears on your ticket/ID).\n\n` +
-              `This should match exactly what's on your flight tickets.\n\n` +
-              `Enter your legal name:`,
-              { parse_mode: 'Markdown' }
-            );
-            
-          } else if (registrationState.step === 'legal_name') {
-            // Handle legal name input
-            const legalName = text.trim();
-            
-            // Validate legal name
-            if (legalName.length < 2) {
-              await this.bot.sendMessage(chatId, 
-                `Jai Swaminarayan 🙏\n\n` +
-                `❌ Please enter a valid legal name.\n\n` +
-                `Enter your legal name:`
-              );
-              return;
-            }
-            
-            // Create new passenger
+            // Create new passenger immediately (no legal name step)
             try {
+              console.log(`Creating passenger for chatId ${chatId}: fullName=${fullName}`);
               const passengers = await readPassengers();
               const passenger = {
                 id: require('uuid').v4(),
-                name: registrationState.data.fullName,
-                legalName: legalName,
+                name: fullName,
+                legalName: fullName, // Use same name for legal name
                 phone: null,
                 telegramChatId: chatId,
                 flightCount: 0,
@@ -1443,19 +1426,19 @@ class TelegramNotificationService {
               };
               passengers.push(passenger);
               await writePassengers(passengers);
+              console.log(`Successfully created passenger with ID: ${passenger.id}`);
               
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
                 `🎉 *Welcome to West Sant Transportation!*\n\n` +
                 `✅ Successfully registered as passenger:\n` +
-                `👤 **Full Name:** ${passenger.name}\n` +
-                `📄 **Legal Name:** ${legalName}\n\n` +
+                `👤 *Name:* ${passenger.name}\n\n` +
                 `You'll receive notifications for:\n` +
                 `🔔 Flight updates\n` +
                 `🔔 Pickup/dropoff information\n` +
                 `🔔 Important announcements\n\n` +
                 `*Available commands:*\n` +
-                `/status - Check your registration status\n` +
+                `/myflights - View your upcoming flights\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome to the system! 🙏`,
                 { parse_mode: 'Markdown' }
@@ -1614,10 +1597,10 @@ class TelegramNotificationService {
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
                 `🎉 *Successfully linked to dashboard account!*\n\n` +
-                `✅ **Dashboard User:** ${user.name || user.username}\n` +
-                `👤 **Username:** ${user.username}\n` +
-                `🔑 **Role:** ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
-                `📊 **Access Level:** ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
+                `✅ *Dashboard User:* ${user.name || user.username}\n` +
+                `👤 *Username:* ${user.username}\n` +
+                `🔑 *Role:* ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
+                `📊 *Access Level:* ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
                 `You'll now receive notifications for:\n` +
                 `🔔 Flight additions and changes\n` +
                 `🔔 Flight delays and updates\n` +
@@ -1684,10 +1667,10 @@ class TelegramNotificationService {
               `Jai Swaminarayan 🙏\n\n` +
               `🎉 *Welcome to West Sant Transportation!*\n\n` +
               `✅ Successfully registered as volunteer:\n` +
-              `👤 **Name:** ${user.name}\n` +
-              `🏙️ **City:** ${registrationState.data.city}\n` +
-              `📱 **Phone:** ${formattedPhone}\n` +
-              `🆔 **Username:** ${user.username}\n\n` +
+              `👤 *Name:* ${user.name}\n` +
+              `🏙️ *City:* ${registrationState.data.city}\n` +
+              `📱 *Phone:* ${formattedPhone}\n` +
+              `🆔 *Username:* ${user.username}\n\n` +
               `📝 Note: Your administrator can assign you to specific airports for pickups/dropoffs.\n\n` +
               `You'll receive notifications for:\n` +
               `🔔 Flight assignments\n` +
