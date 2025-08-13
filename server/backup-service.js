@@ -104,6 +104,30 @@ class BackupService {
     return await this.createBackup(false, false, backupType);
   }
 
+  // Create pre-restore backup with proper labeling
+  async createPreRestoreBackup() {
+    try {
+      const storageReady = await this.initializeStorage();
+      if (!storageReady) {
+        throw new Error('Could not initialize backup storage');
+      }
+      
+      const timestamp = this.generateTimestamp();
+      const dateFolder = this.generateDateFolder();
+      const backupSubfolder = `pre-restore-${timestamp}`;
+      const backupFolder = `${dateFolder}/${backupSubfolder}`;
+      
+      console.log(`💾 Creating pre-restore backup: ${backupFolder}`);
+      
+      const result = await this.createGCSBackup(backupFolder, false, timestamp, true, 'pre-restore');
+      console.log(`✅ Pre-restore backup completed: ${result.success ? 'SUCCESS' : 'FAILED'}`);
+      return result;
+    } catch (error) {
+      console.error('Pre-restore backup failed:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   async createGCSBackup(backupFolder, manual, timestamp, skipPreBackup = false, backupType = 'general') {
     try {
       const bucket = this.storage.bucket(this.bucketName);
@@ -223,7 +247,7 @@ class BackupService {
 
       // Create pre-restore backup of current data (skip pre-backup to avoid recursion)
       console.log(`💾 Creating pre-restore backup...`);
-      const preRestoreResult = await this.createBackup(true, true); // skipPreBackup = true
+      const preRestoreResult = await this.createPreRestoreBackup(); 
       if (preRestoreResult.success) {
         console.log(`✅ Pre-restore backup created: ${preRestoreResult.backupFolder}`);
       } else {
@@ -521,6 +545,16 @@ class BackupService {
     setTimeout(() => this.createBackup(false), 5000); // 5 seconds after startup
     
     // Recurring backups
+    setInterval(() => {
+      this.createBackup(false);
+    }, intervalHours * 60 * 60 * 1000);
+  }
+
+  // Schedule automatic backups without startup backup (for production)
+  startScheduledBackups(intervalHours = 24) {
+    console.log(`📅 Scheduled automatic backups every ${intervalHours} hours (no startup backup)`);
+    
+    // Only recurring backups, no initial backup
     setInterval(() => {
       this.createBackup(false);
     }, intervalHours * 60 * 60 * 1000);

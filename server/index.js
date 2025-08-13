@@ -2344,10 +2344,10 @@ app.listen(PORT, async () => {
   await initializeDefaultUsers();
   await migrateFlightUserNames();
   
-  // Start automatic backups in production
+  // Start automatic backups in production (no startup backup, only scheduled)
   if (process.env.NODE_ENV === 'production' && process.env.BACKUP_BUCKET_NAME) {
-    console.log('🔄 Starting automatic backup service...');
-    backupService.startAutomaticBackups(24); // Every 24 hours
+    console.log('⏰ Starting automatic backup scheduler (24-hour intervals)...');
+    backupService.startScheduledBackups(24); // Every 24 hours, no startup backup
   }
 
   // Start automated flight delay monitoring

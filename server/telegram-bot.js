@@ -331,12 +331,13 @@ class TelegramNotificationService {
       if (!user) {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
-          `❌ You're not registered. Send /start to register first.`
+          `❌ You're not registered. Please send /start to register first.`
         );
         return;
       }
 
       const flights = await readFlights();
+      const passengers = await readPassengers();
       const now = new Date();
       const userFlights = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
@@ -348,42 +349,54 @@ class TelegramNotificationService {
       if (userFlights.length === 0) {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
-          `✈️ *Your Assigned Flights*\n\n` +
-          `No upcoming flights assigned to you at this time.\n\n` +
-          `Contact your coordinator if you think this is an error.`,
+          `✈️ *Your Flight Assignments*\n\n` +
+          `No upcoming flight assignments found.\n\n` +
+          `Your transportation duties will appear here once assigned by your coordinator.`,
           { parse_mode: 'Markdown' }
         );
         return;
       }
 
+      // Sort flights by departure time
       userFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
 
-      let flightList = `Jai Swaminarayan 🙏\n\n✈️ *Your Assigned Flights*\n\n`;
+      let flightList = `Jai Swaminarayan 🙏\n\n🚗 *Your Transportation Assignments*\n\n`;
       
-      for (const flight of userFlights) {
-        const departureTime = new Date(flight.departureDateTime);
-        const arrivalTime = new Date(flight.arrivalDateTime);
+      for (let i = 0; i < userFlights.length; i++) {
+        const flight = userFlights[i];
         
-        flightList += `🛫 *${flight.flightNumber}* - ${flight.airline}\n`;
-        flightList += `📍 ${flight.from} → ${flight.to}\n`;
-        flightList += `🕐 ${departureTime.toLocaleDateString()} ${departureTime.toLocaleTimeString()}\n`;
+        flightList += `*Assignment ${i + 1} of ${userFlights.length}*\n`;
+        flightList += `✈️ *${flight.flightNumber}* - ${flight.airline}\n\n`;
         
-        if (flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase())) {
-          flightList += `🚗 *Pickup Assignment*\n`;
+        // Route Information with timezone
+        flightList += `🛫 *Departure*\n`;
+        flightList += `${this.formatAirportDisplay(flight.from)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
+        
+        flightList += `🛬 *Arrival*\n`;
+        flightList += `${this.formatAirportDisplay(flight.to)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
+        
+        // Assignment Details
+        const isPickupAssignment = flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase());
+        const isDropoffAssignment = flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase());
+        
+        flightList += `🎯 *Your Responsibility*\n`;
+        if (isPickupAssignment && isDropoffAssignment) {
+          flightList += `Both Pickup & Dropoff\n\n`;
+        } else if (isPickupAssignment) {
+          flightList += `Pickup Service\n\n`;
+        } else if (isDropoffAssignment) {
+          flightList += `Dropoff Service\n\n`;
         }
-        if (flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase())) {
-          flightList += `🏁 *Dropoff Assignment*\n`;
-        }
         
+        // Passengers
         if (flight.passengers?.length > 0) {
-          // Handle both old name format and new passengerId format
           const passengerNames = [];
           for (const p of flight.passengers) {
             if (p.name) {
               passengerNames.push(p.name);
             } else if (p.passengerId) {
-              // Look up passenger name by ID
-              const passengers = await readPassengers();
               const passenger = passengers.find(passenger => passenger.id === p.passengerId);
               if (passenger) {
                 passengerNames.push(passenger.name);
@@ -392,16 +405,36 @@ class TelegramNotificationService {
               }
             }
           }
-          flightList += `👥 Passengers: ${passengerNames.join(', ')}\n`;
+          flightList += `👥 *Passengers (${passengerNames.length})*\n`;
+          flightList += `${passengerNames.join(', ')}\n\n`;
         }
         
-        flightList += `\n`;
+        // Contact Information
+        if (isPickupAssignment && flight.pickupSevakPhone) {
+          flightList += `📞 *Your Contact*\n${flight.pickupSevakPhone}\n\n`;
+        } else if (isDropoffAssignment && flight.dropoffSevakPhone) {
+          flightList += `📞 *Your Contact*\n${flight.dropoffSevakPhone}\n\n`;
+        }
+        
+        // Notes
+        if (flight.notes && flight.notes.trim()) {
+          flightList += `📝 *Special Notes*\n${flight.notes}\n\n`;
+        }
+        
+        // Add separator between flights
+        if (i < userFlights.length - 1) {
+          flightList += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        }
       }
+      
+      flightList += `\n💡 *Need help?* Contact your transportation coordinator for assistance.`;
 
       await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error('Flights command error:', error);
-      await this.bot.sendMessage(chatId, '❌ Error retrieving flights. Please try again.');
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving your flight assignments. Please try again or contact support if the issue persists.`
+      );
     }
   }
 
@@ -413,7 +446,7 @@ class TelegramNotificationService {
       if (!passenger) {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
-          `❌ You're not registered as a passenger. Send /start to register first.`
+          `❌ You're not registered as a passenger. Please send /start to register first.`
         );
         return;
       }
@@ -440,49 +473,104 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✈️ *Your Upcoming Flights*\n\n` +
-          `No upcoming flights found.\n\n` +
-          `Your flights will appear here once they are added to the system.`,
+          `No upcoming flights scheduled.\n\n` +
+          `Your flight details will appear here once added to the system by your coordinator.`,
           { parse_mode: 'Markdown' }
         );
         return;
       }
 
+      // Sort flights by departure time
       passengerFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
 
-      let flightList = `Jai Swaminarayan 🙏\n\n✈️ *Your Upcoming Flights*\n\n`;
+      let flightList = `Jai Swaminarayan 🙏\n\n✈️ *Your Upcoming Flight Schedule*\n\n`;
       
-      for (const flight of passengerFlights) {
-        const departureTime = new Date(flight.departureDateTime);
-        const arrivalTime = new Date(flight.arrivalDateTime);
+      for (let i = 0; i < passengerFlights.length; i++) {
+        const flight = passengerFlights[i];
         
-        flightList += `🛫 *${flight.flightNumber}* - ${flight.airline}\n`;
-        flightList += `📍 ${flight.from} → ${flight.to}\n`;
-        flightList += `🕐 ${departureTime.toLocaleDateString()} ${departureTime.toLocaleTimeString()}\n`;
-        flightList += `🛬 Arrival: ${arrivalTime.toLocaleTimeString()}\n`;
+        flightList += `*Flight ${i + 1} of ${passengerFlights.length}*\n`;
+        flightList += `✈️ *${flight.flightNumber}* - ${flight.airline}\n\n`;
         
-        if (flight.pickupSevakName) {
-          flightList += `🚗 Pickup: ${flight.pickupSevakName}`;
-          if (flight.pickupSevakPhone) {
-            flightList += ` (${flight.pickupSevakPhone})`;
+        // Departure Information with timezone
+        flightList += `🛫 *Departure*\n`;
+        flightList += `${this.formatAirportDisplay(flight.from)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
+        
+        // Arrival Information with timezone
+        flightList += `🛬 *Arrival*\n`;
+        flightList += `${this.formatAirportDisplay(flight.to)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
+        
+        // Fellow Passengers
+        if (flight.passengers?.length > 0) {
+          const allPassengerNames = [];
+          for (const p of flight.passengers) {
+            if (p.name) {
+              allPassengerNames.push(p.name);
+            } else if (p.passengerId) {
+              const passengerData = passengers.find(passenger => passenger.id === p.passengerId);
+              if (passengerData) {
+                allPassengerNames.push(passengerData.name);
+              } else {
+                allPassengerNames.push('Unknown Passenger');
+              }
+            }
+          }
+          
+          if (allPassengerNames.length > 1) {
+            flightList += `👥 *Fellow Passengers*\n`;
+            const otherPassengers = allPassengerNames.filter(name => 
+              name.toLowerCase() !== passenger.name.toLowerCase()
+            );
+            if (otherPassengers.length > 0) {
+              flightList += `${otherPassengers.join(', ')}\n\n`;
+            } else {
+              flightList += `Only you on this flight\n\n`;
+            }
+          } else {
+            flightList += `👤 *Solo Passenger*\n\n`;
+          }
+        }
+        
+        // Transportation Details
+        if (flight.pickupSevakName || flight.dropoffSevakName) {
+          flightList += `🚗 *Transportation*\n`;
+          if (flight.pickupSevakName) {
+            flightList += `Pickup: ${flight.pickupSevakName}`;
+            if (flight.pickupSevakPhone) {
+              flightList += ` • ${flight.pickupSevakPhone}`;
+            }
+            flightList += `\n`;
+          }
+          if (flight.dropoffSevakName) {
+            flightList += `Dropoff: ${flight.dropoffSevakName}`;
+            if (flight.dropoffSevakPhone) {
+              flightList += ` • ${flight.dropoffSevakPhone}`;
+            }
+            flightList += `\n`;
           }
           flightList += `\n`;
         }
         
-        if (flight.dropoffSevakName) {
-          flightList += `🏁 Dropoff: ${flight.dropoffSevakName}`;
-          if (flight.dropoffSevakPhone) {
-            flightList += ` (${flight.dropoffSevakPhone})`;
-          }
-          flightList += `\n`;
+        // Notes
+        if (flight.notes && flight.notes.trim()) {
+          flightList += `📝 *Notes*\n${flight.notes}\n\n`;
         }
         
-        flightList += `\n`;
+        // Add separator between flights
+        if (i < passengerFlights.length - 1) {
+          flightList += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        }
       }
+      
+      flightList += `\n💡 *Need help?* Contact your transportation coordinator or use /status to check your registration details.`;
 
       await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error('MyFlights command error:', error);
-      await this.bot.sendMessage(chatId, '❌ Error retrieving your flights. Please try again.');
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving your flight information. Please try again or contact support if the issue persists.`
+      );
     }
   }
 
