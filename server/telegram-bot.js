@@ -164,7 +164,7 @@ class TelegramNotificationService {
     return existingRoles;
   }
 
-  /
+  /**
    * Format airport display in proper format: IATA, City, State (no Country for USA)
    * @param {string} airportCode - Airport IATA code
    * @returns {string} Formatted airport display
@@ -184,7 +184,7 @@ class TelegramNotificationService {
     return airportCode;
   }
 
-  /
+  /**
    * Format datetime with airport timezone
    * @param {string|Date} datetime - Flight datetime 
    * @param {string} airportCode - Airport IATA code
@@ -307,7 +307,7 @@ class TelegramNotificationService {
       const now = new Date();
       
       // Get upcoming flights for user's airports (next 7 days)
-      const oneWeekFromNow = new Date(now.getTime() + 7  24  60  60  1000);
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const upcomingFlights = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
         return departureTime > now && 
@@ -2656,7 +2656,7 @@ class TelegramNotificationService {
       const upcomingFlights = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
         const timeDiff = departureTime - now;
-        return timeDiff > 0 && timeDiff <= 24  60  60 * 1000; // Next 24 hours
+        return timeDiff > 0 && timeDiff <= 24 * 60 * 60 * 1000; // Next 24 hours
       });
 
       for (const flight of upcomingFlights) {
