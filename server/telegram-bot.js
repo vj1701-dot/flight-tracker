@@ -2301,14 +2301,31 @@ class TelegramNotificationService {
   }
 
   // Send flight confirmation to passenger
-  async sendFlightConfirmation(flight, passengerName) {
+  async sendFlightConfirmation(flight, flightPassenger) {
     const passengers = await readPassengers();
-    const passenger = passengers.find(p => 
-      p.name.toLowerCase() === passengerName.toLowerCase()
-    );
+    let passenger = null;
+    
+    // Handle both old name-based and new ID-based passenger references
+    if (typeof flightPassenger === 'string') {
+      // Old format: passed passenger name as string
+      passenger = passengers.find(p => 
+        p.name && p.name.toLowerCase() === flightPassenger.toLowerCase()
+      );
+    } else if (flightPassenger.passengerId) {
+      // New format: flight passenger object with passengerId
+      passenger = passengers.find(p => p.id === flightPassenger.passengerId);
+    } else if (flightPassenger.name) {
+      // Old format: flight passenger object with name only
+      passenger = passengers.find(p => 
+        p.name && p.name.toLowerCase() === flightPassenger.name.toLowerCase()
+      );
+    }
 
     if (!passenger || !passenger.telegramChatId) {
-      console.log(`Passenger ${passengerName} not found or doesn't have Telegram`);
+      const identifier = typeof flightPassenger === 'string' 
+        ? flightPassenger 
+        : flightPassenger.passengerId || flightPassenger.name || 'Unknown';
+      console.log(`Passenger ${identifier} not found or doesn't have Telegram`);
       return false;
     }
 
@@ -2434,7 +2451,13 @@ class TelegramNotificationService {
 
   // Send flight addition notification
   async sendFlightAddedNotification(flight) {
-    const passengers = flight.passengers?.map(p => p.name).join(', ') || 'No passengers';
+    // Get passenger names, handling both old name format and new passengerId format
+    let passengers = 'No passengers';
+    if (flight.passengers?.length > 0) {
+      const { resolveFlightPassengerNames } = require('./data-helpers');
+      const resolvedPassengers = await resolveFlightPassengerNames(flight.passengers);
+      passengers = resolvedPassengers.map(p => p.name).join(', ');
+    }
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
@@ -2454,7 +2477,7 @@ class TelegramNotificationService {
     // Send confirmation to passengers
     if (flight.passengers) {
       for (const passenger of flight.passengers) {
-        await this.sendFlightConfirmation(flight, passenger.name);
+        await this.sendFlightConfirmation(flight, passenger);
       }
     }
 

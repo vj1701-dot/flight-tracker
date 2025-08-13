@@ -1354,10 +1354,10 @@ app.post('/api/flights', authenticateToken, async (req, res) => {
     // Send Telegram notifications to passengers
     if (telegramBot && flight.passengers) {
       for (const passenger of flight.passengers) {
-        if (passenger.name) {
-          const passengerInfo = await addOrUpdatePassenger(passenger.name.trim());
+        if (passenger.name || passenger.passengerId) {
+          const passengerInfo = await addOrUpdatePassenger(passenger.name?.trim());
           if (passengerInfo && passengerInfo.telegramChatId) {
-            await telegramBot.sendFlightConfirmation(flight, passenger.name);
+            await telegramBot.sendFlightConfirmation(flight, passenger);
           }
         }
       }
@@ -1489,10 +1489,10 @@ app.post('/api/flights/public', async (req, res) => {
     // Send Telegram notifications to passengers
     if (telegramBot && flight.passengers) {
       for (const passenger of flight.passengers) {
-        if (passenger.name) {
-          const passengerInfo = await addOrUpdatePassenger(passenger.name.trim());
+        if (passenger.name || passenger.passengerId) {
+          const passengerInfo = await addOrUpdatePassenger(passenger.name?.trim());
           if (passengerInfo && passengerInfo.telegramChatId) {
-            await telegramBot.sendFlightConfirmation(flight, passenger.name);
+            await telegramBot.sendFlightConfirmation(flight, passenger);
           }
         }
       }
