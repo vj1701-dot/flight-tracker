@@ -2533,7 +2533,7 @@ class TelegramNotificationService {
         console.log(`📨 Processing message: "${message.text}" from chat ${message.chat.id}`);
         
         // Trigger manual command processing to ensure webhook mode works
-        this.processManualCommand(message);
+        await this.processManualCommand(message);
       }
       
       res.status(200).json({ ok: true });
