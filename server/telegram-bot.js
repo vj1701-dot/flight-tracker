@@ -2524,13 +2524,22 @@ class TelegramNotificationService {
     try {
       console.log('Processing webhook update:', JSON.stringify(req.body, null, 2));
       
-      // Manual processing for webhook mode (skip normal processing to avoid conflicts)
-      if (req.body.message && req.body.message.text) {
+      // Handle different message types
+      if (req.body.message) {
         const message = req.body.message;
-        console.log(`📨 Processing message: "${message.text}" from chat ${message.chat.id}`);
         
-        // Trigger manual command processing to ensure webhook mode works
-        await this.processManualCommand(message);
+        if (message.text) {
+          // Handle text messages manually to avoid conflicts
+          console.log(`📨 Processing text message: "${message.text}" from chat ${message.chat.id}`);
+          await this.processManualCommand(message);
+        } else if (message.photo || message.document) {
+          // Handle photo/document messages through normal bot processing for Gemini
+          console.log(`📷 Processing photo/document message from chat ${message.chat.id}`);
+          this.bot.processUpdate(req.body);
+        } else {
+          // Handle other message types through normal processing
+          this.bot.processUpdate(req.body);
+        }
       }
       
       res.status(200).json({ ok: true });
