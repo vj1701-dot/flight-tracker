@@ -243,8 +243,8 @@ class TelegramNotificationService {
       `*Flight Commands:*\n` +
       `• /flights - View your assigned flights (Volunteers)\n` +
       `• /myflights - View your passenger flights\n` +
+      `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
       `• /flightinfo FLIGHT\\_NUMBER DATE - Get flight details from our system\n` +
-      `• /status - Check your registration status\n` +
       `• /help - Show this help menu\n\n` +
       `*Features:*\n` +
       `✈️ Flight details and passenger information\n` +
@@ -279,47 +279,145 @@ class TelegramNotificationService {
     }
   }
 
-  async handleStatusCommand(chatId) {
+  async handleUpcomingFlightsCommand(chatId) {
     try {
-      // Check all registration types
       const users = await readUsers();
-      const passengers = await readPassengers();
-      
       const user = users.find(u => u.telegramChatId === chatId);
-      const passenger = passengers.find(p => p.telegramChatId === chatId);
-      
-      let status = `🎯 *Registration Status*\n\n`;
-      
-      if (user) {
-        status += `✅ *Dashboard User*: ${user.name}\n`;
-        status += `   Role: ${user.role || 'user'}\n`;
-        status += `   Registered: ${new Date(user.createdAt).toLocaleDateString()}\n\n`;
+
+      if (!user) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered as a dashboard user. Please send /start to register first.`
+        );
+        return;
       }
+
+      // Check user's allowed airports
+      if (!user.allowedAirports || user.allowedAirports.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `📍 *Your Airport Access*\n\n` +
+          `You don't have any airports assigned yet.\n\n` +
+          `Contact your administrator to get airport access permissions.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const passengers = await readPassengers();
+      const now = new Date();
       
-      if (passenger) {
-        status += `✅ *Passenger*: ${passenger.name}\n`;
-        if (passenger.legalName) {
-          status += `   Legal Name: ${passenger.legalName}\n`;
+      // Get upcoming flights for user's airports (next 7 days)
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const upcomingFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now && 
+               departureTime <= oneWeekFromNow &&
+               (user.allowedAirports.includes(flight.from) || 
+                user.allowedAirports.includes(flight.to));
+      });
+
+      if (upcomingFlights.length === 0) {
+        const airportList = user.allowedAirports.map(code => this.formatAirportDisplay(code)).join(', ');
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `📍 *Your Airports*\n${airportList}\n\n` +
+          `✈️ *Upcoming Flights (Next 7 Days)*\n\n` +
+          `No upcoming flights found for your assigned airports.\n\n` +
+          `Flights will appear here when scheduled for your airport locations.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      // Sort flights by departure time
+      upcomingFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      let flightList = `Jai Swaminarayan 🙏\n\n📍 *Upcoming Flights at Your Airports*\n`;
+      flightList += `${user.allowedAirports.map(code => this.formatAirportDisplay(code)).join(', ')}\n\n`;
+      
+      for (let i = 0; i < upcomingFlights.length; i++) {
+        const flight = upcomingFlights[i];
+        
+        flightList += `*Flight ${i + 1} of ${upcomingFlights.length}*\n`;
+        flightList += `✈️ *${flight.flightNumber}* - ${flight.airline}\n\n`;
+        
+        // Route Information with timezone
+        flightList += `🛫 *Departure*\n`;
+        flightList += `${this.formatAirportDisplay(flight.from)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
+        if (user.allowedAirports.includes(flight.from)) {
+          flightList += `📍 *Your Airport* ⭐\n`;
         }
-        status += `   Flights: ${passenger.flightCount || 0}\n`;
-        status += `   Registered: ${new Date(passenger.createdAt).toLocaleDateString()}\n\n`;
+        flightList += `\n`;
+        
+        flightList += `🛬 *Arrival*\n`;
+        flightList += `${this.formatAirportDisplay(flight.to)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n`;
+        if (user.allowedAirports.includes(flight.to)) {
+          flightList += `📍 *Your Airport* ⭐\n`;
+        }
+        flightList += `\n`;
+        
+        // Passengers
+        if (flight.passengers?.length > 0) {
+          const passengerNames = [];
+          for (const p of flight.passengers) {
+            if (p.name) {
+              passengerNames.push(p.name);
+            } else if (p.passengerId) {
+              const passenger = passengers.find(passenger => passenger.id === p.passengerId);
+              if (passenger) {
+                passengerNames.push(passenger.name);
+              } else {
+                passengerNames.push('Unknown Passenger');
+              }
+            }
+          }
+          flightList += `👥 *Passengers (${passengerNames.length})*\n`;
+          flightList += `${passengerNames.join(', ')}\n\n`;
+        }
+        
+        // Transportation
+        if (flight.pickupSevakName || flight.dropoffSevakName) {
+          flightList += `🚗 *Transportation*\n`;
+          if (flight.pickupSevakName) {
+            flightList += `Pickup: ${flight.pickupSevakName}`;
+            if (flight.pickupSevakPhone) {
+              flightList += ` • ${flight.pickupSevakPhone}`;
+            }
+            flightList += `\n`;
+          }
+          if (flight.dropoffSevakName) {
+            flightList += `Dropoff: ${flight.dropoffSevakName}`;
+            if (flight.dropoffSevakPhone) {
+              flightList += ` • ${flight.dropoffSevakPhone}`;
+            }
+            flightList += `\n`;
+          }
+          flightList += `\n`;
+        }
+        
+        // Notes
+        if (flight.notes && flight.notes.trim()) {
+          flightList += `📝 *Notes*\n${flight.notes}\n\n`;
+        }
+        
+        // Add separator between flights
+        if (i < upcomingFlights.length - 1) {
+          flightList += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        }
       }
       
-      if (!user && !passenger) {
-        status += `❌ *Not Registered*\n\n`;
-        status += `Please use one of these commands to register:\n`;
-        status += `• /register_volunteer - Register as Volunteer\n`;
-        status += `• /register_passenger - Register as Passenger\n`;
-        status += `• /register_user - Register as Dashboard User\n\n`;
-        status += `Type /help for more information.`;
-      } else {
-        status += `Type /help to see available commands.`;
-      }
-      
-      await this.bot.sendMessage(chatId, status, { parse_mode: 'Markdown' });
+      flightList += `\n💡 *Your airport assignments can be updated by your administrator.*`;
+
+      await this.bot.sendMessage(chatId, flightList, { parse_mode: 'Markdown' });
     } catch (error) {
-      console.error('Status command error:', error);
-      await this.bot.sendMessage(chatId, '❌ Error checking status. Please try again.');
+      console.error('UpcomingFlights command error:', error);
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving upcoming flights. Please try again or contact support if the issue persists.`
+      );
     }
   }
 
@@ -1041,72 +1139,18 @@ class TelegramNotificationService {
       }
     });
 
-    // Handle /status command
-    this.bot.onText(/\/status/, async (msg) => {
+    // Handle /upcomingflights command for dashboard users
+    this.bot.onText(/\/upcomingflights/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
       const chatId = msg.chat.id;
-
+      
       try {
-        // Check all registration types
-        const users = await readUsers();
-        const passengers = await readPassengers();
-
-        const dashboardUser = users.find(u => u.telegramChatId === chatId);
-        const passenger = passengers.find(p => p.telegramChatId === chatId);
-
-        let statusMessage = `Jai Swaminarayan 🙏\n\n` +
-                           `📋 *Your Registration Status*\n\n`;
-
-        if (dashboardUser) {
-          const accessLevel = dashboardUser.role === 'superadmin' ? 'Full System Access' : 
-                             dashboardUser.role === 'admin' ? 'Administrative Access' : 
-                             dashboardUser.role === 'user' ? 'Standard User Access' : 
-                             'Volunteer Access';
-          
-          statusMessage += `✅ *Dashboard User Registration*\n` +
-                          `Username: ${dashboardUser.username}\n` +
-                          `Name: ${dashboardUser.name || 'Not set'}\n` +
-                          `Role: ${dashboardUser.role.charAt(0).toUpperCase() + dashboardUser.role.slice(1)}\n` +
-                          `Access Level: ${accessLevel}\n`;
-          
-          if (dashboardUser.role === 'user' && dashboardUser.allowedAirports?.length) {
-            statusMessage += `Allowed Airports: ${dashboardUser.allowedAirports.join(', ')}\n`;
-          } else if (dashboardUser.role === 'user') {
-            statusMessage += `Allowed Airports: All\n`;
-          }
-          statusMessage += `\n`;
-        }
-
-        if (passenger) {
-          statusMessage += `✅ *Passenger Registration*\n` +
-                          `Name: ${passenger.name}\n` +
-                          `Flight Count: ${passenger.flightCount || 0}\n\n`;
-        }
-
-        if (!dashboardUser && !passenger) {
-          statusMessage += `❌ You're not registered yet.\n\n` +
-                          `Send /start to begin registration.`;
-        } else {
-          statusMessage += `Available commands:\n`;
-          
-          if (dashboardUser) {
-            statusMessage += `/flights - View upcoming flights\n`;
-          }
-          if (passenger) {
-            statusMessage += `/myflights - View your flights (passengers)\n`;
-          }
-          statusMessage += `/flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
-                          `/help - Show help menu`;
-        }
-
-        await this.bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
-
+        await this.handleUpcomingFlightsCommand(chatId);
       } catch (error) {
-        console.error('Error getting status:', error);
+        console.error('UpcomingFlights onText error:', error);
         await this.bot.sendMessage(chatId, 
-          `Jai Swaminarayan 🙏\n\n` +
-          `❌ Failed to get status. Please try again later.`
+          `❌ Error retrieving upcoming flights. Please try again or contact support if the issue persists.`
         );
       }
     });
@@ -2661,9 +2705,9 @@ class TelegramNotificationService {
       } else if (text === '/start') {
         console.log('Processing /start command manually');
         await this.handleStartCommand(chatId);
-      } else if (text === '/status') {
-        console.log('Processing /status command manually');
-        await this.handleStatusCommand(chatId);
+      } else if (text === '/upcomingflights') {
+        console.log('Processing /upcomingflights command manually');
+        await this.handleUpcomingFlightsCommand(chatId);
       } else if (text === '/flights') {
         console.log('Processing /flights command manually');
         await this.handleFlightsCommand(chatId);
