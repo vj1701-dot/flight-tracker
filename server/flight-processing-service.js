@@ -276,6 +276,97 @@ async function convertGeminiDataToInternalFormat(geminiData) {
 }
 
 /**
+ * Enhanced name normalization for better matching
+ * @param {string} name - The name to normalize
+ * @returns {string} Normalized name
+ */
+function normalizeNameForMatching(name) {
+  if (!name) return '';
+  
+  return name
+    .toLowerCase()
+    .replace(/,(?=\S)/g, ', ') // Add space after commas
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .replace(/^(ex|extra|mr|mrs|ms|dr|prof)\s+/i, '') // Remove prefixes
+    .replace(/\s+(jr|sr|ii|iii|iv)$/i, '') // Remove suffixes
+    .trim();
+}
+
+/**
+ * Extract name components for flexible matching
+ * @param {string} name - The name to parse
+ * @returns {object} Name components
+ */
+function parseNameComponents(name) {
+  const normalized = normalizeNameForMatching(name);
+  const parts = normalized.split(/\s+/).filter(part => part.length > 0);
+  
+  if (parts.length === 0) return { parts: [], first: '', last: '', middle: [] };
+  if (parts.length === 1) return { parts, first: parts[0], last: '', middle: [] };
+  if (parts.length === 2) return { parts, first: parts[0], last: parts[1], middle: [] };
+  
+  // For 3+ parts, assume first + middle(s) + last
+  return {
+    parts,
+    first: parts[0],
+    last: parts[parts.length - 1],
+    middle: parts.slice(1, -1)
+  };
+}
+
+/**
+ * Calculate name similarity score
+ * @param {object} extracted - Parsed extracted name components
+ * @param {object} stored - Parsed stored name components
+ * @returns {number} Similarity score between 0 and 1
+ */
+function calculateNameSimilarity(extracted, stored) {
+  let score = 0;
+  let maxScore = 0;
+  
+  // First name matching (highest weight)
+  if (extracted.first && stored.first) {
+    maxScore += 3;
+    if (extracted.first === stored.first) {
+      score += 3;
+    } else if (extracted.first.startsWith(stored.first) || stored.first.startsWith(extracted.first)) {
+      score += 2; // Partial match (e.g., "Param" vs "Paramcharit")
+    }
+  }
+  
+  // Last name matching (high weight)
+  if (extracted.last && stored.last) {
+    maxScore += 3;
+    if (extracted.last === stored.last) {
+      score += 3;
+    } else if (extracted.last.startsWith(stored.last) || stored.last.startsWith(extracted.last)) {
+      score += 2; // Partial match
+    }
+  }
+  
+  // Middle name flexibility (lower weight)
+  maxScore += 1;
+  if (extracted.middle.length === 0 && stored.middle.length === 0) {
+    score += 1; // Both have no middle names
+  } else if (extracted.middle.length === 0 || stored.middle.length === 0) {
+    score += 0.5; // One has middle name, other doesn't - still good
+  } else {
+    // Both have middle names - check if any match
+    const extractedMiddle = extracted.middle.join(' ');
+    const storedMiddle = stored.middle.join(' ');
+    if (extractedMiddle === storedMiddle) {
+      score += 1;
+    } else if (extractedMiddle.includes(storedMiddle) || storedMiddle.includes(extractedMiddle)) {
+      score += 0.7;
+    } else {
+      score += 0.3; // Different middle names
+    }
+  }
+  
+  return maxScore > 0 ? score / maxScore : 0;
+}
+
+/**
  * Enhanced passenger matching with fuzzy search and multiple strategies
  * @param {string} extractedName - The name extracted from the ticket OCR
  * @returns {Promise<object>} Match result with passenger and match details
@@ -286,15 +377,18 @@ async function findPassengerByExtractedName(extractedName) {
   const passengersData = await fs.readFile(passengersFilePath, 'utf-8');
   const passengers = JSON.parse(passengersData);
   
-  const normalizedExtracted = extractedName.toLowerCase().replace(/,(?=\S)/g, ', ').replace(/\s+/g, ' ').trim();
+  const normalizedExtracted = normalizeNameForMatching(extractedName);
+  const extractedComponents = parseNameComponents(extractedName);
+  
+  console.log(`🔍 FLIGHT_PROCESSING: Parsed extracted name: ${JSON.stringify(extractedComponents)}`);
 
   // Strategy 1: Exact legal name match
   console.log('🎯 FLIGHT_PROCESSING: Trying exact legal name match...');
   for (const passenger of passengers) {
     if (!passenger.legalName) continue;
-    const legalName = passenger.legalName.toLowerCase().trim();
+    const normalizedLegal = normalizeNameForMatching(passenger.legalName);
 
-    if (legalName === normalizedExtracted) {
+    if (normalizedLegal === normalizedExtracted) {
       console.log(`✅ FLIGHT_PROCESSING: Found exact legal name match: ${passenger.name}`);
       return { 
         passenger, 
@@ -303,29 +397,13 @@ async function findPassengerByExtractedName(extractedName) {
         extractedName 
       };
     }
-
-    // Try reversed format (Last, First)
-    const parts = legalName.split(' ');
-    if (parts.length >= 2) {
-      const firstName = parts.slice(0, -1).join(' ');
-      const lastName = parts[parts.length - 1];
-      if (`${lastName}, ${firstName}` === normalizedExtracted) {
-        console.log(`✅ FLIGHT_PROCESSING: Found legal name match (reversed format): ${passenger.name}`);
-        return { 
-          passenger, 
-          matchType: 'legal_reversed',
-          confidence: 1.0,
-          extractedName 
-        };
-      }
-    }
   }
 
   // Strategy 2: Exact display name match
   console.log('🎯 FLIGHT_PROCESSING: Trying exact display name match...');
   for (const passenger of passengers) {
-    const displayName = passenger.name.toLowerCase().trim();
-    if (displayName === normalizedExtracted) {
+    const normalizedDisplay = normalizeNameForMatching(passenger.name);
+    if (normalizedDisplay === normalizedExtracted) {
       console.log(`✅ FLIGHT_PROCESSING: Found exact display name match: ${passenger.name}`);
       return { 
         passenger, 
@@ -336,12 +414,50 @@ async function findPassengerByExtractedName(extractedName) {
     }
   }
 
-  // Strategy 3: Check existing extracted names
+  // Strategy 3: Name order variations (First Last vs Last First)
+  console.log('🎯 FLIGHT_PROCESSING: Trying name order variations...');
+  for (const passenger of passengers) {
+    const legalComponents = parseNameComponents(passenger.legalName);
+    const displayComponents = parseNameComponents(passenger.name);
+    
+    // Try different combinations
+    const combinations = [];
+    
+    // Add reversed order combinations
+    if (extractedComponents.parts.length >= 2) {
+      const reversed = [...extractedComponents.parts].reverse().join(' ');
+      combinations.push(reversed);
+      
+      // Try "Last, First" format
+      if (extractedComponents.first && extractedComponents.last) {
+        combinations.push(`${extractedComponents.last}, ${extractedComponents.first}`);
+        if (extractedComponents.middle.length > 0) {
+          combinations.push(`${extractedComponents.last}, ${extractedComponents.first} ${extractedComponents.middle.join(' ')}`);
+        }
+      }
+    }
+    
+    for (const combo of combinations) {
+      const normalizedCombo = normalizeNameForMatching(combo);
+      if (normalizeNameForMatching(passenger.legalName) === normalizedCombo || 
+          normalizeNameForMatching(passenger.name) === normalizedCombo) {
+        console.log(`✅ FLIGHT_PROCESSING: Found name order variation match: ${passenger.name}`);
+        return { 
+          passenger, 
+          matchType: 'name_order_variation',
+          confidence: 0.95,
+          extractedName 
+        };
+      }
+    }
+  }
+
+  // Strategy 4: Check existing extracted names
   console.log('🎯 FLIGHT_PROCESSING: Checking existing extracted names...');
   for (const passenger of passengers) {
     if (passenger.extractedNames && Array.isArray(passenger.extractedNames)) {
       for (const existingExtracted of passenger.extractedNames) {
-        if (existingExtracted.toLowerCase().trim() === normalizedExtracted) {
+        if (normalizeNameForMatching(existingExtracted) === normalizedExtracted) {
           console.log(`✅ FLIGHT_PROCESSING: Found match via existing extracted name: ${passenger.name}`);
           return { 
             passenger, 
@@ -354,22 +470,59 @@ async function findPassengerByExtractedName(extractedName) {
     }
   }
 
-  // Strategy 4: Fuzzy matching (if library available)
+  // Strategy 5: Component-based flexible matching
+  console.log('🎯 FLIGHT_PROCESSING: Trying component-based flexible matching...');
+  let bestMatch = null;
+  let bestScore = 0;
+  
+  for (const passenger of passengers) {
+    // Check both legal name and display name
+    const legalComponents = parseNameComponents(passenger.legalName);
+    const displayComponents = parseNameComponents(passenger.name);
+    
+    const legalScore = calculateNameSimilarity(extractedComponents, legalComponents);
+    const displayScore = calculateNameSimilarity(extractedComponents, displayComponents);
+    
+    const maxScore = Math.max(legalScore, displayScore);
+    
+    if (maxScore > bestScore && maxScore >= 0.75) { // Require 75% similarity
+      bestScore = maxScore;
+      bestMatch = {
+        passenger,
+        matchType: legalScore > displayScore ? 'legal_component' : 'display_component',
+        confidence: maxScore,
+        extractedName,
+        details: {
+          legalScore,
+          displayScore,
+          extractedComponents,
+          matchedComponents: legalScore > displayScore ? legalComponents : displayComponents
+        }
+      };
+    }
+  }
+  
+  if (bestMatch) {
+    console.log(`✅ FLIGHT_PROCESSING: Found component-based match: ${bestMatch.passenger.name} (confidence: ${bestMatch.confidence.toFixed(3)})`);
+    return bestMatch;
+  }
+
+  // Strategy 6: Fuzzy matching (if library available) - with lower threshold
   if (fuzzy) {
     console.log('🎯 FLIGHT_PROCESSING: Trying fuzzy matching...');
     
     // Create fuzzy sets for legal names and display names
-    const legalNames = passengers.filter(p => p.legalName).map(p => p.legalName.toLowerCase());
-    const displayNames = passengers.map(p => p.name.toLowerCase());
+    const legalNames = passengers.filter(p => p.legalName).map(p => normalizeNameForMatching(p.legalName));
+    const displayNames = passengers.map(p => normalizeNameForMatching(p.name));
     
     const legalFuzzySet = fuzzy(legalNames);
     const displayFuzzySet = fuzzy(displayNames);
     
-    // Try fuzzy match on legal names first
+    // Try fuzzy match on legal names first (lower threshold)
     const legalMatches = legalFuzzySet.get(normalizedExtracted);
-    if (legalMatches && legalMatches.length > 0 && legalMatches[0][0] > 0.7) {
+    if (legalMatches && legalMatches.length > 0 && legalMatches[0][0] > 0.6) {
       const matchedLegalName = legalMatches[0][1];
-      const passenger = passengers.find(p => p.legalName?.toLowerCase() === matchedLegalName);
+      const passenger = passengers.find(p => normalizeNameForMatching(p.legalName) === matchedLegalName);
       if (passenger) {
         console.log(`✅ FLIGHT_PROCESSING: Found fuzzy legal name match: ${passenger.name} (confidence: ${legalMatches[0][0]})`);
         return { 
@@ -383,9 +536,9 @@ async function findPassengerByExtractedName(extractedName) {
     
     // Try fuzzy match on display names
     const displayMatches = displayFuzzySet.get(normalizedExtracted);
-    if (displayMatches && displayMatches.length > 0 && displayMatches[0][0] > 0.7) {
+    if (displayMatches && displayMatches.length > 0 && displayMatches[0][0] > 0.6) {
       const matchedDisplayName = displayMatches[0][1];
-      const passenger = passengers.find(p => p.name.toLowerCase() === matchedDisplayName);
+      const passenger = passengers.find(p => normalizeNameForMatching(p.name) === matchedDisplayName);
       if (passenger) {
         console.log(`✅ FLIGHT_PROCESSING: Found fuzzy display name match: ${passenger.name} (confidence: ${displayMatches[0][0]})`);
         return { 
