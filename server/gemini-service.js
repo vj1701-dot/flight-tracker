@@ -92,21 +92,27 @@ class GeminiService {
       
       // Create the prompt for flight ticket analysis
       const prompt = `
-You are an expert flight ticket analyzer. Analyze this flight ticket image and extract the following information in valid JSON format.
+You are an expert flight ticket analyzer. Analyze this flight ticket image and extract flight information.
 
-Please extract these fields exactly as specified below. If any information is missing or not clearly visible, use "missing" as the value:
+IMPORTANT: This image may contain MULTIPLE flights or a single flight. Return data in this JSON format:
 
+For ANY number of flights (1 or more):
 {
-  "airlineName": "full airline name (e.g., 'United Airlines')",
-  "flightNumber": "complete flight number (e.g., 'UA1855')",
-  "departureAirport": "departure airport 3-letter IATA code (e.g., 'SFO')",
-  "arrivalAirport": "arrival airport 3-letter IATA code (e.g., 'LAX')",
-  "departureDate": "departure date in YYYY-MM-DD format",
-  "departureTime": "departure time with AM/PM (e.g., '8:30 AM' or '2:15 PM')",
-  "arrivalDate": "arrival date in YYYY-MM-DD format", 
-  "arrivalTime": "arrival time with AM/PM (e.g., '10:01 AM' or '6:45 PM')",
-  "passengerNames": ["array of ALL passenger names on this ticket/confirmation"],
-  "seatNumber": "seat assignment (e.g., '24A')"
+  "flights": [
+    {
+      "airlineName": "full airline name (e.g., 'United Airlines')",
+      "flightNumber": "complete flight number (e.g., 'UA1855')", 
+      "departureAirport": "departure airport 3-letter IATA code (e.g., 'SFO')",
+      "arrivalAirport": "arrival airport 3-letter IATA code (e.g., 'LAX')",
+      "departureDate": "departure date in YYYY-MM-DD format",
+      "departureTime": "departure time with AM/PM (e.g., '8:30 AM')",
+      "arrivalDate": "arrival date in YYYY-MM-DD format",
+      "arrivalTime": "arrival time with AM/PM (e.g., '10:01 AM')",
+      "passengerNames": ["array of ALL passenger names on this specific flight"],
+      "seatNumbers": ["array of seat assignments if available (e.g., ['24A', '24B'])"],
+      "confirmationCode": "confirmation/PNR code if visible"
+    }
+  ]
 }
 
 CRITICAL INSTRUCTIONS:

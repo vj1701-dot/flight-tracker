@@ -96,6 +96,24 @@ const GENERIC_PATTERNS = {
 async function convertGeminiDataToInternalFormat(geminiData) {
   console.log('🔄 FLIGHT_PROCESSING: Converting Gemini data to internal format...');
   
+  // Check if this is the new multi-flight format
+  if (geminiData.flights && Array.isArray(geminiData.flights)) {
+    console.log(`✅ FLIGHT_PROCESSING: Processing ${geminiData.flights.length} flights from multi-flight format`);
+    // Return array of flights for multi-flight processing
+    const convertedFlights = [];
+    for (const flight of geminiData.flights) {
+      const converted = await convertSingleGeminiFlightToInternalFormat(flight);
+      convertedFlights.push(converted);
+    }
+    return { multipleFlights: true, flights: convertedFlights };
+  }
+  
+  // Handle legacy single flight format
+  console.log('🔄 FLIGHT_PROCESSING: Processing single flight (legacy format)');
+  return await convertSingleGeminiFlightToInternalFormat(geminiData);
+}
+
+async function convertSingleGeminiFlightToInternalFormat(geminiData) {
   // Helper function to check if a value is missing
   const isMissing = (value) => !value || value === 'missing' || value === null || value === undefined;
   
@@ -999,7 +1017,32 @@ async function processFlightTicket(imageUrl) {
     processingResult.extractedData = extractedData;
     console.log(`📊 FLIGHT_PROCESSING: Data extraction completed using ${extractionMethod} method`);
     
-    console.log(`📊 FLIGHT_PROCESSING: Parsing completed with ${extractedData.confidence.overall?.toFixed(2) || 0} overall confidence`);
+    // Handle multiple flights if detected
+    if (extractedData.multipleFlights && extractedData.flights) {
+      console.log(`🛫 FLIGHT_PROCESSING: Processing ${extractedData.flights.length} flights from single image`);
+      const createdFlights = [];
+      
+      for (let i = 0; i < extractedData.flights.length; i++) {
+        const flightData = extractedData.flights[i];
+        console.log(`🔍 FLIGHT_PROCESSING: Processing flight ${i + 1}/${extractedData.flights.length}: ${flightData.airline} ${flightData.flightNumber}`);
+        
+        // Process each flight individually using the same logic
+        const singleFlightResult = await processSingleFlightData(flightData, extractionMethod, processingResult);
+        if (singleFlightResult.success) {
+          createdFlights.push(singleFlightResult.flight);
+        }
+      }
+      
+      processingResult.success = createdFlights.length > 0;
+      processingResult.flights = createdFlights;
+      processingResult.metadata.totalFlights = createdFlights.length;
+      processingResult.metadata.processingEndTime = new Date().toISOString();
+      
+      console.log(`✅ FLIGHT_PROCESSING: Successfully processed ${createdFlights.length}/${extractedData.flights.length} flights`);
+      return processingResult;
+    }
+    
+    console.log(`📊 FLIGHT_PROCESSING: Parsing completed with ${extractedData.confidence?.overall?.toFixed(2) || 0} overall confidence`);
 
     // Step 3: Validate minimum required data
     const requiredFields = [];
@@ -1170,6 +1213,107 @@ async function processFlightTicketLegacy(imageUrl) {
   }
 }
 
+/**
+ * Process a single flight data object and create flight record
+ * @param {Object} flightData - Single flight data 
+ * @param {string} extractionMethod - Method used to extract data
+ * @param {Object} parentProcessingResult - Parent processing result for metadata
+ * @returns {Object} Processing result with flight data
+ */
+async function processSingleFlightData(flightData, extractionMethod, parentProcessingResult) {
+  try {
+    // Step 3: Enhanced passenger matching for this flight
+    console.log('🔍 FLIGHT_PROCESSING: Step 3 - Enhanced passenger matching');
+    console.log(`👥 FLIGHT_PROCESSING: Processing ${flightData.allPassengerNames?.length || 1} extracted passenger(s): ${flightData.allPassengerNames?.join(', ') || flightData.passengerName}`);
+
+    const passengers = [];
+    const passengerNames = flightData.allPassengerNames || [flightData.passengerName];
+    
+    for (const passengerName of passengerNames) {
+      if (!passengerName) continue;
+      
+      console.log(`👤 FLIGHT_PROCESSING: Processing passenger: ${passengerName}`);
+      
+      // Use the existing enhanced passenger matching
+      const passengerResult = await findPassengerByExtractedName(passengerName);
+      
+      if (passengerResult.found) {
+        passengers.push({ passengerId: passengerResult.passenger.id });
+        await updatePassengerWithExtractedName(passengerResult.passenger, passengerName);
+      } else {
+        const newPassenger = await createNewPassengerFromTicket(passengerName);
+        if (newPassenger) {
+          passengers.push({ passengerId: newPassenger.id });
+        }
+      }
+    }
+
+    console.log(`✅ FLIGHT_PROCESSING: Successfully processed ${passengers.length} passenger(s)`);
+
+    // Step 4: Load existing flights
+    console.log('🔍 FLIGHT_PROCESSING: Step 4 - Creating flight record');
+    const flights = await readFlights();
+
+    // Step 5: Create enhanced flight object
+    const newFlight = {
+      id: uuidv4(),
+      
+      // Basic flight info
+      flightNumber: flightData.flightNumber,
+      airline: flightData.airline,
+      
+      // Route information
+      from: flightData.from,
+      to: flightData.to,
+      
+      // Temporal information
+      departureDateTime: flightData.departureDateTime,
+      arrivalDateTime: flightData.arrivalDateTime,
+      
+      // Passenger information
+      passengers: passengers,
+      
+      // Additional extracted data
+      confirmationCode: flightData.confirmationCode || null,
+      seatNumbers: flightData.seatNumbers || [],
+      
+      // Processing metadata
+      processingStatus: passengers.length > 0 ? 'partial' : 'requires_passenger_assignment',
+      extractedPassengerNames: passengerNames,
+      parsingStrategy: flightData.parseStrategy || 'gemini_ai_enhanced',
+      overallConfidence: flightData.confidence?.overall || 0.95,
+      
+      // Standard fields
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'telegram_ticket_processing',
+      
+      // Default fields
+      notes: `Auto-created from ticket image using ${extractionMethod.toUpperCase()} processing.${flightData.seatNumbers && flightData.seatNumbers.length > 0 ? ` Seat Numbers: ${flightData.seatNumbers.join(', ')}.` : ''}`,
+      pickupVolunteerName: '',
+      pickupVolunteerPhone: '',
+      dropoffVolunteerName: '',
+      dropoffVolunteerPhone: ''
+    };
+
+    // Step 6: Save flight
+    flights.push(newFlight);
+    await writeFlights(flights);
+    
+    return {
+      success: true,
+      flight: newFlight
+    };
+    
+  } catch (error) {
+    console.error('❌ FLIGHT_PROCESSING: Error processing single flight:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 module.exports = { 
   processFlightTicket, 
   processFlightTicketLegacy,
@@ -1177,5 +1321,6 @@ module.exports = {
   findPassengerByLegalName, // Keep for backward compatibility
   createNewPassengerFromTicket,
   parseFlightDataWithMultipleStrategies,
-  parseFlightData // Keep for backward compatibility
+  parseFlightData, // Keep for backward compatibility
+  processSingleFlightData
 };

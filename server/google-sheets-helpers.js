@@ -110,7 +110,9 @@ class GoogleSheetsDataManager {
         'departureDateTime', 'arrivalDateTime', 'passengerIds', 
         'pickupVolunteerName', 'pickupVolunteerPhone', 
         'dropoffVolunteerName', 'dropoffVolunteerPhone',
-        'status', 'notes', 'createdAt', 'updatedAt'
+        'status', 'notes', 'confirmationCode', 'seatNumbers',
+        'gate', 'terminal', 'createdBy', 'createdByName',
+        'updatedBy', 'updatedByName', 'createdAt', 'updatedAt'
       ],
       passengers: [
         'id', 'name', 'legalName', 'phone', 'telegramChatId', 
