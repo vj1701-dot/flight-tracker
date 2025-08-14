@@ -7,7 +7,6 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const TelegramNotificationService = require('./telegram-bot');
-const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
 const { 
@@ -40,7 +39,6 @@ if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'flight-tracker-secr
 
 // Initialize services
 const telegramBot = new TelegramNotificationService();
-const backupService = new BackupService();
 const timezoneService = new TimezoneService();
 const flightMonitor = new FlightMonitorService();
 
