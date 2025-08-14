@@ -101,8 +101,12 @@ class GoogleSheetsDataManager {
         console.log(`📄 Creating sheet: ${sheetName}`);
         const sheet = await this.doc.addSheet({ title: sheetName });
         
-        // Set up headers based on sheet type
-        await this.setupSheetHeaders(sheet, key);
+        // Only set up headers if GOOGLE_SHEETS_AUTO_HEADERS is enabled
+        if (process.env.GOOGLE_SHEETS_AUTO_HEADERS === 'true') {
+          await this.setupSheetHeaders(sheet, key);
+        } else {
+          console.log(`⚪ Sheet "${sheetName}" created without headers (clean mode)`);
+        }
       }
     }
   }
@@ -212,6 +216,13 @@ class GoogleSheetsDataManager {
       await this.ensureInitialized();
       const sheet = await this.getSheet(sheetType);
       
+      // Check if sheet has headers, if not set them up first
+      await sheet.loadHeaderRow();
+      if (!sheet.headerValues || sheet.headerValues.length === 0) {
+        console.log(`📝 Setting up headers for ${sheetType} sheet (first write)`);
+        await this.setupSheetHeaders(sheet, sheetType);
+      }
+      
       // Clear existing data (keep headers) - clear from row 2 onwards
       if (sheet.rowCount > 1) {
         await sheet.clearRows({
@@ -250,6 +261,13 @@ class GoogleSheetsDataManager {
   async create(sheetType, item) {
     try {
       const sheet = await this.getSheet(sheetType);
+      
+      // Check if sheet has headers, if not set them up first
+      await sheet.loadHeaderRow();
+      if (!sheet.headerValues || sheet.headerValues.length === 0) {
+        console.log(`📝 Setting up headers for ${sheetType} sheet (first create)`);
+        await this.setupSheetHeaders(sheet, sheetType);
+      }
       
       // Process the item for storage
       const processedItem = { ...item };
