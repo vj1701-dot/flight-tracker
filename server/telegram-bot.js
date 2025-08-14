@@ -70,10 +70,10 @@ class TelegramNotificationService {
 
   async loadProcessedMessages() {
     try {
-      const { cloudStorage } = require('./cloud-storage-helpers');
-      const messages = await cloudStorage.readProcessedMessages();
+      const data = await fs.readFile(this.processedMessagesFile, 'utf8');
+      const messages = JSON.parse(data);
       this.processedMessages = new Set(messages);
-      console.log(`Loaded ${this.processedMessages.size} processed messages from Cloud Storage`);
+      console.log(`Loaded ${this.processedMessages.size} processed messages from local file`);
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
       this.processedMessages = new Set();
@@ -83,9 +83,8 @@ class TelegramNotificationService {
 
   async saveProcessedMessages() {
     try {
-      const { cloudStorage } = require('./cloud-storage-helpers');
       const messages = Array.from(this.processedMessages);
-      await cloudStorage.writeProcessedMessages(messages);
+      await fs.writeFile(this.processedMessagesFile, JSON.stringify(messages, null, 2));
     } catch (error) {
       console.error('Error saving processed messages:', error);
     }
@@ -93,10 +92,10 @@ class TelegramNotificationService {
 
   async loadRegistrationStates() {
     try {
-      const { cloudStorage } = require('./cloud-storage-helpers');
-      const states = await cloudStorage.readRegistrationStates();
+      const data = await fs.readFile(this.registrationStatesFile, 'utf8');
+      const states = JSON.parse(data);
       this.registrationStates = new Map(Object.entries(states));
-      console.log(`Loaded ${this.registrationStates.size} registration states from Cloud Storage`);
+      console.log(`Loaded ${this.registrationStates.size} registration states from local file`);
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
       this.registrationStates = new Map();
@@ -106,9 +105,8 @@ class TelegramNotificationService {
 
   async saveRegistrationStates() {
     try {
-      const { cloudStorage } = require('./cloud-storage-helpers');
       const states = Object.fromEntries(this.registrationStates);
-      await cloudStorage.writeRegistrationStates(states);
+      await fs.writeFile(this.registrationStatesFile, JSON.stringify(states, null, 2));
     } catch (error) {
       console.error('Error saving registration states:', error);
     }

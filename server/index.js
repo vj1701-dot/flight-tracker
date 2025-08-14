@@ -313,6 +313,8 @@ const initializeDefaultUsers = async () => {
     };
     await writeUsers([superAdmin]);
     console.log('Default super admin created: username=superadmin, password=admin123');
+  } catch (error) {
+    console.error('Error initializing default users:', error);
   }
 };
 
