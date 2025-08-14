@@ -77,9 +77,10 @@ class GeminiService {
   /**
    * Extract flight data from ticket image using Gemini
    * @param {string} imagePath - Path to the ticket image
+   * @param {Array} existingPassengers - Array of existing passengers for smart matching
    * @returns {Promise<Object>} - Extracted flight data
    */
-  async extractFlightData(imagePath) {
+  async extractFlightData(imagePath, existingPassengers = []) {
     if (!this.isAvailable()) {
       throw new Error('Gemini service not available');
     }
@@ -90,49 +91,70 @@ class GeminiService {
       // Prepare the image
       const imageData = await this.prepareImage(imagePath);
       
-      // Create the prompt for flight ticket analysis
+      // Prepare passenger data context for smarter matching
+      const passengerContext = existingPassengers.length > 0 ? 
+        `\n\nEXISTING PASSENGERS DATABASE (for smart name matching):
+${existingPassengers.map((p, idx) => 
+  `${idx + 1}. Name: "${p.name}" | Legal Name: "${p.legalName || 'not set'}" | Phone: ${p.phone || 'not set'} | ID: ${p.id}`
+).join('\n')}
+
+When you extract passenger names, try to match them with existing passengers if possible. Use the exact name format from the database if you find a match.` : '';
+
+      // Create the enhanced prompt for flight ticket analysis
       const prompt = `
-You are an expert flight ticket analyzer. Analyze this flight ticket image and extract flight information.
+You are an expert flight ticket analyzer with access to our flight tracking system. Analyze this flight ticket image and extract flight information in our exact database format.
 
-IMPORTANT: This image may contain MULTIPLE flights or a single flight. Return data in this JSON format:
+DATABASE SCHEMA - Return data EXACTLY matching our Google Sheets structure:
 
-For ANY number of flights (1 or more):
+FLIGHTS SHEET COLUMNS:
+id, flightNumber, airline, from, to, departureDateTime, arrivalDateTime, passengerIds, pickupVolunteerName, pickupVolunteerPhone, dropoffVolunteerName, dropoffVolunteerPhone, status, notes, confirmationCode, seatNumbers, gate, terminal, createdBy, createdByName, updatedBy, updatedByName, createdAt, updatedAt
+
+PASSENGERS SHEET COLUMNS:  
+id, name, legalName, phone, telegramChatId, flightCount, extractedNames, createdAt, updatedAt
+
+REQUIRED JSON FORMAT (match our database exactly):
 {
   "flights": [
     {
-      "airlineName": "full airline name (e.g., 'United Airlines')",
-      "flightNumber": "complete flight number (e.g., 'UA1855')", 
-      "departureAirport": "departure airport 3-letter IATA code (e.g., 'SFO')",
-      "arrivalAirport": "arrival airport 3-letter IATA code (e.g., 'LAX')",
-      "departureDate": "departure date in YYYY-MM-DD format",
-      "departureTime": "departure time with AM/PM (e.g., '8:30 AM')",
-      "arrivalDate": "arrival date in YYYY-MM-DD format",
-      "arrivalTime": "arrival time with AM/PM (e.g., '10:01 AM')",
-      "passengerNames": ["array of ALL passenger names on this specific flight"],
-      "seatNumbers": ["array of seat assignments if available (e.g., ['24A', '24B'])"],
-      "confirmationCode": "confirmation/PNR code if visible"
+      "flightNumber": "complete flight number (e.g., 'AA1855')",
+      "airline": "airline name (e.g., 'American Airlines')", 
+      "from": "departure airport 3-letter IATA code (e.g., 'SFO')",
+      "to": "arrival airport 3-letter IATA code (e.g., 'LAX')",
+      "departureDateTime": "YYYY-MM-DD HH:MM AM/PM format in DEPARTURE airport's local timezone (e.g., '2025-08-17 08:30 AM')",
+      "arrivalDateTime": "YYYY-MM-DD HH:MM AM/PM format in ARRIVAL airport's local timezone (e.g., '2025-08-17 10:01 AM')",
+      "passengerIds": ["array of passenger IDs - USE EXISTING IDs if names match, or 'NEW_PASSENGER_X' for new ones"],
+      "confirmationCode": "confirmation/PNR code if visible or 'missing'",
+      "seatNumbers": ["array of seat assignments if available (e.g., ['24A', '24B']) or empty array"],
+      "gate": "gate number if visible or 'missing'",
+      "terminal": "terminal if visible or 'missing'",
+      "status": "confirmed",
+      "notes": "any additional notes from ticket or empty string"
+    }
+  ],
+  "passengers": [
+    {
+      "id": "use existing ID if name matches, or 'NEW_PASSENGER_X' format",
+      "name": "cleaned passenger name for display",
+      "legalName": "exact name as appears on ticket", 
+      "extractedNames": ["all name variations found on ticket"]
     }
   ]
-}
+}${passengerContext}
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY valid JSON, no additional text or explanation
-2. Use exactly "missing" (lowercase) for any field that is not clearly visible or readable
-3. Extract ALL passenger names from the ticket in the "passengerNames" array
-4. Keep times in 12-hour format with AM/PM (e.g., "8:30 AM", "2:15 PM")
-5. Airport codes must be 3-letter IATA codes in UPPERCASE
-6. If only one date is visible, use it for BOTH departure and arrival dates
-7. For dates with smart year inference:
-   - If full date with year is visible (e.g., "Dec 11, 2025"), use that year
-   - If only month/day (e.g., "Dec 11" or "12/11"), apply smart logic:
-   - Current date: ${new Date().toISOString().split('T')[0]}
-   - If we're in December and the flight date is January-March, use next year
-   - If we're in November-December and flight date is January-April, use next year  
-   - Otherwise use current year
-   - Always convert to YYYY-MM-DD format
-8. Look carefully for multiple passenger names on the ticket - they may be listed separately
-9. Even if there's only one passenger, put it in an array: ["JOHN DOE"]
-`;
+2. Use exactly "missing" for any field that is not clearly visible
+3. For passenger matching: If a name on the ticket closely matches an existing passenger, use their exact ID and name format
+4. For new passengers: use "NEW_PASSENGER_1", "NEW_PASSENGER_2", etc. as temporary IDs
+5. Combine date and time into single dateTime fields (e.g., "2025-08-17 08:30 AM")
+6. Airport codes must be 3-letter IATA codes in UPPERCASE
+7. Current date for smart year inference: ${new Date().toISOString().split('T')[0]}
+8. Extract ALL passengers - the ticket may have multiple people
+9. Be intelligent about name matching - "JOHN SMITH" might match existing "John Smith"
+10. Use empty arrays [] for missing array fields, not "missing"
+11. TIMEZONE IMPORTANT: Times on tickets are in the airport's local timezone - keep them as-is, don't convert
+12. Departure time should be in departure airport's timezone, arrival time in arrival airport's timezone
+`;`
 
       // Send request to Gemini
       const result = await this.model.generateContent([prompt, imageData]);
@@ -160,6 +182,11 @@ CRITICAL INSTRUCTIONS:
       console.log('✅ GEMINI_SERVICE: Flight data extraction completed');
       console.log(`📊 GEMINI_SERVICE: Extracted ${processedFlights.length} flight(s)`);
       
+      // Handle passengers data from new format
+      const extractedPassengers = extractedData.passengers || [];
+      console.log(`👥 GEMINI_SERVICE: Extracted ${extractedPassengers.length} passenger(s):`, 
+        extractedPassengers.map(p => `${p.name} (ID: ${p.id})`));
+      
       for (let i = 0; i < processedFlights.length; i++) {
         const flight = processedFlights[i];
         console.log(`✈️ Flight ${i + 1}:`, {
@@ -174,6 +201,7 @@ CRITICAL INSTRUCTIONS:
       return {
         success: true,
         flights: processedFlights,
+        passengers: extractedPassengers,
         source: 'gemini',
         timestamp: new Date().toISOString(),
         confidence: 0.95 // Gemini generally has high confidence

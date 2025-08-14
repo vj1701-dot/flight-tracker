@@ -972,8 +972,12 @@ async function processFlightTicket(imageUrl) {
         await fs.writeFile(tempImagePath, buffer);
         console.log('📥 FLIGHT_PROCESSING: Image downloaded for Gemini processing');
 
-        // Process with Gemini
-        const geminiResult = await geminiService.extractFlightData(tempImagePath);
+        // Load existing passengers for smart matching
+        const existingPassengers = await readPassengers();
+        console.log(`📋 FLIGHT_PROCESSING: Loaded ${existingPassengers.length} existing passengers for smart matching`);
+
+        // Process with Gemini (with passenger context)
+        const geminiResult = await geminiService.extractFlightData(tempImagePath, existingPassengers);
         
         // Clean up temp file
         try {
@@ -1068,7 +1072,11 @@ async function processFlightTicket(imageUrl) {
     // Step 3: Validate minimum required data
     const requiredFields = [];
     if (!extractedData.flightNumber) requiredFields.push('flightNumber');
-    if (!extractedData.passengerName) requiredFields.push('passengerName');
+    
+    // Check for passenger names in new format (passengerNames array) or old format (passengerName)
+    const hasPassengerNames = (extractedData.passengerNames && extractedData.passengerNames.length > 0) ||
+                              (extractedData.passengerName && extractedData.passengerName !== 'missing');
+    if (!hasPassengerNames) requiredFields.push('passengerNames');
     
     if (requiredFields.length > 0) {
       const issue = `Missing required fields: ${requiredFields.join(', ')}`;
@@ -1078,7 +1086,16 @@ async function processFlightTicket(imageUrl) {
 
     // Step 4: Enhanced passenger matching for all extracted passengers
     console.log('🔍 FLIGHT_PROCESSING: Step 3 - Enhanced passenger matching');
-    const allPassengerNames = extractedData.allPassengerNames || [extractedData.passengerName];
+    
+    // Handle both new format (passengerNames array) and old format (passengerName)
+    let allPassengerNames = [];
+    if (extractedData.passengerNames && extractedData.passengerNames.length > 0) {
+      allPassengerNames = extractedData.passengerNames;
+    } else if (extractedData.allPassengerNames) {
+      allPassengerNames = extractedData.allPassengerNames;
+    } else if (extractedData.passengerName) {
+      allPassengerNames = [extractedData.passengerName];
+    }
     const passengerMatches = [];
     let passengers = [];
     
