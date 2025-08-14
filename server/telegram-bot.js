@@ -1215,8 +1215,8 @@ class TelegramNotificationService {
           `🔍 Looking up ${flightNumber} on ${flightDate}...`
         );
 
-        // Get flight from stored data instead of AeroAPI
-        const flights = await readFlights();
+        // Get flight from stored data with resolved passenger names
+        const flights = await getFlightsWithResolvedNames();
         const targetDate = new Date(flightDate);
         
         const flight = flights.find(f => {
