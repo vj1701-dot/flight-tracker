@@ -380,7 +380,7 @@ if (process.env.NODE_ENV === 'production') {
   if (telegramBot && telegramBot.getBot()) {
     if (process.env.WEBHOOK_URL) {
       const webhookUrl = `${process.env.WEBHOOK_URL}/telegram/webhook`;
-      telegramBot.getBot().setWebhook(webhookUrl).then(success => {
+      telegramBot.getBot().setWebHook(webhookUrl).then(success => {
         if (success) {
           console.log('✅ Telegram webhook configured for production');
         } else {
