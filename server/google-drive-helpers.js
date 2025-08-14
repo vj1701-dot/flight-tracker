@@ -26,6 +26,9 @@ class GoogleDriveStorage {
       const authClient = await auth.getClient();
       this.drive = google.drive({ version: 'v3', auth: authClient });
       
+      // Validate the main folder exists and is accessible
+      await this.validateMainFolder();
+      
       // Initialize backup folder
       await this.ensureBackupFolder();
       
@@ -33,6 +36,27 @@ class GoogleDriveStorage {
       console.log('✅ GOOGLE_DRIVE: Initialized successfully');
     } catch (error) {
       console.error('❌ GOOGLE_DRIVE: Initialization failed:', error.message);
+    }
+  }
+
+  async validateMainFolder() {
+    try {
+      console.log(`🔍 GOOGLE_DRIVE: Validating main folder ID: ${this.folderId}`);
+      
+      // Get folder information to verify it exists and is a folder
+      const folderInfo = await this.drive.files.get({
+        fileId: this.folderId,
+        fields: 'id, name, mimeType, parents'
+      });
+      
+      if (folderInfo.data.mimeType !== 'application/vnd.google-apps.folder') {
+        throw new Error(`ID ${this.folderId} is not a folder (mimeType: ${folderInfo.data.mimeType})`);
+      }
+      
+      console.log(`✅ GOOGLE_DRIVE: Main folder validated - Name: "${folderInfo.data.name}"`);
+    } catch (error) {
+      console.error('❌ GOOGLE_DRIVE: Main folder validation failed:', error.message);
+      throw error;
     }
   }
 
