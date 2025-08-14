@@ -465,6 +465,173 @@ app.get('/api/airports', async (req, res) => {
   }
 });
 
+// User Management endpoints
+app.get('/api/users', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+  try {
+    const users = await readUsers();
+    // Remove password from response for security
+    const safeUsers = users.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+    res.json(safeUsers);
+  } catch (error) {
+    console.error('Error reading users:', error);
+    res.status(500).json({ error: 'Failed to read users' });
+  }
+});
+
+app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+  try {
+    const { username, name, email, password, role, allowedAirports, telegramChatId } = req.body;
+
+    if (!username || !name || !password) {
+      return res.status(400).json({ error: 'Username, name, and password are required' });
+    }
+
+    const users = await readUsers();
+    
+    // Check if username already exists
+    if (users.some(u => u.username === username)) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = {
+      id: uuidv4(),
+      username: username.trim(),
+      name: name.trim(),
+      email: email ? email.trim() : null,
+      password: hashedPassword,
+      role: role || 'user',
+      allowedAirports: allowedAirports || [],
+      telegramChatId: telegramChatId || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    await writeUsers(users);
+
+    // Log audit event
+    await logAuditEvent('CREATE', 'USER', newUser.id, req.user.id, req.user.username, null, null, { username, name, role });
+
+    // Return user without password
+    const { password: _, ...safeUser } = newUser;
+    res.status(201).json({ user: safeUser, message: 'User created successfully' });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, name, email, password, role, allowedAirports, telegramChatId } = req.body;
+
+    if (!username || !name) {
+      return res.status(400).json({ error: 'Username and name are required' });
+    }
+
+    const users = await readUsers();
+    const userIndex = users.findIndex(u => u.id === id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const oldUser = { ...users[userIndex] };
+    
+    // Check if username is taken by another user
+    if (users.some(u => u.username === username && u.id !== id)) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Update user data
+    users[userIndex] = {
+      ...users[userIndex],
+      username: username.trim(),
+      name: name.trim(),
+      email: email ? email.trim() : users[userIndex].email,
+      role: role || users[userIndex].role,
+      allowedAirports: allowedAirports || [],
+      telegramChatId: telegramChatId !== undefined ? telegramChatId : users[userIndex].telegramChatId,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Hash new password if provided
+    if (password && password.trim()) {
+      users[userIndex].password = await bcrypt.hash(password.trim(), 10);
+    }
+
+    await writeUsers(users);
+
+    // Log audit event
+    const changes = getChanges(oldUser, users[userIndex]);
+    await logAuditEvent('UPDATE', 'USER', id, req.user.id, req.user.username, changes, oldUser, users[userIndex]);
+
+    // Return user without password
+    const { password: _, ...safeUser } = users[userIndex];
+    res.json({ user: safeUser, message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+app.delete('/api/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    const users = await readUsers();
+    const userIndex = users.findIndex(u => u.id === id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const deletedUser = users[userIndex];
+    users.splice(userIndex, 1);
+    await writeUsers(users);
+
+    // Log audit event
+    await logAuditEvent('DELETE', 'USER', id, req.user.id, req.user.username, null, deletedUser, null);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Data Management endpoints
+app.get('/api/passengers', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+  try {
+    const passengers = await readPassengers();
+    res.json(passengers);
+  } catch (error) {
+    console.error('Error reading passengers:', error);
+    res.status(500).json({ error: 'Failed to read passengers' });
+  }
+});
+
+app.get('/api/volunteers', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
+  try {
+    const volunteers = await readVolunteers();
+    res.json(volunteers);
+  } catch (error) {
+    console.error('Error reading volunteers:', error);
+    res.status(500).json({ error: 'Failed to read volunteers' });
+  }
+});
+
 // Flights endpoint
 app.get('/api/flights', authenticateToken, async (req, res) => {
   try {
