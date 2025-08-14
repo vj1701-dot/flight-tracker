@@ -1,175 +1,3873 @@
 [
   {
-    "id": "6008e598-9fa7-43fd-833e-ef8277c29953",
-    "airline": "American Airlines",
-    "flightNumber": "1234",
-    "from": "SJC",
-    "to": "LAX",
-    "departureDateTime": "2025-08-24T16:34:00.000Z",
-    "arrivalDateTime": "2025-08-24T17:25:00.000Z",
-    "pickupSevakName": "raj",
-    "pickupSevakPhone": "(222)-222-2222",
-    "dropoffSevakName": "Ravi",
-    "dropoffSevakPhone": "(111)-111-1111",
-    "notes": "",
+    "id": "32bdb16f-1e14-4fb8-ab28-8814e973fb48",
+    "flightNumber": "3768",
+    "airline": "Delta Airlines",
+    "from": "SLC",
+    "to": "FAT",
+    "departureDateTime": "2025-08-14T23:45:00.000Z",
+    "arrivalDateTime": "2025-08-15T01:36:00.000Z",
     "passengers": [
       {
-        "id": 1754101428167,
-        "name": "Sadhu Vinamrajivandas"
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
       },
       {
-        "id": 1754101518016.2883,
-        "name": "Sadhu Harinivasdas"
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
       }
     ],
-    "createdAt": "2025-08-02T02:25:37.302Z",
-    "updatedAt": "2025-08-02T08:30:44.984Z",
-    "updatedBy": "user",
-    "updatedByUserId": "1cdea2d9-3f5d-49e1-8caf-ec2545692825",
-    "updatedByName": "Regular User"
-  },
-  {
-    "id": "e26d95c6-8275-416a-94a0-b65298acd0ad",
-    "airline": "Southwest Airlines",
-    "flightNumber": "1234",
-    "from": "SJC",
-    "to": "LAX",
-    "departureDateTime": "2025-08-28T22:27:00.000Z",
-    "arrivalDateTime": "2025-08-28T23:27:00.000Z",
-    "pickupSevakName": "",
-    "pickupSevakPhone": "",
-    "dropoffSevakName": "",
-    "dropoffSevakPhone": "",
-    "notes": "",
-    "passengers": [
-      {
-        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+    "extractedData": {
+      "flightNumber": "3768",
+      "airline": "Delta Airlines",
+      "from": "SLC",
+      "to": "FAT",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-14T16:45:00.000Z",
+      "arrivalDateTime": "2025-08-14T18:36:00.000Z",
+      "departureDate": "2025-08-14",
+      "departureTime": "10:45 AM",
+      "arrivalDate": "2025-08-14",
+      "arrivalTime": "11:36 AM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
       },
-      {
-        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
-      }
-    ],
-    "createdBy": "admin",
-    "createdByUserId": "0ed10152-19ec-4d5b-8299-a643c0b5eee5",
-    "updatedBy": "superadmin",
-    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "createdAt": "2025-08-02T08:27:25.912Z",
-    "updatedAt": "2025-08-02T08:46:00.236Z",
-    "createdByName": "Administrator",
-    "updatedByName": "Super Admin"
-  },
-  {
-    "id": "979b053e-788a-4ceb-a5fe-9ce4ed7e46b7",
-    "airline": "Delta Air Lines",
-    "flightNumber": "DL123",
-    "from": "ATL",
-    "to": "ORD",
-    "departureDateTime": "2025-08-21T08:33:00.000Z",
-    "arrivalDateTime": "2025-08-21T11:33:00.000Z",
-    "pickupSevakName": "",
-    "pickupSevakPhone": "",
-    "dropoffSevakName": "",
-    "dropoffSevakPhone": "",
-    "notes": "",
-    "passengers": [
-      {
-        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3768",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Delta Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
       },
-      {
-        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
-      }
-    ],
-    "createdBy": "superadmin",
-    "createdByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "updatedBy": "superadmin",
-    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "createdAt": "2025-08-02T08:34:16.378Z",
-    "updatedAt": "2025-08-02T08:34:16.378Z",
-    "createdByName": "Super Admin",
-    "updatedByName": "Super Admin"
-  },
-  {
-    "id": "d0dc8934-773b-4baa-8d7f-f99eb7b60f0b",
-    "airline": "Delta Air Lines",
-    "flightNumber": "DL345",
-    "from": "IAH",
-    "to": "JFK",
-    "departureDateTime": "2025-08-03T17:10:00.000Z",
-    "arrivalDateTime": "2025-08-03T21:10:00.000Z",
-    "notes": "",
-    "passengers": [
-      {
-        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Delta Airlines",
+          "flightNumber": "3768",
+          "departureAirport": "SLC",
+          "arrivalAirport": "FAT",
+          "departureDate": "2025-08-14",
+          "departureTime": "10:45 AM",
+          "arrivalDate": "2025-08-14",
+          "arrivalTime": "11:36 AM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
       },
-      {
-        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
-      }
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
     ],
-    "dropoffSevakName": "Ravi",
-    "dropoffSevakPhone": "(111)-111-1112",
-    "pickupSevakName": "Jay",
-    "pickupSevakPhone": "(111)-111-1113",
-    "createdBy": "superadmin",
-    "createdByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "updatedBy": "superadmin",
-    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "createdAt": "2025-08-02T17:11:14.613Z",
-    "updatedAt": "2025-08-02T17:11:14.613Z",
-    "createdByName": "Super Admin",
-    "updatedByName": "Super Admin"
-  },
-  {
-    "id": "f1b15aa9-1b6c-413b-a7a8-19576b23070e",
-    "airline": "Spirit Airlines",
-    "flightNumber": "3424",
-    "from": "EWR",
-    "to": "SFO",
-    "departureDateTime": "2025-08-15T08:54:00.000Z",
-    "arrivalDateTime": "2025-08-15T23:54:00.000Z",
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:12:59.156Z",
+    "updatedAt": "2025-08-13T04:14:24.608Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null,
     "pickupVolunteerName": "",
     "pickupVolunteerPhone": "",
     "dropoffVolunteerName": "",
     "dropoffVolunteerPhone": "",
-    "notes": "",
-    "passengers": [
-      {
-        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
-      }
-    ],
-    "createdBy": "user",
-    "createdByName": "Regular User",
-    "createdByUserId": "1cdea2d9-3f5d-49e1-8caf-ec2545692825",
-    "updatedBy": "user",
-    "updatedByName": "Regular User",
-    "updatedByUserId": "1cdea2d9-3f5d-49e1-8caf-ec2545692825",
-    "createdAt": "2025-08-02T17:55:33.751Z",
-    "updatedAt": "2025-08-02T17:55:33.751Z"
+    "updatedBy": "superadmin",
+    "updatedByName": "Super Admin",
+    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04"
   },
   {
-    "id": "c6a240ce-8767-496a-a398-c8b72a0f0780",
-    "airline": "JetBlue Airways",
-    "flightNumber": "231",
-    "from": "LGA",
-    "to": "OAK",
-    "departureDateTime": "2025-08-04T18:02:00.000Z",
-    "arrivalDateTime": "2025-08-04T23:02:00.000Z",
-    "notes": "",
+    "id": "8333ab6e-cfee-4f68-879c-a94aedf906ec",
+    "flightNumber": "2661",
+    "airline": "American Airlines",
+    "from": "ONT",
+    "to": "PHX",
+    "departureDateTime": "2025-08-18T02:22:00.000Z",
+    "arrivalDateTime": "2025-08-18T03:39:00.000Z",
     "passengers": [
+      {
+        "passengerId": "2e2ce6d3-883c-4bc1-b1ee-51d5c5a6ea2a"
+      },
+      {
+        "passengerId": "4e6bf8ee-d898-4281-9e84-6e45d48eeb67"
+      },
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2661",
+      "airline": "American Airlines",
+      "from": "ONT",
+      "to": "PHX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-17T19:22:00.000Z",
+      "arrivalDateTime": "2025-08-17T20:39:00.000Z",
+      "departureDate": "2025-08-17",
+      "departureTime": "12:22 PM",
+      "arrivalDate": "2025-08-17",
+      "arrivalTime": "1:39 PM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Shantmunidas Sadhu",
+        "Manojitdas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2661",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Shantmunidas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Manojitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "2661",
+          "departureAirport": "ONT",
+          "arrivalAirport": "PHX",
+          "departureDate": "2025-08-17",
+          "departureTime": "12:22 PM",
+          "arrivalDate": "2025-08-17",
+          "arrivalTime": "1:39 PM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Shantmunidas Sadhu",
+            "Manojitdas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Shantmunidas Sadhu",
+      "Manojitdas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:13:14.856Z",
+    "updatedAt": "2025-08-13T04:14:52.006Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null,
+    "pickupVolunteerName": "",
+    "pickupVolunteerPhone": "",
+    "dropoffVolunteerName": "",
+    "dropoffVolunteerPhone": "",
+    "updatedBy": "superadmin",
+    "updatedByName": "Super Admin",
+    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04"
+  },
+  {
+    "id": "d5ba16f5-9daf-48f9-a504-79b220e9544e",
+    "flightNumber": "116",
+    "airline": "Southwest",
+    "from": "PHX",
+    "to": "DEN",
+    "departureDateTime": "2025-08-18T05:45:00.000Z",
+    "arrivalDateTime": "2025-08-18T07:35:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "4e6bf8ee-d898-4281-9e84-6e45d48eeb67"
+      },
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "116",
+      "airline": "Southwest",
+      "from": "PHX",
+      "to": "DEN",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-17T22:45:00.000Z",
+      "arrivalDateTime": "2025-08-18T00:35:00.000Z",
+      "departureDate": "2025-08-17",
+      "departureTime": "3:45 PM",
+      "arrivalDate": "2025-08-17",
+      "arrivalTime": "6:35 PM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Aksharvandandas Sadhu",
+        "Manojitdas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "116",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Manojitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "116",
+          "departureAirport": "PHX",
+          "arrivalAirport": "DEN",
+          "departureDate": "2025-08-17",
+          "departureTime": "3:45 PM",
+          "arrivalDate": "2025-08-17",
+          "arrivalTime": "6:35 PM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Aksharvandandas Sadhu",
+            "Manojitdas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Aksharvandandas Sadhu",
+      "Manojitdas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:13:17.362Z",
+    "updatedAt": "2025-08-13T04:15:14.386Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null,
+    "pickupVolunteerName": "",
+    "pickupVolunteerPhone": "",
+    "dropoffVolunteerName": "",
+    "dropoffVolunteerPhone": "",
+    "updatedBy": "superadmin",
+    "updatedByName": "Super Admin",
+    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04"
+  },
+  {
+    "id": "12ab07a9-ecc9-4107-a0a3-12b926b0c535",
+    "flightNumber": "6277",
+    "airline": "American Airlines",
+    "from": "TUS",
+    "to": "LAX",
+    "departureDateTime": "2025-08-18T17:31:00.000Z",
+    "arrivalDateTime": "2025-08-18T19:06:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      },
+      {
+        "passengerId": "2e2ce6d3-883c-4bc1-b1ee-51d5c5a6ea2a"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "6277",
+      "airline": "American Airlines",
+      "from": "TUS",
+      "to": "LAX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-18T17:31:00.000Z",
+      "arrivalDateTime": "2025-08-18T19:06:00.000Z",
+      "departureDate": "2025-08-18",
+      "departureTime": "10:31 AM",
+      "arrivalDate": "2025-08-18",
+      "arrivalTime": "12:06 PM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Anandchintandas Sadhu",
+        "Shantmunidas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "6277",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Shantmunidas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "6277",
+          "departureAirport": "TUS",
+          "arrivalAirport": "LAX",
+          "departureDate": "2025-08-18",
+          "departureTime": "10:31 AM",
+          "arrivalDate": "2025-08-18",
+          "arrivalTime": "12:06 PM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Anandchintandas Sadhu",
+            "Shantmunidas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Anandchintandas Sadhu",
+      "Shantmunidas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:16:34.906Z",
+    "updatedAt": "2025-08-13T04:16:34.906Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "70cf01eb-8cb8-427a-9ec5-358b269bfd27",
+    "flightNumber": "2149",
+    "airline": "Alaska Airlines",
+    "from": "LAX",
+    "to": "SFO",
+    "departureDateTime": "2025-08-18T21:44:00.000Z",
+    "arrivalDateTime": "2025-08-18T23:08:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "e9eb221b-2e91-41d3-b6c7-90b3c6cd1e7c"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2149",
+      "airline": "Alaska Airlines",
+      "from": "LAX",
+      "to": "SFO",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-18T21:44:00.000Z",
+      "arrivalDateTime": "2025-08-18T23:08:00.000Z",
+      "departureDate": "2025-08-18",
+      "departureTime": "2:44 PM",
+      "arrivalDate": "2025-08-18",
+      "arrivalTime": "4:08 PM",
+      "passengerName": "Akhandananddas Sadhu",
+      "allPassengerNames": [
+        "Akhandananddas Sadhu",
+        "Anandchintandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2149",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Akhandananddas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "2149",
+          "departureAirport": "LAX",
+          "arrivalAirport": "SFO",
+          "departureDate": "2025-08-18",
+          "departureTime": "2:44 PM",
+          "arrivalDate": "2025-08-18",
+          "arrivalTime": "4:08 PM",
+          "passengerNames": [
+            "Akhandananddas Sadhu",
+            "Anandchintandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Akhandananddas Sadhu",
+      "Anandchintandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:16:50.146Z",
+    "updatedAt": "2025-08-13T04:16:50.146Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "bdd6928d-d227-4909-ac9e-5558618d166d",
+    "flightNumber": "2585",
+    "airline": "Southwest",
+    "from": "DEN",
+    "to": "SFO",
+    "departureDateTime": "2025-08-21T02:50:00.000Z",
+    "arrivalDateTime": "2025-08-21T05:25:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "4e6bf8ee-d898-4281-9e84-6e45d48eeb67"
+      },
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2585",
+      "airline": "Southwest",
+      "from": "DEN",
+      "to": "SFO",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-21T02:50:00.000Z",
+      "arrivalDateTime": "2025-08-21T05:25:00.000Z",
+      "departureDate": "2025-08-20",
+      "departureTime": "8:50 PM",
+      "arrivalDate": "2025-08-20",
+      "arrivalTime": "10:25 PM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Manojitdas Sadhu",
+        "Aksharvandandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2585",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Manojitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "2585",
+          "departureAirport": "DEN",
+          "arrivalAirport": "SFO",
+          "departureDate": "2025-08-20",
+          "departureTime": "8:50 PM",
+          "arrivalDate": "2025-08-20",
+          "arrivalTime": "10:25 PM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Manojitdas Sadhu",
+            "Aksharvandandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Manojitdas Sadhu",
+      "Aksharvandandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:17:01.070Z",
+    "updatedAt": "2025-08-13T04:17:01.070Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "2e11ba93-c4a9-4267-a36c-e4c29dd0173e",
+    "flightNumber": "3494",
+    "airline": "Alaska Airlines",
+    "from": "SFO",
+    "to": "SNA",
+    "departureDateTime": "2025-08-23T22:21:00.000Z",
+    "arrivalDateTime": "2025-08-24T00:00:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "3494",
+      "airline": "Alaska Airlines",
+      "from": "SFO",
+      "to": "SNA",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-23T22:21:00.000Z",
+      "arrivalDateTime": "2025-08-24T00:00:00.000Z",
+      "departureDate": "2025-08-23",
+      "departureTime": "3:21 PM",
+      "arrivalDate": "2025-08-23",
+      "arrivalTime": "5:00 PM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Paramcharitdas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3494",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "3494",
+          "departureAirport": "SFO",
+          "arrivalAirport": "SNA",
+          "departureDate": "2025-08-23",
+          "departureTime": "3:21 PM",
+          "arrivalDate": "2025-08-23",
+          "arrivalTime": "5:00 PM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Paramcharitdas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Paramcharitdas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:18:11.657Z",
+    "updatedAt": "2025-08-13T04:18:11.657Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "9d5d542b-d59d-4e65-b13e-98fc89cbefbd",
+    "flightNumber": "1434",
+    "airline": "Delta Airlines",
+    "from": "LAX",
+    "to": "SLC",
+    "departureDateTime": "2025-08-24T16:48:00.000Z",
+    "arrivalDateTime": "2025-08-24T18:42:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "962371b0-d46e-4400-9cd7-5f55653cffb5"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1434",
+      "airline": "Delta Airlines",
+      "from": "LAX",
+      "to": "SLC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-24T16:48:00.000Z",
+      "arrivalDateTime": "2025-08-24T18:42:00.000Z",
+      "departureDate": "2025-08-24",
+      "departureTime": "9:48 AM",
+      "arrivalDate": "2025-08-24",
+      "arrivalTime": "12:42 PM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Paramcharitdas Sadhu",
+        "Exstparamcharitdas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1434",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Exstparamcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Delta Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Delta Airlines",
+          "flightNumber": "1434",
+          "departureAirport": "LAX",
+          "arrivalAirport": "SLC",
+          "departureDate": "2025-08-24",
+          "departureTime": "9:48 AM",
+          "arrivalDate": "2025-08-24",
+          "arrivalTime": "12:42 PM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Paramcharitdas Sadhu",
+            "Exstparamcharitdas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Paramcharitdas Sadhu",
+      "Exstparamcharitdas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:18:30.260Z",
+    "updatedAt": "2025-08-13T04:18:30.260Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "81e5d673-e378-4520-b226-498648340904",
+    "flightNumber": "2077",
+    "airline": "Alaska Airlines",
+    "from": "SLC",
+    "to": "SAN",
+    "departureDateTime": "2025-08-25T16:38:00.000Z",
+    "arrivalDateTime": "2025-08-25T18:40:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2077",
+      "airline": "Alaska Airlines",
+      "from": "SLC",
+      "to": "SAN",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-25T16:38:00.000Z",
+      "arrivalDateTime": "2025-08-25T18:40:00.000Z",
+      "departureDate": "2025-08-25",
+      "departureTime": "10:38 AM",
+      "arrivalDate": "2025-08-25",
+      "arrivalTime": "11:40 AM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Paramcharitdas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2077",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "2077",
+          "departureAirport": "SLC",
+          "arrivalAirport": "SAN",
+          "departureDate": "2025-08-25",
+          "departureTime": "10:38 AM",
+          "arrivalDate": "2025-08-25",
+          "arrivalTime": "11:40 AM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Paramcharitdas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Paramcharitdas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:19:46.337Z",
+    "updatedAt": "2025-08-13T04:19:46.337Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "44af6545-2c56-46ff-bcaf-443b165549f5",
+    "flightNumber": "3337",
+    "airline": "Alaska Airlines",
+    "from": "SFO",
+    "to": "SNA",
+    "departureDateTime": "2025-08-26T02:51:00.000Z",
+    "arrivalDateTime": "2025-08-26T04:29:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      },
+      {
+        "passengerId": "e9eb221b-2e91-41d3-b6c7-90b3c6cd1e7c"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "3337",
+      "airline": "Alaska Airlines",
+      "from": "SFO",
+      "to": "SNA",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-26T02:51:00.000Z",
+      "arrivalDateTime": "2025-08-26T04:29:00.000Z",
+      "departureDate": "2025-08-25",
+      "departureTime": "7:51 PM",
+      "arrivalDate": "2025-08-25",
+      "arrivalTime": "9:29 PM",
+      "passengerName": "Anandmanandas Sadhu",
+      "allPassengerNames": [
+        "Anandmanandas Sadhu",
+        "Akhandananddas Sadhu",
+        "Anandchintandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3337",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Akhandananddas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "3337",
+          "departureAirport": "SFO",
+          "arrivalAirport": "SNA",
+          "departureDate": "2025-08-25",
+          "departureTime": "7:51 PM",
+          "arrivalDate": "2025-08-25",
+          "arrivalTime": "9:29 PM",
+          "passengerNames": [
+            "Anandmanandas Sadhu",
+            "Akhandananddas Sadhu",
+            "Anandchintandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Anandmanandas Sadhu",
+      "Akhandananddas Sadhu",
+      "Anandchintandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T04:20:00.057Z",
+    "updatedAt": "2025-08-13T04:20:00.057Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "7ab79eb0-e1d6-40ba-8304-067964029565",
+    "flightNumber": "1111",
+    "airline": "Alaska Airlines",
+    "from": "ONT",
+    "to": "SEA",
+    "departureDateTime": "2025-08-26T18:39:00.000Z",
+    "arrivalDateTime": "2025-08-26T21:19:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      },
+      {
+        "passengerId": "b5074d06-2a42-4342-a1ae-8b1cb70839e3"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1111",
+      "airline": "Alaska Airlines",
+      "from": "ONT",
+      "to": "SEA",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-26T18:39:00.000Z",
+      "arrivalDateTime": "2025-08-26T21:19:00.000Z",
+      "departureDate": "2025-08-26",
+      "departureTime": "11:39 AM",
+      "arrivalDate": "2025-08-26",
+      "arrivalTime": "2:19 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu",
+        "EXST Patel"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1111",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "EXST Patel",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "1111",
+          "departureAirport": "ONT",
+          "arrivalAirport": "SEA",
+          "departureDate": "2025-08-26",
+          "departureTime": "11:39 AM",
+          "arrivalDate": "2025-08-26",
+          "arrivalTime": "2:19 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu",
+            "EXST Patel"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu",
+      "EXST Patel"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:27:05.177Z",
+    "updatedAt": "2025-08-13T06:27:05.177Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "cf83be04-4d07-4075-ac14-2124058d9046",
+    "flightNumber": "6508",
+    "airline": "American Airlines",
+    "from": "ONT",
+    "to": "PHX",
+    "departureDateTime": "2025-08-26T23:54:00.000Z",
+    "arrivalDateTime": "2025-08-27T01:23:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "6508",
+      "airline": "American Airlines",
+      "from": "ONT",
+      "to": "PHX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-26T23:54:00.000Z",
+      "arrivalDateTime": "2025-08-27T01:23:00.000Z",
+      "departureDate": "2025-08-26",
+      "departureTime": "4:54 PM",
+      "arrivalDate": "2025-08-26",
+      "arrivalTime": "6:23 PM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Anandchintandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "6508",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "6508",
+          "departureAirport": "ONT",
+          "arrivalAirport": "PHX",
+          "departureDate": "2025-08-26",
+          "departureTime": "4:54 PM",
+          "arrivalDate": "2025-08-26",
+          "arrivalTime": "6:23 PM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Anandchintandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Anandchintandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:27:21.463Z",
+    "updatedAt": "2025-08-13T06:27:21.463Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "6a87d69b-ced6-4185-a674-da39d5087da1",
+    "flightNumber": "2039",
+    "airline": "Alaska Airlines",
+    "from": "SEA",
+    "to": "BOI",
+    "departureDateTime": "2025-08-29T18:20:00.000Z",
+    "arrivalDateTime": "2025-08-29T19:48:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2039",
+      "airline": "Alaska Airlines",
+      "from": "SEA",
+      "to": "BOI",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-29T18:20:00.000Z",
+      "arrivalDateTime": "2025-08-29T19:48:00.000Z",
+      "departureDate": "2025-08-29",
+      "departureTime": "11:20 AM",
+      "arrivalDate": "2025-08-29",
+      "arrivalTime": "1:48 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2039",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "2039",
+          "departureAirport": "SEA",
+          "arrivalAirport": "BOI",
+          "departureDate": "2025-08-29",
+          "departureTime": "11:20 AM",
+          "arrivalDate": "2025-08-29",
+          "arrivalTime": "1:48 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:27:34.163Z",
+    "updatedAt": "2025-08-13T06:27:34.163Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "7062569a-f41a-48c6-94ed-ed6e64db6b4c",
+    "flightNumber": "3210",
+    "airline": "Alaska Airlines",
+    "from": "BOI",
+    "to": "PDX",
+    "departureDateTime": "2025-08-30T19:30:00.000Z",
+    "arrivalDateTime": "2025-08-30T20:50:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "3210",
+      "airline": "Alaska Airlines",
+      "from": "BOI",
+      "to": "PDX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-30T19:30:00.000Z",
+      "arrivalDateTime": "2025-08-30T20:50:00.000Z",
+      "departureDate": "2025-08-30",
+      "departureTime": "1:30 PM",
+      "arrivalDate": "2025-08-30",
+      "arrivalTime": "1:50 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3210",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "3210",
+          "departureAirport": "BOI",
+          "arrivalAirport": "PDX",
+          "departureDate": "2025-08-30",
+          "departureTime": "1:30 PM",
+          "arrivalDate": "2025-08-30",
+          "arrivalTime": "1:50 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:28:26.263Z",
+    "updatedAt": "2025-08-13T06:28:26.263Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "f0776ad6-132a-43a9-9486-7ae0ed62addb",
+    "flightNumber": "1271",
+    "airline": "Alaska Airlines",
+    "from": "PHX",
+    "to": "SAN",
+    "departureDateTime": "2025-08-31T12:00:00.000Z",
+    "arrivalDateTime": "2025-08-31T12:00:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "d9217d8d-5de3-4afd-ab89-4895d3cf5128"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1271",
+      "airline": "Alaska Airlines",
+      "from": "PHX",
+      "to": "SAN",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-31T12:00:00.000Z",
+      "arrivalDateTime": "2025-08-31T12:00:00.000Z",
+      "departureDate": "2025-08-31",
+      "departureTime": "6:00am",
+      "arrivalDate": "2025-08-31",
+      "arrivalTime": "7:17am",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Exstdivyacharandas Sadhu",
+        "Narayanmurtidas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1271",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Exstdivyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Narayanmurtidas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "1271",
+          "departureAirport": "PHX",
+          "arrivalAirport": "SAN",
+          "departureDate": "2025-08-31",
+          "departureTime": "6:00am",
+          "arrivalDate": "2025-08-31",
+          "arrivalTime": "7:17am",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Exstdivyacharandas Sadhu",
+            "Narayanmurtidas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Exstdivyacharandas Sadhu",
+      "Narayanmurtidas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:28:36.639Z",
+    "updatedAt": "2025-08-13T06:28:36.639Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "e8eae377-a215-44da-95eb-cfa54268143e",
+    "flightNumber": "3421",
+    "airline": "Alaska Airlines",
+    "from": "SAN",
+    "to": "FAT",
+    "departureDateTime": "2025-08-31T15:30:00.000Z",
+    "arrivalDateTime": "2025-08-31T16:59:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "d9217d8d-5de3-4afd-ab89-4895d3cf5128"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "3421",
+      "airline": "Alaska Airlines",
+      "from": "SAN",
+      "to": "FAT",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-08-31T15:30:00.000Z",
+      "arrivalDateTime": "2025-08-31T16:59:00.000Z",
+      "departureDate": "2025-08-31",
+      "departureTime": "8:30 AM",
+      "arrivalDate": "2025-08-31",
+      "arrivalTime": "9:59 AM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Exstdivyacharandas Sadhu",
+        "Narayanmurtidas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3421",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Exstdivyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Narayanmurtidas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "3421",
+          "departureAirport": "SAN",
+          "arrivalAirport": "FAT",
+          "departureDate": "2025-08-31",
+          "departureTime": "8:30 AM",
+          "arrivalDate": "2025-08-31",
+          "arrivalTime": "9:59 AM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Exstdivyacharandas Sadhu",
+            "Narayanmurtidas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Exstdivyacharandas Sadhu",
+      "Narayanmurtidas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:29:23.462Z",
+    "updatedAt": "2025-08-13T06:29:23.462Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "1bfd30ab-7bef-4a6a-abb4-c9621df7f90f",
+    "flightNumber": "1066",
+    "airline": "Alaska Airlines",
+    "from": "PDX",
+    "to": "ONT",
+    "departureDateTime": "2025-09-02T04:30:00.000Z",
+    "arrivalDateTime": "2025-09-02T06:54:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1066",
+      "airline": "Alaska Airlines",
+      "from": "PDX",
+      "to": "ONT",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-02T04:30:00.000Z",
+      "arrivalDateTime": "2025-09-02T06:54:00.000Z",
+      "departureDate": "2025-09-01",
+      "departureTime": "9:30 PM",
+      "arrivalDate": "2025-09-01",
+      "arrivalTime": "11:54 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1066",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "1066",
+          "departureAirport": "PDX",
+          "arrivalAirport": "ONT",
+          "departureDate": "2025-09-01",
+          "departureTime": "9:30 PM",
+          "arrivalDate": "2025-09-01",
+          "arrivalTime": "11:54 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:29:41.962Z",
+    "updatedAt": "2025-08-13T06:29:41.962Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "9071d00d-82ea-4901-8a09-4e48dd744ffd",
+    "flightNumber": "6277",
+    "airline": "American Airlines",
+    "from": "TUS",
+    "to": "LAX",
+    "departureDateTime": "2025-09-02T17:31:00.000Z",
+    "arrivalDateTime": "2025-09-02T19:06:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "6277",
+      "airline": "American Airlines",
+      "from": "TUS",
+      "to": "LAX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-02T17:31:00.000Z",
+      "arrivalDateTime": "2025-09-02T19:06:00.000Z",
+      "departureDate": "2025-09-02",
+      "departureTime": "10:31 AM",
+      "arrivalDate": "2025-09-02",
+      "arrivalTime": "12:06 PM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Anandchintandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "6277",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "6277",
+          "departureAirport": "TUS",
+          "arrivalAirport": "LAX",
+          "departureDate": "2025-09-02",
+          "departureTime": "10:31 AM",
+          "arrivalDate": "2025-09-02",
+          "arrivalTime": "12:06 PM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Anandchintandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Anandchintandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:30:25.463Z",
+    "updatedAt": "2025-08-13T06:30:25.463Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "926c796f-2f4b-444f-aeb7-d505cb127d02",
+    "flightNumber": "2198",
+    "airline": "Alaska Airlines",
+    "from": "SAN",
+    "to": "SLC",
+    "departureDateTime": "2025-09-05T23:06:00.000Z",
+    "arrivalDateTime": "2025-09-06T01:11:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2198",
+      "airline": "Alaska Airlines",
+      "from": "SAN",
+      "to": "SLC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-05T23:06:00.000Z",
+      "arrivalDateTime": "2025-09-06T01:11:00.000Z",
+      "departureDate": "2025-09-05",
+      "departureTime": "4:06 PM",
+      "arrivalDate": "2025-09-05",
+      "arrivalTime": "7:11 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2198",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "2198",
+          "departureAirport": "SAN",
+          "arrivalAirport": "SLC",
+          "departureDate": "2025-09-05",
+          "departureTime": "4:06 PM",
+          "arrivalDate": "2025-09-05",
+          "arrivalTime": "7:11 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:31:05.864Z",
+    "updatedAt": "2025-08-13T06:31:05.864Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "7f820283-288a-4bd7-906b-9d1db00cd8c4",
+    "flightNumber": "1142",
+    "airline": "Delta Airlines",
+    "from": "SLC",
+    "to": "LAX",
+    "departureDateTime": "2025-09-07T03:30:00.000Z",
+    "arrivalDateTime": "2025-09-07T05:35:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1142",
+      "airline": "Delta Airlines",
+      "from": "SLC",
+      "to": "LAX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-07T03:30:00.000Z",
+      "arrivalDateTime": "2025-09-07T05:35:00.000Z",
+      "departureDate": "2025-09-06",
+      "departureTime": "9:30 PM",
+      "arrivalDate": "2025-09-06",
+      "arrivalTime": "10:35 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1142",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Delta Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Delta Airlines",
+          "flightNumber": "1142",
+          "departureAirport": "SLC",
+          "arrivalAirport": "LAX",
+          "departureDate": "2025-09-06",
+          "departureTime": "9:30 PM",
+          "arrivalDate": "2025-09-06",
+          "arrivalTime": "10:35 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:31:50.062Z",
+    "updatedAt": "2025-08-13T06:31:50.062Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "aad0f5c1-d4c8-4398-bebb-49782d904752",
+    "flightNumber": "1091",
+    "airline": "Alaska Airlines",
+    "from": "ONT",
+    "to": "SEA",
+    "departureDateTime": "2025-09-07T12:00:00.000Z",
+    "arrivalDateTime": "2025-09-07T12:00:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1091",
+      "airline": "Alaska Airlines",
+      "from": "ONT",
+      "to": "SEA",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-07T12:00:00.000Z",
+      "arrivalDateTime": "2025-09-07T12:00:00.000Z",
+      "departureDate": "2025-09-07",
+      "departureTime": "6:00am",
+      "arrivalDate": "2025-09-07",
+      "arrivalTime": "8:45am",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1091",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "1091",
+          "departureAirport": "ONT",
+          "arrivalAirport": "SEA",
+          "departureDate": "2025-09-07",
+          "departureTime": "6:00am",
+          "arrivalDate": "2025-09-07",
+          "arrivalTime": "8:45am",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:32:02.562Z",
+    "updatedAt": "2025-08-13T06:32:02.562Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "b275cc1b-f974-42ea-aa24-df537be4b7a0",
+    "flightNumber": "430",
+    "airline": "Alaska Airlines",
+    "from": "PDX",
+    "to": "SLC",
+    "departureDateTime": "2025-09-12T14:14:00.000Z",
+    "arrivalDateTime": "2025-09-12T16:19:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "430",
+      "airline": "Alaska Airlines",
+      "from": "PDX",
+      "to": "SLC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-12T14:14:00.000Z",
+      "arrivalDateTime": "2025-09-12T16:19:00.000Z",
+      "departureDate": "2025-09-12",
+      "departureTime": "7:14 AM",
+      "arrivalDate": "2025-09-12",
+      "arrivalTime": "10:19 AM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "430",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "430",
+          "departureAirport": "PDX",
+          "arrivalAirport": "SLC",
+          "departureDate": "2025-09-12",
+          "departureTime": "7:14 AM",
+          "arrivalDate": "2025-09-12",
+          "arrivalTime": "10:19 AM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:32:29.163Z",
+    "updatedAt": "2025-08-13T06:32:29.163Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "3bd94efb-4606-4b7c-90e7-f3f982324311",
+    "flightNumber": "394",
+    "airline": "United Airlines",
+    "from": "SFO",
+    "to": "SLC",
+    "departureDateTime": "2025-09-12T19:56:00.000Z",
+    "arrivalDateTime": "2025-09-12T21:48:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
+      {
+        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      },
+      {
+        "passengerId": "b5074d06-2a42-4342-a1ae-8b1cb70839e3"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "394",
+      "airline": "United Airlines",
+      "from": "SFO",
+      "to": "SLC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-12T19:56:00.000Z",
+      "arrivalDateTime": "2025-09-12T21:48:00.000Z",
+      "departureDate": "2025-09-12",
+      "departureTime": "12:56 PM",
+      "arrivalDate": "2025-09-12",
+      "arrivalTime": "3:48 PM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu",
+        "Exstvrajesh Patel"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "394",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Exstvrajesh Patel",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "United Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "United Airlines",
+          "flightNumber": "394",
+          "departureAirport": "SFO",
+          "arrivalAirport": "SLC",
+          "departureDate": "2025-09-12",
+          "departureTime": "12:56 PM",
+          "arrivalDate": "2025-09-12",
+          "arrivalTime": "3:48 PM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu",
+            "Exstvrajesh Patel"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu",
+      "Exstvrajesh Patel"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:33:08.063Z",
+    "updatedAt": "2025-08-13T06:33:08.063Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "b0664182-d089-4369-bd31-1d09de7aaa87",
+    "flightNumber": "2953",
+    "airline": "American Airlines",
+    "from": "LAS",
+    "to": "PHX",
+    "departureDateTime": "2025-09-13T17:00:00.000Z",
+    "arrivalDateTime": "2025-09-13T18:24:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3"
+      },
+      {
+        "passengerId": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2953",
+      "airline": "American Airlines",
+      "from": "LAS",
+      "to": "PHX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-13T17:00:00.000Z",
+      "arrivalDateTime": "2025-09-13T18:24:00.000Z",
+      "departureDate": "2025-09-13",
+      "departureTime": "10:00 AM",
+      "arrivalDate": "2025-09-13",
+      "arrivalTime": "11:24 AM",
+      "passengerName": "Aksharvandandas Sadhu",
+      "allPassengerNames": [
+        "Aksharvandandas Sadhu",
+        "Anandchintandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2953",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Aksharvandandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandchintandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "2953",
+          "departureAirport": "LAS",
+          "arrivalAirport": "PHX",
+          "departureDate": "2025-09-13",
+          "departureTime": "10:00 AM",
+          "arrivalDate": "2025-09-13",
+          "arrivalTime": "11:24 AM",
+          "passengerNames": [
+            "Aksharvandandas Sadhu",
+            "Anandchintandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Aksharvandandas Sadhu",
+      "Anandchintandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:49:50.406Z",
+    "updatedAt": "2025-08-13T06:49:50.406Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "e3089645-71ef-47f8-9853-04c9c41091b4",
+    "flightNumber": "5736",
+    "airline": "United Airlines",
+    "from": "SLC",
+    "to": "SFO",
+    "departureDateTime": "2025-09-14T13:15:00.000Z",
+    "arrivalDateTime": "2025-09-14T15:42:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
       {
         "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
       }
     ],
-    "dropoffSevakName": "Ravi",
-    "dropoffSevakPhone": "(111)-111-1112",
-    "pickupSevakName": "Jay",
-    "pickupSevakPhone": "(111)-111-1113",
-    "createdBy": "superadmin",
-    "createdByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "updatedBy": "superadmin",
-    "updatedByUserId": "91c3d44f-36fa-4154-8ef3-b61b257b8e04",
-    "createdAt": "2025-08-02T18:05:41.928Z",
-    "updatedAt": "2025-08-02T18:05:41.928Z",
-    "createdByName": "Super Admin",
-    "updatedByName": "Super Admin"
+    "extractedData": {
+      "flightNumber": "5736",
+      "airline": "United Airlines",
+      "from": "SLC",
+      "to": "SFO",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-14T13:15:00.000Z",
+      "arrivalDateTime": "2025-09-14T15:42:00.000Z",
+      "departureDate": "2025-09-14",
+      "departureTime": "7:15 AM",
+      "arrivalDate": "2025-09-14",
+      "arrivalTime": "8:42 AM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "5736",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "United Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "United Airlines",
+          "flightNumber": "5736",
+          "departureAirport": "SLC",
+          "arrivalAirport": "SFO",
+          "departureDate": "2025-09-14",
+          "departureTime": "7:15 AM",
+          "arrivalDate": "2025-09-14",
+          "arrivalTime": "8:42 AM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:50:07.603Z",
+    "updatedAt": "2025-08-13T06:50:07.603Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "9ed44608-5527-4ee4-9aa6-c9c8e27799c2",
+    "flightNumber": "3360",
+    "airline": "Alaska Airlines",
+    "from": "SLC",
+    "to": "PDX",
+    "departureDateTime": "2025-09-14T14:30:00.000Z",
+    "arrivalDateTime": "2025-09-14T16:33:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "3360",
+      "airline": "Alaska Airlines",
+      "from": "SLC",
+      "to": "PDX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-14T14:30:00.000Z",
+      "arrivalDateTime": "2025-09-14T16:33:00.000Z",
+      "departureDate": "2025-09-14",
+      "departureTime": "8:30 AM",
+      "arrivalDate": "2025-09-14",
+      "arrivalTime": "9:33 AM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "3360",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "3360",
+          "departureAirport": "SLC",
+          "arrivalAirport": "PDX",
+          "departureDate": "2025-09-14",
+          "departureTime": "8:30 AM",
+          "arrivalDate": "2025-09-14",
+          "arrivalTime": "9:33 AM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:50:27.199Z",
+    "updatedAt": "2025-08-13T06:50:27.199Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "a6216bce-72d6-497f-b442-9e0dd87551d3",
+    "flightNumber": "2019",
+    "airline": "Alaska Airlines",
+    "from": "PDX",
+    "to": "SMF",
+    "departureDateTime": "2025-09-18T18:59:00.000Z",
+    "arrivalDateTime": "2025-09-18T20:33:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "988c3bef-b477-46b0-8314-4f777fec9911"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "2019",
+      "airline": "Alaska Airlines",
+      "from": "PDX",
+      "to": "SMF",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-18T18:59:00.000Z",
+      "arrivalDateTime": "2025-09-18T20:33:00.000Z",
+      "departureDate": "2025-09-18",
+      "departureTime": "11:59 AM",
+      "arrivalDate": "2025-09-18",
+      "arrivalTime": "1:33 PM",
+      "passengerName": "Paramcharitdas Sadhu",
+      "allPassengerNames": [
+        "Paramcharitdas Sadhu",
+        "Anandmanandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "2019",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Anandmanandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Alaska Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Alaska Airlines",
+          "flightNumber": "2019",
+          "departureAirport": "PDX",
+          "arrivalAirport": "SMF",
+          "departureDate": "2025-09-18",
+          "departureTime": "11:59 AM",
+          "arrivalDate": "2025-09-18",
+          "arrivalTime": "1:33 PM",
+          "passengerNames": [
+            "Paramcharitdas Sadhu",
+            "Anandmanandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Paramcharitdas Sadhu",
+      "Anandmanandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:50:49.863Z",
+    "updatedAt": "2025-08-13T06:50:49.863Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "ef6f2738-e288-4b05-a97e-b8517966e101",
+    "flightNumber": "6449",
+    "airline": "American Airlines",
+    "from": "LAX",
+    "to": "IAH",
+    "departureDateTime": "2025-09-25T18:25:00.000Z",
+    "arrivalDateTime": "2025-09-25T21:54:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "c634b63d-3d85-4ba6-ada4-c239e5c103d3"
+      },
+      {
+        "passengerId": "ba06952d-6e76-4dab-9293-7dd5b9311abf"
+      },
+      {
+        "passengerId": "6751a0e7-6081-4caf-87f3-862114f12bce"
+      },
+      {
+        "passengerId": "2e2ce6d3-883c-4bc1-b1ee-51d5c5a6ea2a"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "6449",
+      "airline": "American Airlines",
+      "from": "LAX",
+      "to": "IAH",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-09-25T18:25:00.000Z",
+      "arrivalDateTime": "2025-09-25T21:54:00.000Z",
+      "departureDate": "2025-09-25",
+      "departureTime": "11:25 AM",
+      "arrivalDate": "2025-09-25",
+      "arrivalTime": "4:54 PM",
+      "passengerName": "Divyacharandas Sadhu",
+      "allPassengerNames": [
+        "Divyacharandas Sadhu",
+        "Paramratnadas Sadhu",
+        "Paramcharitdas Sadhu",
+        "Shantmunidas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "6449",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Divyacharandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramratnadas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Paramcharitdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Shantmunidas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "American Airlines",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "American Airlines",
+          "flightNumber": "6449",
+          "departureAirport": "LAX",
+          "arrivalAirport": "IAH",
+          "departureDate": "2025-09-25",
+          "departureTime": "11:25 AM",
+          "arrivalDate": "2025-09-25",
+          "arrivalTime": "4:54 PM",
+          "passengerNames": [
+            "Divyacharandas Sadhu",
+            "Paramratnadas Sadhu",
+            "Paramcharitdas Sadhu",
+            "Shantmunidas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Divyacharandas Sadhu",
+      "Paramratnadas Sadhu",
+      "Paramcharitdas Sadhu",
+      "Shantmunidas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:51:05.275Z",
+    "updatedAt": "2025-08-13T06:51:05.275Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "13b2abf1-5a09-448e-b295-c0dc438a7657",
+    "flightNumber": "1102",
+    "airline": "Westjet",
+    "from": "YYZ",
+    "to": "LAX",
+    "departureDateTime": "2025-10-03T19:45:00.000Z",
+    "arrivalDateTime": "2025-10-04T05:11:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "06be326c-e022-40cf-bf56-bb0a29e59825"
+      },
+      {
+        "passengerId": "29c11d08-9031-4545-a3ce-65642ca0934c"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "1102",
+      "airline": "Westjet",
+      "from": "YYZ",
+      "to": "LAX",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-10-03T19:45:00.000Z",
+      "arrivalDateTime": "2025-10-04T05:11:00.000Z",
+      "departureDate": "2025-10-03",
+      "departureTime": "7:45 PM",
+      "arrivalDate": "2025-10-03",
+      "arrivalTime": "10:11 PM",
+      "passengerName": "Yogendradas Sadhu",
+      "allPassengerNames": [
+        "Yogendradas Sadhu",
+        "Adarshnayandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "1102",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Yogendradas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Adarshnayandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Westjet",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Westjet",
+          "flightNumber": "1102",
+          "departureAirport": "YYZ",
+          "arrivalAirport": "LAX",
+          "departureDate": "2025-10-03",
+          "departureTime": "7:45 PM",
+          "arrivalDate": "2025-10-03",
+          "arrivalTime": "10:11 PM",
+          "passengerNames": [
+            "Yogendradas Sadhu",
+            "Adarshnayandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Yogendradas Sadhu",
+      "Adarshnayandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:51:22.799Z",
+    "updatedAt": "2025-08-13T06:51:22.799Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "fee734c9-a5bc-487b-a3cf-fc4a0fc81b5f",
+    "flightNumber": "642",
+    "airline": "Southwest",
+    "from": "SJC",
+    "to": "ONT",
+    "departureDateTime": "2025-10-06T04:30:00.000Z",
+    "arrivalDateTime": "2025-10-06T05:45:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
+      {
+        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "642",
+      "airline": "Southwest",
+      "from": "SJC",
+      "to": "ONT",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-10-06T04:30:00.000Z",
+      "arrivalDateTime": "2025-10-06T05:45:00.000Z",
+      "departureDate": "2025-10-05",
+      "departureTime": "9:30 PM",
+      "arrivalDate": "2025-10-05",
+      "arrivalTime": "10:45 PM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "642",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "642",
+          "departureAirport": "SJC",
+          "arrivalAirport": "ONT",
+          "departureDate": "2025-10-05",
+          "departureTime": "9:30 PM",
+          "arrivalDate": "2025-10-05",
+          "arrivalTime": "10:45 PM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:51:47.997Z",
+    "updatedAt": "2025-08-13T06:51:47.997Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "cee33ed3-20f9-4c04-b078-e9e8ca85c3a3",
+    "flightNumber": "4098",
+    "airline": "Southwest",
+    "from": "ONT",
+    "to": "SJC",
+    "departureDateTime": "2025-10-16T00:10:00.000Z",
+    "arrivalDateTime": "2025-10-16T01:25:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
+      {
+        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "4098",
+      "airline": "Southwest",
+      "from": "ONT",
+      "to": "SJC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-10-16T00:10:00.000Z",
+      "arrivalDateTime": "2025-10-16T01:25:00.000Z",
+      "departureDate": "2025-10-15",
+      "departureTime": "5:10 PM",
+      "arrivalDate": "2025-10-15",
+      "arrivalTime": "6:25 PM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "4098",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "4098",
+          "departureAirport": "ONT",
+          "arrivalAirport": "SJC",
+          "departureDate": "2025-10-15",
+          "departureTime": "5:10 PM",
+          "arrivalDate": "2025-10-15",
+          "arrivalTime": "6:25 PM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:52:04.698Z",
+    "updatedAt": "2025-08-13T06:52:04.698Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "45f27ecd-bca8-4666-b5c6-4046e8d300dc",
+    "flightNumber": "642",
+    "airline": "Southwest",
+    "from": "SJC",
+    "to": "ONT",
+    "departureDateTime": "2025-10-20T04:30:00.000Z",
+    "arrivalDateTime": "2025-10-20T05:45:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
+      {
+        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "642",
+      "airline": "Southwest",
+      "from": "SJC",
+      "to": "ONT",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-10-20T04:30:00.000Z",
+      "arrivalDateTime": "2025-10-20T05:45:00.000Z",
+      "departureDate": "2025-10-19",
+      "departureTime": "9:30 PM",
+      "arrivalDate": "2025-10-19",
+      "arrivalTime": "10:45 PM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "642",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "642",
+          "departureAirport": "SJC",
+          "arrivalAirport": "ONT",
+          "departureDate": "2025-10-19",
+          "departureTime": "9:30 PM",
+          "arrivalDate": "2025-10-19",
+          "arrivalTime": "10:45 PM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:52:23.818Z",
+    "updatedAt": "2025-08-13T06:52:23.818Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
+  },
+  {
+    "id": "c75244d5-4685-4468-ad87-3e75b65e4d7c",
+    "flightNumber": "4099",
+    "airline": "Southwest",
+    "from": "ONT",
+    "to": "SJC",
+    "departureDateTime": "2025-10-22T01:30:00.000Z",
+    "arrivalDateTime": "2025-10-22T02:40:00.000Z",
+    "passengers": [
+      {
+        "passengerId": "11adc804-e04e-4af9-8847-9c6d46559471"
+      },
+      {
+        "passengerId": "29a3db04-0fae-424f-b5e5-04d2f7d9d959"
+      }
+    ],
+    "extractedData": {
+      "flightNumber": "4099",
+      "airline": "Southwest",
+      "from": "ONT",
+      "to": "SJC",
+      "fromCity": null,
+      "toCity": null,
+      "departureDateTime": "2025-10-22T01:30:00.000Z",
+      "arrivalDateTime": "2025-10-22T02:40:00.000Z",
+      "departureDate": "2025-10-21",
+      "departureTime": "6:30 PM",
+      "arrivalDate": "2025-10-21",
+      "arrivalTime": "7:40 PM",
+      "passengerName": "Harinivasdas Sadhu",
+      "allPassengerNames": [
+        "Harinivasdas Sadhu",
+        "Vinamrajivandas Sadhu"
+      ],
+      "seatNumbers": [],
+      "confirmationCode": null,
+      "gate": null,
+      "terminal": null,
+      "confidence": {
+        "overall": 0.95,
+        "flightNumber": 0.95,
+        "passengerName": 0.95,
+        "airline": 0.95,
+        "route": 0.95
+      },
+      "parseStrategy": "gemini_ai_enhanced",
+      "allMatches": {
+        "flightNumber": [
+          {
+            "value": "4099",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "passengerName": [
+          {
+            "value": "Harinivasdas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          },
+          {
+            "value": "Vinamrajivandas Sadhu",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ],
+        "airline": [
+          {
+            "value": "Southwest",
+            "confidence": 0.95,
+            "source": "gemini"
+          }
+        ]
+      },
+      "debugInfo": {
+        "rawMatches": {},
+        "aiProvider": "gemini",
+        "geminiRawData": {
+          "airlineName": "Southwest",
+          "flightNumber": "4099",
+          "departureAirport": "ONT",
+          "arrivalAirport": "SJC",
+          "departureDate": "2025-10-21",
+          "departureTime": "6:30 PM",
+          "arrivalDate": "2025-10-21",
+          "arrivalTime": "7:40 PM",
+          "passengerNames": [
+            "Harinivasdas Sadhu",
+            "Vinamrajivandas Sadhu"
+          ],
+          "seatNumber": "missing"
+        }
+      },
+      "ocrFullText": null,
+      "ocrConfidence": null
+    },
+    "processingStatus": "partial",
+    "extractedPassengerNames": [
+      "Harinivasdas Sadhu",
+      "Vinamrajivandas Sadhu"
+    ],
+    "parsingStrategy": "gemini_ai_enhanced",
+    "overallConfidence": 0.95,
+    "createdAt": "2025-08-13T06:52:40.098Z",
+    "updatedAt": "2025-08-13T06:52:40.098Z",
+    "createdBy": "telegram_ticket_processing",
+    "notes": "Auto-created from ticket image using GEMINI processing.",
+    "pickupSevakName": null,
+    "dropoffSevakName": null,
+    "pickupSevakPhone": null,
+    "dropoffSevakPhone": null
   }
 ]

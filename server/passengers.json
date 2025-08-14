@@ -1,20 +1,206 @@
 [
   {
     "id": "29a3db04-0fae-424f-b5e5-04d2f7d9d959",
-    "name": "Vinamrajivan Swami",
+    "name": "Sadhu Vinamrajivandas",
     "telegramChatId": 5109584956,
     "createdAt": "2025-08-02T08:06:39.708Z",
-    "updatedAt": "2025-08-02T08:11:43.136Z",
+    "updatedAt": "2025-08-13T06:33:06.165Z",
     "flightCount": 0,
-    "legalName": "Vrajesh Patel"
+    "legalName": "Vrajesh Patel",
+    "phone": "+18564846699",
+    "extractedNames": [
+      "Vinamrajivandas Sadhu"
+    ]
   },
   {
     "id": "11adc804-e04e-4af9-8847-9c6d46559471",
-    "name": "Harinivas Swami",
+    "name": "Sadhu Harinivasdas",
     "telegramChatId": null,
     "createdAt": "2025-08-02T08:27:25.914Z",
-    "updatedAt": "2025-08-02T08:27:25.914Z",
+    "updatedAt": "2025-08-13T06:33:05.462Z",
     "flightCount": 1,
-    "legalName": "Harinivas Swami"
+    "legalName": "Sadhu Harinivasdas",
+    "phone": "+15104610289",
+    "extractedNames": [
+      "Harinivasdas Sadhu"
+    ]
+  },
+  {
+    "id": "b7e6a4ef-5b2b-45ba-b58b-87cb95a93d59",
+    "name": "Sadhu Anandchintandas",
+    "legalName": "Bhumesh Patel",
+    "phone": "+18564846671",
+    "createdAt": "2025-08-13T01:14:48.781Z",
+    "updatedAt": "2025-08-13T20:27:38.615Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Anandchintandas Sadhu"
+    ],
+    "telegramChatId": 2016593254
+  },
+  {
+    "id": "988c3bef-b477-46b0-8314-4f777fec9911",
+    "name": "Sadhu Anandmanandas",
+    "legalName": "Shyam Patel",
+    "phone": "+18564934907",
+    "createdAt": "2025-08-13T01:15:08.458Z",
+    "updatedAt": "2025-08-13T19:31:32.856Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Anandmanandas Sadhu"
+    ],
+    "telegramChatId": 5327222597
+  },
+  {
+    "id": "e9eb221b-2e91-41d3-b6c7-90b3c6cd1e7c",
+    "name": "Sadhu Akhandananddas",
+    "legalName": "Yogi Patel",
+    "phone": "+18564934905",
+    "createdAt": "2025-08-13T01:15:28.413Z",
+    "updatedAt": "2025-08-13T04:16:49.258Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Akhandananddas Sadhu"
+    ]
+  },
+  {
+    "id": "29c11d08-9031-4545-a3ce-65642ca0934c",
+    "name": "Sadhu Adarshnayandas",
+    "legalName": "Hardik Patel",
+    "phone": "+17325247825",
+    "createdAt": "2025-08-13T01:15:50.835Z",
+    "updatedAt": "2025-08-13T06:51:22.400Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Adarshnayandas Sadhu"
+    ]
+  },
+  {
+    "id": "6a36778c-0e34-47ac-b83a-6f9e2e4489c3",
+    "name": "Sadhu Aksharvandandas",
+    "legalName": "Sadhu Aksharvandandas",
+    "phone": "+19096802437",
+    "createdAt": "2025-08-13T01:16:11.086Z",
+    "updatedAt": "2025-08-13T04:13:15.156Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Aksharvandandas Sadhu"
+    ]
+  },
+  {
+    "id": "4e6bf8ee-d898-4281-9e84-6e45d48eeb67",
+    "name": "Sadhu Manojitdas",
+    "legalName": "Sadhu Manojitdas",
+    "phone": "+16309472701",
+    "createdAt": "2025-08-13T01:16:32.287Z",
+    "updatedAt": "2025-08-13T04:13:14.157Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Manojitdas Sadhu"
+    ]
+  },
+  {
+    "id": "d9217d8d-5de3-4afd-ab89-4895d3cf5128",
+    "name": "Sadhu Narayanmurtidas",
+    "legalName": "Sadhu Narayanmurtidas",
+    "phone": "+17327121571",
+    "createdAt": "2025-08-13T01:16:56.470Z",
+    "updatedAt": "2025-08-13T06:28:36.637Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Narayanmurtidas Sadhu"
+    ]
+  },
+  {
+    "id": "6751a0e7-6081-4caf-87f3-862114f12bce",
+    "name": "Sadhu Paramcharitdas",
+    "legalName": "Sadhu Paramcharitdas",
+    "phone": "+19092470240",
+    "createdAt": "2025-08-13T01:17:15.941Z",
+    "updatedAt": "2025-08-13T04:12:47.657Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Paramcharitdas Sadhu"
+    ]
+  },
+  {
+    "id": "ba06952d-6e76-4dab-9293-7dd5b9311abf",
+    "name": "Sadhu Paramratnadas",
+    "legalName": "Sadhu Paramratnadas",
+    "phone": "+18122250053",
+    "createdAt": "2025-08-13T01:17:32.863Z",
+    "updatedAt": "2025-08-13T06:51:05.268Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Paramratnadas Sadhu"
+    ]
+  },
+  {
+    "id": "2e2ce6d3-883c-4bc1-b1ee-51d5c5a6ea2a",
+    "name": "Sadhu Shantmunidas",
+    "legalName": "Ronak Shelat",
+    "phone": "+12132569469",
+    "createdAt": "2025-08-13T01:17:58.760Z",
+    "updatedAt": "2025-08-13T04:13:11.956Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Shantmunidas Sadhu"
+    ]
+  },
+  {
+    "id": "06be326c-e022-40cf-bf56-bb0a29e59825",
+    "name": "Sadhu Yogendradas",
+    "legalName": "Sadhu Yogendradas",
+    "phone": "+1 (760) 508-2432",
+    "createdAt": "2025-08-13T04:09:16.187Z",
+    "updatedAt": "2025-08-13T06:51:20.898Z",
+    "flightCount": 0,
+    "extractedNames": [
+      "Yogendradas Sadhu"
+    ]
+  },
+  {
+    "id": "c634b63d-3d85-4ba6-ada4-c239e5c103d3",
+    "name": "Sadhu Divyacharandas",
+    "legalName": "Divyacharandas Sadhu",
+    "phone": "+1 (630) 746-9800",
+    "telegramChatId": null,
+    "extractedNames": [
+      "Divyacharandas Sadhu",
+      "Exstdivyacharandas Sadhu"
+    ],
+    "flightCount": 0,
+    "createdAt": "2025-08-13T04:13:08.756Z",
+    "updatedAt": "2025-08-13T06:28:36.635Z",
+    "createdBy": "ticket_processing_auto"
+  },
+  {
+    "id": "962371b0-d46e-4400-9cd7-5f55653cffb5",
+    "name": "Exstparamcharitdas Sadhu",
+    "legalName": "Exstparamcharitdas Sadhu",
+    "phone": null,
+    "telegramChatId": null,
+    "extractedNames": [
+      "Exstparamcharitdas Sadhu"
+    ],
+    "flightCount": 0,
+    "createdAt": "2025-08-13T04:18:29.556Z",
+    "updatedAt": "2025-08-13T04:18:29.556Z",
+    "createdBy": "ticket_processing_auto"
+  },
+  {
+    "id": "b5074d06-2a42-4342-a1ae-8b1cb70839e3",
+    "name": "EXST Patel",
+    "legalName": "EXST Patel",
+    "phone": null,
+    "telegramChatId": null,
+    "extractedNames": [
+      "EXST Patel",
+      "Exstvrajesh Patel"
+    ],
+    "flightCount": 0,
+    "createdAt": "2025-08-13T06:27:05.175Z",
+    "updatedAt": "2025-08-13T06:33:07.063Z",
+    "createdBy": "ticket_processing_auto"
   }
 ]

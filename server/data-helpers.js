@@ -1,36 +1,39 @@
-const { cloudStorage } = require('./cloud-storage-helpers');
+// Google Sheets as primary data storage
+const { googleSheets } = require('./google-sheets-helpers');
 
-// Cloud Storage-based data operations
+console.log('📊 Data Layer: Using Google Sheets as primary storage');
+
+// Google Sheets data operations
 async function readFlights() {
-  return await cloudStorage.readFlights();
+  return await googleSheets.readFlights();
 }
 
 async function writeFlights(flights) {
-  await cloudStorage.writeFlights(flights);
+  return await googleSheets.writeFlights(flights);
 }
 
 async function readUsers() {
-  return await cloudStorage.readUsers();
+  return await googleSheets.readUsers();
 }
 
 async function writeUsers(users) {
-  await cloudStorage.writeUsers(users);
+  return await googleSheets.writeUsers(users);
 }
 
 async function readPassengers() {
-  return await cloudStorage.readPassengers();
+  return await googleSheets.readPassengers();
 }
 
 async function writePassengers(passengers) {
-  await cloudStorage.writePassengers(passengers);
+  return await googleSheets.writePassengers(passengers);
 }
 
 async function readVolunteers() {
-  return await cloudStorage.readVolunteers();
+  return await googleSheets.readVolunteers();
 }
 
 async function writeVolunteers(volunteers) {
-  await cloudStorage.writeVolunteers(volunteers);
+  return await googleSheets.writeVolunteers(volunteers);
 }
 
 /**

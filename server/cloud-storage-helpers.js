@@ -2,6 +2,14 @@ const { Storage } = require('@google-cloud/storage');
 
 class CloudStorageDataManager {
   constructor() {
+    // Initialize Google Cloud Storage with explicit auth setup
+    // Unset any conflicting environment credentials
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS && 
+        process.env.GOOGLE_APPLICATION_CREDENTIALS.includes('gcv-key.json')) {
+      console.log('⚠️  Clearing conflicting GOOGLE_APPLICATION_CREDENTIALS');
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    }
+    
     this.storage = new Storage();
     
     // Use the same bucket naming convention as backup service

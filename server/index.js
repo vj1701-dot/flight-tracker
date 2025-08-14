@@ -10,7 +10,19 @@ const TelegramNotificationService = require('./telegram-bot');
 const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
-const { getFlightsWithResolvedNames, findPassengerByName } = require('./data-helpers');
+const { 
+  getFlightsWithResolvedNames, 
+  findPassengerByName,
+  readFlights,
+  writeFlights,
+  readUsers,
+  writeUsers,
+  readPassengers,
+  writePassengers,
+  readVolunteers,
+  writeVolunteers
+} = require('./data-helpers');
+const { googleSheets } = require('./google-sheets-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -81,69 +93,50 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
 }
 
-async function readFlights() {
+// Storage health check endpoint
+app.get('/api/storage/health', authenticateToken, async (req, res) => {
   try {
-    const data = await fs.readFile(FLIGHTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
+    const isUsingGoogleSheets = process.env.GOOGLE_SHEETS_ID ? true : false;
+    let healthStatus = {
+      primaryStorage: isUsingGoogleSheets ? 'Google Sheets' : 'Cloud Storage',
+      status: 'unknown',
+      details: {}
+    };
+
+    if (isUsingGoogleSheets) {
+      // Check Google Sheets health
+      const sheetsHealth = await googleSheets.healthCheck();
+      healthStatus.status = sheetsHealth.status;
+      healthStatus.details = {
+        spreadsheetTitle: sheetsHealth.spreadsheetTitle,
+        sheetCount: sheetsHealth.sheetCount,
+        lastAccess: sheetsHealth.lastAccess
+      };
+    } else {
+      // Check Cloud Storage health by reading a small amount of data
+      try {
+        const flights = await readFlights();
+        healthStatus.status = 'healthy';
+        healthStatus.details = {
+          flightCount: flights.length,
+          lastAccess: new Date().toISOString()
+        };
+      } catch (error) {
+        healthStatus.status = 'error';
+        healthStatus.details = { error: error.message };
+      }
     }
-    throw error;
-  }
-}
 
-async function writeFlights(flights) {
-  await fs.writeFile(FLIGHTS_FILE, JSON.stringify(flights, null, 2));
-}
-
-async function readUsers() {
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf8');
-    return JSON.parse(data);
+    res.json(healthStatus);
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
+    res.status(500).json({ 
+      error: 'Failed to check storage health',
+      details: error.message 
+    });
   }
-}
+});
 
-async function writeUsers(users) {
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-async function readPassengers() {
-  try {
-    const data = await fs.readFile(PASSENGERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writePassengers(passengers) {
-  await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
-}
-
-async function readVolunteers() {
-  try {
-    const data = await fs.readFile(VOLUNTEERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writeVolunteers(volunteers) {
-  await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
-}
+// All data operations now handled by data-helpers.js with Google Sheets/Cloud Storage integration
 
 async function addOrUpdatePassenger(name, telegramChatId = null) {
   try {

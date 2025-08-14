@@ -35,5 +35,59 @@
     "allowedAirports": [],
     "createdAt": "2025-08-02T07:08:56.580Z",
     "updatedAt": "2025-08-02T07:08:56.580Z"
+  },
+  {
+    "id": "08c6bb7e-1470-4858-8299-0eeb7ff6ae6b",
+    "username": "vj1701",
+    "name": "Vinamrajivan Swami",
+    "password": "$2b$10$2QlbZkcH3I/462tvf0Pzme.qwpovh6kCtKiXp/rmWqpIKESCRh1z6",
+    "role": "superadmin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-13T01:18:35.819Z",
+    "updatedAt": "2025-08-13T01:18:35.819Z"
+  },
+  {
+    "id": "a3887a35-49bb-46e7-8a5c-fb39cb0f5c5e",
+    "username": "sm0301",
+    "name": "Shantmuni Swami",
+    "password": "$2b$10$sXr2aUHNg7Z9ENrW/TFwjOOGetn7ZAeJLsu0bS39XHw1DEcI9nZrK",
+    "role": "superadmin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-13T01:20:02.281Z",
+    "updatedAt": "2025-08-13T01:20:02.281Z"
+  },
+  {
+    "id": "57301673-6bba-4245-846a-62a4d6740def",
+    "username": "am1701",
+    "name": "Anandmanan Swami",
+    "password": "$2b$10$2.Vln8lWRKhVoQ3iiWD4wOJfU04BhseB/5QvN8Sxz1Txx3r/HfrDS",
+    "role": "superadmin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-13T06:16:27.350Z",
+    "updatedAt": "2025-08-13T06:16:27.350Z"
+  },
+  {
+    "id": "4558b8ce-7f45-46ef-b375-5d60cb376d18",
+    "username": "chiragsj",
+    "name": "Chirag Patel SJ",
+    "password": "$2b$10$TdoyrwUk9IRLoSUeUq2AfOCTBaLX5srZizCw5GT/A0DeOCUonZ/DK",
+    "role": "user",
+    "allowedAirports": [
+      "SJC",
+      "SFO",
+      "OAK"
+    ],
+    "createdAt": "2025-08-13T06:57:50.683Z",
+    "updatedAt": "2025-08-13T06:58:42.101Z"
+  },
+  {
+    "id": "371fbacb-da50-4ba8-8b26-cca814e2c224",
+    "username": "dc9801",
+    "name": "Divyacharan Swami",
+    "password": "$2b$10$5z0TDpOahMazHei6ay5AquPBG/ZPFchmg.D0lc6ZBIR6Pfk2RTcz2",
+    "role": "superadmin",
+    "allowedAirports": [],
+    "createdAt": "2025-08-13T18:29:23.693Z",
+    "updatedAt": "2025-08-13T18:29:23.693Z"
   }
 ]
