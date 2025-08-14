@@ -95,15 +95,32 @@ async function getFlightsWithResolvedNames(flights = null) {
   }
   
   const passengers = await readPassengers();
+  console.log(`🔍 getFlightsWithResolvedNames: Processing ${flights.length} flights, ${passengers.length} passengers`);
+  
+  // Log first flight structure for debugging
+  if (flights.length > 0) {
+    console.log(`📊 Sample flight structure:`, JSON.stringify({
+      id: flights[0].id,
+      flightNumber: flights[0].flightNumber,
+      passengerIds: flights[0].passengerIds,
+      passengers: flights[0].passengers,
+      hasPassengerIds: !!flights[0].passengerIds,
+      hasPassengers: !!flights[0].passengers,
+      passengerIdsType: typeof flights[0].passengerIds,
+      passengerIdsIsArray: Array.isArray(flights[0].passengerIds)
+    }, null, 2));
+  }
   
   // Resolve passenger names for each flight
   const resolvedFlights = await Promise.all(
     flights.map(async (flight) => {
       // Handle Google Sheets format with passengerIds array
       if (flight.passengerIds && Array.isArray(flight.passengerIds)) {
+        console.log(`✈️ Flight ${flight.flightNumber}: Converting ${flight.passengerIds.length} passengerIds:`, flight.passengerIds);
         // Convert passengerIds to passenger objects format
         const flightPassengers = flight.passengerIds.map(passengerId => ({ passengerId }));
         const resolvedPassengers = await resolveFlightPassengerNames(flightPassengers, passengers);
+        console.log(`✅ Flight ${flight.flightNumber}: Resolved to ${resolvedPassengers.length} passengers:`, resolvedPassengers.map(p => p.name));
         return {
           ...flight,
           passengers: resolvedPassengers
