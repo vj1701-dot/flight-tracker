@@ -178,3 +178,6 @@ deployment-info.txt
 # Temporary files
 *.tmp
 *.temp
+
+# Python virtual environment
+vjenv/
