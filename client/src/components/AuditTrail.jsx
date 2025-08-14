@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Plane, Calendar, Clock, User, Edit, Eye, ArrowLeft, Archive, UpcomingFlights } from 'lucide-react'
+import { Search, Plane, Calendar, Clock, User, Edit, Eye, ArrowLeft, Archive, PlaneTakeoff } from 'lucide-react'
+import { formatAirportDisplay } from '../utils'
 
 const API_BASE = '/api'
 
@@ -473,7 +474,7 @@ export default function AuditTrail() {
                         color: '#6b7280',
                         marginBottom: '0.5rem'
                       }}>
-                        {flight.from} → {flight.to}
+                        {formatAirportDisplay(flight.from)} → {formatAirportDisplay(flight.to)}
                       </div>
                       <div style={{ 
                         fontSize: '0.8125rem', 

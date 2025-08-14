@@ -143,30 +143,37 @@ function Dashboard() {
 
   // Filter for upcoming flights only (future flights)
   const now = new Date()
-  const upcomingFlights = flights.filter(flight => {
+  const upcomingFlights = (flights || []).filter(flight => {
+    if (!flight || !flight.departureDateTime) return false;
     const departureTime = new Date(flight.departureDateTime)
-    return departureTime >= now
+    return !isNaN(departureTime.getTime()) && departureTime >= now
   })
 
   const filteredFlights = upcomingFlights.filter(flight => {
+    if (!flight || typeof flight !== 'object') return false;
+    
     const matchesLocation = !filters.location || 
-      flight.from.toLowerCase().includes(filters.location.toLowerCase()) ||
-      flight.to.toLowerCase().includes(filters.location.toLowerCase())
+      (flight.from && flight.from.toLowerCase().includes(filters.location.toLowerCase())) ||
+      (flight.to && flight.to.toLowerCase().includes(filters.location.toLowerCase()))
     
     const matchesPassengerName = !filters.passengerName ||
-      flight.passengers?.some(passenger => 
-        passenger.name.toLowerCase().includes(filters.passengerName.toLowerCase())
-      )
+      (flight.passengers && Array.isArray(flight.passengers) && flight.passengers.some(passenger => 
+        passenger && passenger.name && passenger.name.toLowerCase().includes(filters.passengerName.toLowerCase())
+      ))
     
-    const departureDate = new Date(flight.departureDateTime).toDateString()
-    const matchesDateFrom = !filters.dateFrom ||
+    const departureDate = flight.departureDateTime ? new Date(flight.departureDateTime).toDateString() : null
+    const matchesDateFrom = !filters.dateFrom || !departureDate ||
       new Date(departureDate) >= new Date(filters.dateFrom)
     
-    const matchesDateTo = !filters.dateTo ||
+    const matchesDateTo = !filters.dateTo || !departureDate ||
       new Date(departureDate) <= new Date(filters.dateTo)
     
     return matchesLocation && matchesPassengerName && matchesDateFrom && matchesDateTo
-  }).sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime))
+  }).sort((a, b) => {
+    const dateA = a && a.departureDateTime ? new Date(a.departureDateTime) : new Date(0);
+    const dateB = b && b.departureDateTime ? new Date(b.departureDateTime) : new Date(0);
+    return dateA - dateB;
+  })
 
   if (loading) {
     return (

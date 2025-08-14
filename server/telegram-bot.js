@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs').promises;
 const path = require('path');
-const { readUsers, writeUsers, readFlights, readPassengers, writePassengers } = require('./data-helpers');
+const { readUsers, writeUsers, readFlights, readPassengers, writePassengers, findPassengerByName } = require('./data-helpers');
 const FlightInfoService = require('./flight-info-service');
 const TimezoneService = require('./timezone-service');
 const { processFlightTicket } = require('./flight-processing-service');
@@ -19,6 +19,7 @@ class TelegramNotificationService {
   constructor() {
     // Track registration states for multi-step registration
     this.registrationStates = new Map();
+    this.registrationStatesFile = path.join(__dirname, 'registration-states.json');
     
     if (!BOT_TOKEN) {
       console.log('⚠️  Telegram bot token not configured. Set TELEGRAM_BOT_TOKEN environment variable.');
@@ -50,6 +51,7 @@ class TelegramNotificationService {
     }
     
     this.loadProcessedMessages();
+    this.loadRegistrationStates();
     this.setupCommands();
     this.setupErrorHandling();
   }
@@ -71,7 +73,7 @@ class TelegramNotificationService {
       const data = await fs.readFile(this.processedMessagesFile, 'utf8');
       const messages = JSON.parse(data);
       this.processedMessages = new Set(messages);
-      console.log(`Loaded ${this.processedMessages.size} processed messages from storage`);
+      console.log(`Loaded ${this.processedMessages.size} processed messages from local file`);
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
       this.processedMessages = new Set();
@@ -86,6 +88,39 @@ class TelegramNotificationService {
     } catch (error) {
       console.error('Error saving processed messages:', error);
     }
+  }
+
+  async loadRegistrationStates() {
+    try {
+      const data = await fs.readFile(this.registrationStatesFile, 'utf8');
+      const states = JSON.parse(data);
+      this.registrationStates = new Map(Object.entries(states));
+      console.log(`Loaded ${this.registrationStates.size} registration states from local file`);
+    } catch (error) {
+      // File doesn't exist or is invalid, start fresh
+      this.registrationStates = new Map();
+      console.log('Starting with fresh registration states cache');
+    }
+  }
+
+  async saveRegistrationStates() {
+    try {
+      const states = Object.fromEntries(this.registrationStates);
+      await fs.writeFile(this.registrationStatesFile, JSON.stringify(states, null, 2));
+    } catch (error) {
+      console.error('Error saving registration states:', error);
+    }
+  }
+
+  // Helper methods to automatically save when modifying registration states
+  async setRegistrationState(chatId, state) {
+    this.registrationStates.set(chatId, state);
+    await this.saveRegistrationStates();
+  }
+
+  async deleteRegistrationState(chatId) {
+    this.registrationStates.delete(chatId);
+    await this.saveRegistrationStates();
   }
 
   async isMessageProcessed(msg) {
@@ -230,6 +265,549 @@ class TelegramNotificationService {
     }
   }
 
+  // Handler functions for manual command processing in webhook mode
+  async handleHelpCommand(chatId) {
+    const helpMessage = 
+      `Jai Swaminarayan 🙏\n\n` +
+      `🤖 West Sant Transportation Bot\n\n` +
+      `Registration Commands:\n` +
+      `• /start - Start registration process\n` +
+      `• /register_volunteer - Register as Volunteer\n` +
+      `• /register_passenger - Register as Passenger\n` +
+      `• /register_user - Register as Dashboard User\n\n` +
+      `Flight Commands:\n` +
+      `• /flights - View your assigned flights (Volunteers)\n` +
+      `• /myflights - View your passenger flights\n` +
+      `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
+      `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
+      `• /help - Show this help menu\n\n` +
+      `Features:\n` +
+      `✈️ Flight details and passenger information\n` +
+      `🚨 Automatic delay alerts (for flights in our system)\n` +
+      `🕐 Real-time notifications for changes\n\n` +
+      `Notifications:\n` +
+      `🔔 Flight confirmations (Passengers)\n` +
+      `🔔 24-hour check-in reminders (Passengers)\n` +
+      `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
+      `🔔 Pickup: 6-hour & 1-hour reminders (Volunteers)\n` +
+      `🔔 Flight changes or delays (All)\n` +
+      `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
+      `Need help? Contact your administrator.`;
+
+    await this.bot.sendMessage(chatId, helpMessage);
+  }
+
+  async handleStartCommand(chatId) {
+    try {
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `Welcome to the West Sant Transportation Bot!\n\n` +
+        `Please choose your registration type:\n` +
+        `• /register_volunteer - If you help with transportation\n` +
+        `• /register_passenger - If you are a passenger\n` +
+        `• /register_user - If you need dashboard access\n\n` +
+        `Type /help for more commands.`
+      );
+    } catch (error) {
+      console.error('Start command error:', error);
+    }
+  }
+
+  async handleUpcomingFlightsCommand(chatId) {
+    try {
+      const users = await readUsers();
+      const user = users.find(u => u.telegramChatId === chatId);
+
+      if (!user) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered as a dashboard user. Please send /start to register first.`
+        );
+        return;
+      }
+
+      // Check user's allowed airports
+      if (!user.allowedAirports || user.allowedAirports.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `📍 Your Airport Access\n\n` +
+          `You don't have any airports assigned yet.\n\n` +
+          `Contact your administrator to get airport access permissions.`
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const passengers = await readPassengers();
+      const now = new Date();
+      
+      // Get upcoming flights for user's airports (next 7 days)
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const upcomingFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now && 
+               departureTime <= oneWeekFromNow &&
+               (user.allowedAirports.includes(flight.from) || 
+                user.allowedAirports.includes(flight.to));
+      });
+
+      if (upcomingFlights.length === 0) {
+        const airportList = user.allowedAirports.map(code => this.formatAirportDisplay(code)).join(', ');
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `📍 Your Airports\n${airportList}\n\n` +
+          `✈️ Upcoming Flights (Next 7 Days)\n\n` +
+          `No upcoming flights found for your assigned airports.\n\n` +
+          `Flights will appear here when scheduled for your airport locations.`,
+        );
+        return;
+      }
+
+      // Sort flights by departure time
+      upcomingFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      let flightList = `Jai Swaminarayan 🙏\n\n📍 Upcoming Flights at Your Airports\n`;
+      flightList += `${user.allowedAirports.map(code => this.formatAirportDisplay(code)).join(', ')}\n\n`;
+      
+      for (let i = 0; i < upcomingFlights.length; i++) {
+        const flight = upcomingFlights[i];
+        
+        flightList += `Flight ${i + 1} of ${upcomingFlights.length}\n`;
+        flightList += `✈️ ${flight.airline} ${flight.flightNumber}\n\n`;
+        
+        // Route Information with timezone
+        flightList += `🛫 Departure\n`;
+        flightList += `${this.formatAirportDisplay(flight.from)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
+        if (user.allowedAirports.includes(flight.from)) {
+          flightList += `📍 Your Airport ⭐\n`;
+        }
+        flightList += `\n`;
+        
+        flightList += `🛬 Arrival\n`;
+        flightList += `${this.formatAirportDisplay(flight.to)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n`;
+        if (user.allowedAirports.includes(flight.to)) {
+          flightList += `📍 Your Airport ⭐\n`;
+        }
+        flightList += `\n`;
+        
+        // Passengers
+        if (flight.passengers?.length > 0) {
+          const passengerNames = [];
+          for (const p of flight.passengers) {
+            if (p.name) {
+              passengerNames.push(p.name);
+            } else if (p.passengerId) {
+              const passenger = passengers.find(passenger => passenger.id === p.passengerId);
+              if (passenger) {
+                passengerNames.push(passenger.name);
+              } else {
+                passengerNames.push('Unknown Passenger');
+              }
+            }
+          }
+          flightList += `👥 Passengers (${passengerNames.length})\n`;
+          flightList += `${passengerNames.join(', ')}\n\n`;
+        }
+        
+        // Transportation
+        if (flight.pickupSevakName || flight.dropoffSevakName) {
+          flightList += `🚗 Transportation\n`;
+          if (flight.pickupSevakName) {
+            flightList += `Pickup: ${flight.pickupSevakName}`;
+            if (flight.pickupSevakPhone) {
+              flightList += ` • ${flight.pickupSevakPhone}`;
+            }
+            flightList += `\n`;
+          }
+          if (flight.dropoffSevakName) {
+            flightList += `Dropoff: ${flight.dropoffSevakName}`;
+            if (flight.dropoffSevakPhone) {
+              flightList += ` • ${flight.dropoffSevakPhone}`;
+            }
+            flightList += `\n`;
+          }
+          flightList += `\n`;
+        }
+        
+        // Notes
+        if (flight.notes && flight.notes.trim()) {
+          flightList += `📝 Notes\n${flight.notes}\n\n`;
+        }
+        
+        // Add separator between flights
+        if (i < upcomingFlights.length - 1) {
+          flightList += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        }
+      }
+      
+      flightList += `\n💡 Your airport assignments can be updated by your administrator.`;
+
+      await this.bot.sendMessage(chatId, flightList);
+    } catch (error) {
+      console.error('UpcomingFlights command error:', error);
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving upcoming flights. Please try again or contact support if the issue persists.`
+      );
+    }
+  }
+
+  async handleFlightsCommand(chatId) {
+    try {
+      const users = await readUsers();
+      const user = users.find(u => u.telegramChatId === chatId);
+
+      if (!user) {
+        // Check if they're registered as a passenger instead
+        const passengers = await readPassengers();
+        const passenger = passengers.find(p => p.telegramChatId === chatId);
+        
+        if (passenger) {
+          await this.bot.sendMessage(chatId, 
+            `Jai Swaminarayan 🙏\n\n` +
+            `ℹ️ You're registered as a passenger. For your flights, please use:\n\n` +
+            `/myflights - View your passenger flights\n\n` +
+            `The /flights command is for volunteers only.`
+          );
+          return;
+        }
+        
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered. Please send /start to register first.`
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const passengers = await readPassengers();
+      const now = new Date();
+      const userFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now &&
+               (flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase()) ||
+                flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase()));
+      });
+
+      if (userFlights.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✈️ Your Flight Assignments\n\n` +
+          `No upcoming flight assignments found.\n\n` +
+          `Your transportation duties will appear here once assigned by your coordinator.`,
+        );
+        return;
+      }
+
+      // Sort flights by departure time
+      userFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      let flightList = `Jai Swaminarayan 🙏\n\n🚗 Your Transportation Assignments\n\n`;
+      
+      for (let i = 0; i < userFlights.length; i++) {
+        const flight = userFlights[i];
+        
+        flightList += `Assignment ${i + 1} of ${userFlights.length}\n`;
+        flightList += `✈️ ${flight.airline} ${flight.flightNumber}\n\n`;
+        
+        // Route Information with timezone
+        flightList += `🛫 Departure\n`;
+        flightList += `${this.formatAirportDisplay(flight.from)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
+        
+        flightList += `🛬 Arrival\n`;
+        flightList += `${this.formatAirportDisplay(flight.to)}\n`;
+        flightList += `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
+        
+        // Assignment Details
+        const isPickupAssignment = flight.pickupSevakName?.toLowerCase().includes(user.name.toLowerCase());
+        const isDropoffAssignment = flight.dropoffSevakName?.toLowerCase().includes(user.name.toLowerCase());
+        
+        flightList += `🎯 Your Responsibility\n`;
+        if (isPickupAssignment && isDropoffAssignment) {
+          flightList += `Both Pickup & Dropoff\n\n`;
+        } else if (isPickupAssignment) {
+          flightList += `Pickup Service\n\n`;
+        } else if (isDropoffAssignment) {
+          flightList += `Dropoff Service\n\n`;
+        }
+        
+        // Passengers
+        if (flight.passengers?.length > 0) {
+          const passengerNames = [];
+          for (const p of flight.passengers) {
+            if (p.name) {
+              passengerNames.push(p.name);
+            } else if (p.passengerId) {
+              const passenger = passengers.find(passenger => passenger.id === p.passengerId);
+              if (passenger) {
+                passengerNames.push(passenger.name);
+              } else {
+                passengerNames.push('Unknown Passenger');
+              }
+            }
+          }
+          flightList += `👥 Passengers (${passengerNames.length})\n`;
+          flightList += `${passengerNames.join(', ')}\n\n`;
+        }
+        
+        // Contact Information
+        if (isPickupAssignment && flight.pickupSevakPhone) {
+          flightList += `📞 Your Contact\n${flight.pickupSevakPhone}\n\n`;
+        } else if (isDropoffAssignment && flight.dropoffSevakPhone) {
+          flightList += `📞 Your Contact\n${flight.dropoffSevakPhone}\n\n`;
+        }
+        
+        // Notes
+        if (flight.notes && flight.notes.trim()) {
+          flightList += `📝 Special Notes\n${flight.notes}\n\n`;
+        }
+        
+        // Add separator between flights
+        if (i < userFlights.length - 1) {
+          flightList += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        }
+      }
+      
+      flightList += `\n💡 Need help? Contact your transportation coordinator for assistance.`;
+
+      await this.bot.sendMessage(chatId, flightList);
+    } catch (error) {
+      console.error('Flights command error:', error);
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving your flight assignments. Please try again or contact support if the issue persists.`
+      );
+    }
+  }
+
+  async handleMyFlightsCommand(chatId) {
+    try {
+      const passengers = await readPassengers();
+      const passenger = passengers.find(p => p.telegramChatId === chatId);
+
+      if (!passenger) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `❌ You're not registered as a passenger. Please send /start to register first.`
+        );
+        return;
+      }
+
+      const flights = await readFlights();
+      const now = new Date();
+      const passengerFlights = flights.filter(flight => {
+        const departureTime = new Date(flight.departureDateTime);
+        return departureTime > now &&
+               flight.passengers?.some(p => {
+                 // Handle new passengerId format
+                 if (p.passengerId === passenger.id) {
+                   return true;
+                 }
+                 // Handle old name format for backward compatibility
+                 if (p.name?.toLowerCase().includes(passenger.name.toLowerCase())) {
+                   return true;
+                 }
+                 return false;
+               });
+      });
+
+      if (passengerFlights.length === 0) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✈️ Your Upcoming Flights\n\n` +
+          `No upcoming flights scheduled.\n\n` +
+          `Your flight details will appear here once added to the system by your coordinator.`,
+        );
+        return;
+      }
+
+      // Sort flights by departure time
+      passengerFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+      // Show first flight with navigation buttons
+      await this.showFlightWithNavigation(chatId, passengerFlights, 0, passenger.name, passengers);
+    } catch (error) {
+      console.error('MyFlights command error:', error);
+      await this.bot.sendMessage(chatId, 
+        `❌ Error retrieving your flight information. Please try again or contact support if the issue persists.`
+      );
+    }
+  }
+
+  async handleFlightInfoCommand(chatId, match) {
+    const params = match[1].trim().split(' ');
+
+    if (params.length < 2) {
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `❌ Invalid format. Please use:\n` +
+        `/flightinfo FLIGHT_NUMBER DATE\n\n` +
+        `Example: /flightinfo UA100 2024-12-01`
+      );
+      return;
+    }
+
+    const flightNumber = params[0].toUpperCase();
+    const flightDate = params[1];
+
+    try {
+      await this.bot.sendMessage(chatId,
+        `🔍 Looking up flight ${flightNumber} for ${flightDate}...\n\n` +
+        `Please wait while I fetch the flight information.`
+      );
+
+      const flightInfo = await this.flightInfoService.getFlightInfo(flightNumber, flightDate);
+      
+      if (flightInfo && flightInfo.success) {
+        const info = flightInfo.data;
+        let message = `✈️ Flight Information\n\n`;
+        message += `🛫 ${info.airline} ${info.flightNumber}\n`;
+        message += `📍 ${info.departure.airport} (${info.departure.code}) → ${info.arrival.airport} (${info.arrival.code})\n\n`;
+        
+        message += `🕐 Scheduled Departure:\n`;
+        message += `${info.departure.scheduled}\n\n`;
+        
+        message += `🛬 Scheduled Arrival:\n`;
+        message += `${info.arrival.scheduled}\n\n`;
+        
+        if (info.status) {
+          message += `📊 Status: ${info.status}\n\n`;
+        }
+        
+        if (info.departure.actual) {
+          message += `✅ Actual Departure:\n${info.departure.actual}\n\n`;
+        }
+        
+        if (info.arrival.actual) {
+          message += `✅ Actual Arrival:\n${info.arrival.actual}\n\n`;
+        }
+        
+        if (info.gate) {
+          message += `🚪 Gate: ${info.gate}\n`;
+        }
+        
+        if (info.terminal) {
+          message += `🏢 Terminal: ${info.terminal}\n`;
+        }
+
+        await this.bot.sendMessage(chatId, message);
+      } else {
+        await this.bot.sendMessage(chatId,
+          `❌ Could not find flight information for ${flightNumber} on ${flightDate}.\n\n` +
+          `Please check:\n` +
+          `• Flight number spelling\n` +
+          `• Date format (YYYY-MM-DD)\n` +
+          `• Flight operates on this date`
+        );
+      }
+    } catch (error) {
+      console.error('FlightInfo command error:', error);
+      await this.bot.sendMessage(chatId,
+        `❌ Error looking up flight information. Please try again later.`
+      );
+    }
+  }
+
+  async handleRegisterVolunteerCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasVolunteerRole = existingRoles.find(r => r.type === 'user');
+      
+      if (hasVolunteerRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a volunteer!\n\n` +
+          `Use /help to see available commands.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `🚗 Volunteer Registration\n\n` +
+        `Please enter your full name as it appears in the system:`,
+      );
+      
+      // Set registration state
+      await this.setRegistrationState(chatId, { 
+        type: 'volunteer', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register volunteer command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
+  async handleRegisterPassengerCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasPassengerRole = existingRoles.find(r => r.type === 'passenger');
+      
+      if (hasPassengerRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a passenger!\n\n` +
+          `Use /help to see available commands.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `✈️ Passenger Registration\n\n` +
+        `Please enter your full name as it appears on your travel documents:`,
+      );
+      
+      // Set registration state
+      await this.setRegistrationState(chatId, { 
+        type: 'passenger', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register passenger command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
+  async handleRegisterUserCommand(chatId) {
+    try {
+      // Check if user already has any roles
+      const existingRoles = await this.checkExistingRoles(chatId);
+      const hasUserRole = existingRoles.find(r => r.type === 'user');
+      
+      if (hasUserRole) {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ You're already registered as a dashboard user!\n\n` +
+          `Use /help to see available commands.`
+        );
+        return;
+      }
+
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `📊 Dashboard User Registration\n\n` +
+        `Please enter your full name as it appears in the system:`,
+      );
+      
+      // Set registration state
+      await this.setRegistrationState(chatId, { 
+        type: 'user', 
+        step: 'waiting_name',
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Register user command error:', error);
+      await this.bot.sendMessage(chatId, '❌ Error starting registration. Please try again.');
+    }
+  }
+
   setupCommands() {
     if (!this.bot) return;
 
@@ -244,17 +822,16 @@ class TelegramNotificationService {
           `Jai Swaminarayan 🙏\n\n` +
           `👋 Welcome to West Sant Transportation!\n\n` +
           `Choose your registration type:\n\n` +
-          `🚗 **For Volunteers (Pickup/Dropoff volunteers):**\n` +
+          `🚗 For Volunteers (Pickup/Dropoff volunteers):\n` +
           `Send: /register_volunteer\n\n` +
-          `✈️ **For Passengers:**\n` +
+          `✈️ For Passengers:\n` +
           `Send: /register_passenger\n\n` +
-          `👤 **For Dashboard Users (Admin/User access holders):**\n` +
+          `👤 For Dashboard Users (Admin/User access holders):\n` +
           `Send: /register_user\n\n` +
           `Example:\n` +
           `/register_volunteer\n` +
           `/register_passenger\n` +
           `/register_user`, 
-          { parse_mode: 'Markdown' }
         );
       } catch (error) {
         console.error('Error sending start message:', error);
@@ -269,7 +846,7 @@ class TelegramNotificationService {
 
       try {
         // Start registration flow
-        this.registrationStates.set(chatId, {
+        await this.setRegistrationState(chatId, {
           type: 'volunteer_new',
           step: 'full_name',
           data: {}
@@ -278,10 +855,9 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ Welcome to West Sant Transportation volunteer registration!\n\n` +
-          `📝 Please enter your *Full Name* in First Name & Last Name format.\n\n` +
+          `📝 Please enter your Full Name in First Name & Last Name format.\n\n` +
           `Example: John Smith\n\n` +
           `Enter your full name:`,
-          { parse_mode: 'Markdown' }
         );
 
       } catch (error) {
@@ -302,7 +878,23 @@ class TelegramNotificationService {
         `Jai Swaminarayan 🙏\n\n` +
         `ℹ️ The \`/register_sevak\` command has been renamed to \`/register_volunteer\`.\n\n` +
         `Please use: \`/register_volunteer ${match[1].trim()}\``, 
-        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // Handle passenger registration with arguments (guide to proper usage)
+    this.bot.onText(/\/register_passenger (.+)/, async (msg, match) => {
+      if (await this.isMessageProcessed(msg)) return;
+      
+      const chatId = msg.chat.id;
+      const providedName = match[1].trim();
+      
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `ℹ️ I see you're trying to register with the name "${providedName}".\n\n` +
+        `Please use the interactive registration flow instead:\n\n` +
+        `1. Send: /register_passenger\n` +
+        `2. Follow the step-by-step prompts\n\n` +
+        `This ensures your registration is completed properly.`, 
       );
     });
 
@@ -321,14 +913,12 @@ class TelegramNotificationService {
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
             `✅ You're already registered as a passenger!\n\n` +
-            `👤 **Name:** ${hasPassengerRole.data.name}\n` +
-            `📄 **Legal Name:** ${hasPassengerRole.data.legalName}\n\n` +
+            `👤 Name: ${hasPassengerRole.data.name}\n\n` +
             `You'll receive notifications for:\n` +
             `🔔 Flight updates\n` +
             `🔔 Pickup/dropoff information\n` +
             `🔔 Important announcements\n\n` +
             `Use /status to see all your roles.`,
-            { parse_mode: 'Markdown' }
           );
           return;
         }
@@ -349,7 +939,8 @@ class TelegramNotificationService {
         }
 
         // Start registration flow
-        this.registrationStates.set(chatId, {
+        console.log(`Starting passenger registration for chatId ${chatId}`);
+        await this.setRegistrationState(chatId, {
           type: 'passenger_new',
           step: 'full_name',
           data: { existingRoles }
@@ -358,10 +949,13 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ Welcome to West Sant Transportation passenger registration!\n\n` +
-          `📝 Please enter your *Full Name* in First Name & Last Name format.\n\n` +
-          `Example: John Smith\n\n` +
-          `Enter your full name:`,
-          { parse_mode: 'Markdown' }
+          `📝 Please enter your Full Name exactly as it appears in the system.\n\n` +
+          `Format: First Name Last Name\n` +
+          `Example: Sadhu Keshavjivandas\n\n` +
+          `💡 Instructions:\n` +
+          `1. Send: /register_passenger\n` +
+          `2. Enter your full name when prompted\n\n` +
+          `Enter your full name now:`,
         );
 
       } catch (error) {
@@ -381,7 +975,7 @@ class TelegramNotificationService {
 
       try {
         // Start registration flow
-        this.registrationStates.set(chatId, {
+        await this.setRegistrationState(chatId, {
           type: 'user_new',
           step: 'username',
           data: {}
@@ -390,10 +984,9 @@ class TelegramNotificationService {
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `✅ Welcome to West Sant Transportation dashboard user registration!\n\n` +
-          `📝 Please enter your *dashboard username*.\n\n` +
+          `📝 Please enter your dashboard username.\n\n` +
           `This should be the username you use to login to the dashboard.\n\n` +
           `Enter your username:`,
-          { parse_mode: 'Markdown' }
         );
 
       } catch (error) {
@@ -416,6 +1009,20 @@ class TelegramNotificationService {
         const user = users.find(u => u.telegramChatId === chatId);
 
         if (!user) {
+          // Check if they're registered as a passenger instead
+          const passengers = await readPassengers();
+          const passenger = passengers.find(p => p.telegramChatId === chatId);
+          
+          if (passenger) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `ℹ️ You're registered as a passenger. For your flights, please use:\n\n` +
+              `/myflights - View your passenger flights\n\n` +
+              `The /flights command is for volunteers only.`
+            );
+            return;
+          }
+          
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
             `❌ You're not registered. Send /start to register first.`
@@ -444,14 +1051,14 @@ class TelegramNotificationService {
         }
 
         let message = `Jai Swaminarayan 🙏\n\n` +
-                     `✈️ *Your Upcoming Flights*\n\n`;
+                     `✈️ Your Upcoming Flights\n\n`;
         userFlights.slice(0, 5).forEach((flight, index) => {
-          message += `${index + 1}. *${flight.airline}* ${flight.flightNumber}\n`;
+          message += `${index + 1}. ${flight.airline} ${flight.flightNumber}\n`;
           message += `   ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n`;
           message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
         });
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error fetching flights:', error);
@@ -470,15 +1077,26 @@ class TelegramNotificationService {
 
       try {
         const passengers = await readPassengers();
-        const passenger = passengers.find(p => p.telegramChatId === chatId);
+        console.log(`🔍 Looking for passenger with chatId: ${chatId} (type: ${typeof chatId})`);
+        
+        // Check both string and number versions of chatId for compatibility
+        const passenger = passengers.find(p => 
+          p.telegramChatId === chatId || 
+          p.telegramChatId === String(chatId) || 
+          String(p.telegramChatId) === String(chatId)
+        );
 
         if (!passenger) {
+          console.log(`❌ No passenger found with chatId: ${chatId}`);
+          console.log(`Available passengers:`, passengers.map(p => ({ name: p.name, chatId: p.telegramChatId, type: typeof p.telegramChatId })));
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
-            `❌ You're not registered as a passenger. Send /start to register first.`
+            `❌ You're not registered as a passenger. Please send /start to register first.`
           );
           return;
         }
+
+        console.log(`✅ Found passenger: ${passenger.name} (chatId: ${passenger.telegramChatId})`);
 
         const flights = await readFlights();
         const now = new Date();
@@ -499,9 +1117,9 @@ class TelegramNotificationService {
         }
 
         let message = `Jai Swaminarayan 🙏\n\n` +
-                     `✈️ *Your Upcoming Flights*\n\n`;
+                     `✈️ Your Upcoming Flights\n\n`;
         passengerFlights.slice(0, 5).forEach((flight, index) => {
-          message += `${index + 1}. *${flight.airline}* ${flight.flightNumber}\n`;
+          message += `${index + 1}. ${flight.airline} ${flight.flightNumber}\n`;
           message += `   ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n`;
           message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
           if (flight.pickupSevakName) {
@@ -510,7 +1128,7 @@ class TelegramNotificationService {
           message += `\n`;
         });
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error fetching passenger flights:', error);
@@ -521,72 +1139,18 @@ class TelegramNotificationService {
       }
     });
 
-    // Handle /status command
-    this.bot.onText(/\/status/, async (msg) => {
+    // Handle /upcomingflights command for dashboard users
+    this.bot.onText(/\/upcomingflights/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
       const chatId = msg.chat.id;
-
+      
       try {
-        // Check all registration types
-        const users = await readUsers();
-        const passengers = await readPassengers();
-
-        const dashboardUser = users.find(u => u.telegramChatId === chatId);
-        const passenger = passengers.find(p => p.telegramChatId === chatId);
-
-        let statusMessage = `Jai Swaminarayan 🙏\n\n` +
-                           `📋 *Your Registration Status*\n\n`;
-
-        if (dashboardUser) {
-          const accessLevel = dashboardUser.role === 'superadmin' ? 'Full System Access' : 
-                             dashboardUser.role === 'admin' ? 'Administrative Access' : 
-                             dashboardUser.role === 'user' ? 'Standard User Access' : 
-                             'Volunteer Access';
-          
-          statusMessage += `✅ *Dashboard User Registration*\n` +
-                          `Username: ${dashboardUser.username}\n` +
-                          `Name: ${dashboardUser.name || 'Not set'}\n` +
-                          `Role: ${dashboardUser.role.charAt(0).toUpperCase() + dashboardUser.role.slice(1)}\n` +
-                          `Access Level: ${accessLevel}\n`;
-          
-          if (dashboardUser.role === 'user' && dashboardUser.allowedAirports?.length) {
-            statusMessage += `Allowed Airports: ${dashboardUser.allowedAirports.join(', ')}\n`;
-          } else if (dashboardUser.role === 'user') {
-            statusMessage += `Allowed Airports: All\n`;
-          }
-          statusMessage += `\n`;
-        }
-
-        if (passenger) {
-          statusMessage += `✅ *Passenger Registration*\n` +
-                          `Name: ${passenger.name}\n` +
-                          `Flight Count: ${passenger.flightCount || 0}\n\n`;
-        }
-
-        if (!dashboardUser && !passenger) {
-          statusMessage += `❌ You're not registered yet.\n\n` +
-                          `Send /start to begin registration.`;
-        } else {
-          statusMessage += `Available commands:\n`;
-          
-          if (dashboardUser) {
-            statusMessage += `/flights - View upcoming flights\n`;
-          }
-          if (passenger) {
-            statusMessage += `/myflights - View your flights (passengers)\n`;
-          }
-          statusMessage += `/flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
-                          `/help - Show help menu`;
-        }
-
-        await this.bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
-
+        await this.handleUpcomingFlightsCommand(chatId);
       } catch (error) {
-        console.error('Error getting status:', error);
+        console.error('UpcomingFlights onText error:', error);
         await this.bot.sendMessage(chatId, 
-          `Jai Swaminarayan 🙏\n\n` +
-          `❌ Failed to get status. Please try again later.`
+          `❌ Error retrieving upcoming flights. Please try again or contact support if the issue persists.`
         );
       }
     });
@@ -636,19 +1200,19 @@ class TelegramNotificationService {
         }
 
         let message = `Jai Swaminarayan 🙏\n\n` +
-                     `✈️ *Flight Information*\n\n` +
-                     `Flight: *${flight.flightNumber}*\n` +
+                     `✈️ Flight Information\n\n` +
+                     `Flight: ${flight.flightNumber}\n` +
                      `Airline: ${flight.airline}\n\n` +
-                     `🛫 *Departure*\n` +
+                     `🛫 Departure\n` +
                      `Airport: ${this.formatAirportDisplay(flight.from)}\n` +
                      `Time: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
-                     `🛬 *Arrival*\n` +
+                     `🛬 Arrival\n` +
                      `Airport: ${this.formatAirportDisplay(flight.to)}\n` +
                      `Time: ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
 
         // Add passenger information if available
         if (flight.passengers && flight.passengers.length > 0) {
-          message += `👥 *Passengers*\n`;
+          message += `👥 Passengers\n`;
           flight.passengers.forEach(passenger => {
             message += `• ${passenger.name}\n`;
           });
@@ -657,7 +1221,7 @@ class TelegramNotificationService {
 
         // Add volunteer information if available
         if (flight.pickupVolunteerName || flight.dropoffVolunteerName) {
-          message += `🚐 *Volunteers*\n`;
+          message += `🚐 Volunteers\n`;
           if (flight.pickupVolunteerName) {
             message += `Pickup: ${flight.pickupVolunteerName}\n`;
           }
@@ -667,9 +1231,9 @@ class TelegramNotificationService {
           message += `\n`;
         }
 
-        message += `📝 *Notes*\n${flight.notes || 'No additional notes'}`;
+        message += `📝 Notes\n${flight.notes || 'No additional notes'}`;
 
-        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.bot.sendMessage(chatId, message);
 
       } catch (error) {
         console.error('Error getting flight info:', error);
@@ -681,6 +1245,26 @@ class TelegramNotificationService {
     });
 
     // Handle /help command
+    // Clear registration state command (for debugging/recovery)
+    this.bot.onText(/\/clear_registration/, async (msg) => {
+      if (await this.isMessageProcessed(msg)) return;
+      
+      const chatId = msg.chat.id;
+      
+      if (this.registrationStates.has(chatId)) {
+        await this.deleteRegistrationState(chatId);
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `✅ Registration state cleared. You can now start fresh with /register_passenger, /register_volunteer, or /register_user.`
+        );
+      } else {
+        await this.bot.sendMessage(chatId, 
+          `Jai Swaminarayan 🙏\n\n` +
+          `ℹ️ You don't have any active registration state to clear.`
+        );
+      }
+    });
+
     this.bot.onText(/\/help/, async (msg) => {
       if (await this.isMessageProcessed(msg)) return;
       
@@ -688,32 +1272,31 @@ class TelegramNotificationService {
       
       const helpMessage = 
         `Jai Swaminarayan 🙏\n\n` +
-        `🤖 *West Sant Transportation Bot*\n\n` +
-        `*Registration Commands:*\n` +
-        `/start - Start registration process\n` +
-        `/register_volunteer - Register as Volunteer\n` +
-        `/register_passenger - Register as Passenger\n` +
-        `/register_user - Register as Dashboard User\n\n` +
-        `*Flight Commands:*\n` +
-        `/flights - View your assigned flights (Volunteers)\n` +
-        `/myflights - View your passenger flights\n` +
-        `/flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
-        `/status - Check your registration status\n` +
-        `/help - Show this help menu\n\n` +
-        `*Features:*\n` +
+        `🤖 West Sant Transportation Bot\n\n` +
+        `Registration Commands:\n` +
+        `• /start - Start registration process\n` +
+        `• /register_volunteer - Register as Volunteer\n` +
+        `• /register_passenger - Register as Passenger\n` +
+        `• /register_user - Register as Dashboard User\n\n` +
+        `Flight Commands:\n` +
+        `• /flights - View your assigned flights (Volunteers)\n` +
+        `• /myflights - View your passenger flights\n` +
+        `• /upcomingflights - View upcoming flights at your airports (Dashboard Users)\n` +
+        `• /flightinfo FLIGHT_NUMBER DATE - Get flight details from our system\n` +
+        `• /help - Show this help menu\n\n` +
+        `Features:\n` +
         `✈️ Flight details and passenger information\n` +
         `🚨 Automatic delay alerts (for flights in our system)\n` +
         `🕐 Real-time notifications for changes\n\n` +
-        `*Notifications:*\n` +
+        `Notifications:\n` +
         `🔔 Flight confirmations (Passengers)\n` +
         `🔔 24-hour check-in reminders (Passengers)\n` +
         `🔔 Drop-off: 6-hour & 3-hour reminders (Volunteers)\n` +
-        `🔔 Pickup: 6-hour & 1-hour reminders (Volunteers)\n` +
         `🔔 Flight changes or delays (All)\n` +
         `🔔 Dashboard system notifications (Dashboard Users)\n\n` +
         `Need help? Contact your administrator.`;
 
-      await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(chatId, helpMessage);
     });
 
     // Handle general messages (for phone number collection and other registration steps)
@@ -729,6 +1312,8 @@ class TelegramNotificationService {
       // Check if user is in a registration state
       const registrationState = this.registrationStates.get(chatId);
       if (!registrationState) return;
+      
+      console.log(`Processing registration step for chatId ${chatId}: type=${registrationState.type}, step=${registrationState.step}`);
       
       try {
         if (registrationState.step === 'full_name') {
@@ -750,42 +1335,12 @@ class TelegramNotificationService {
             return;
           }
           
-          // Store full name and move to legal name step
-          registrationState.data.fullName = fullName;
-          registrationState.step = 'legal_name';
-          
-          await this.bot.sendMessage(chatId, 
-            `Jai Swaminarayan 🙏\n\n` +
-            `✅ Full Name: ${fullName}\n\n` +
-            `📄 Now please enter your *Legal Name* as it appears on your tickets and travel documents.\n\n` +
-            `This may be different from your full name if you have a different legal name.\n\n` +
-            `Enter your legal name:`,
-            { parse_mode: 'Markdown' }
-          );
-          
-        } else if (registrationState.step === 'legal_name') {
-          // Handle legal name input
-          const legalName = text.trim();
-          
-          // Validate legal name
-          if (legalName.length < 2) {
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `❌ Please enter a valid legal name.\n\n` +
-              `Enter your legal name as it appears on tickets:`
-            );
-            return;
-          }
-          
-          // Store legal name and complete registration
-          registrationState.data.legalName = legalName;
-          
-          // Create new passenger
+          // Create new passenger immediately (no legal name step)
           const passengers = await readPassengers();
           const newPassenger = {
             id: require('uuid').v4(),
-            name: registrationState.data.fullName,
-            legalName: legalName,
+            name: fullName,
+            legalName: fullName, // Use same name for legal name
             telegramChatId: chatId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -798,24 +1353,126 @@ class TelegramNotificationService {
           // Send greeting message
           await this.bot.sendMessage(chatId, 
             `Jai Swaminarayan 🙏\n\n` +
-            `🎉 *Welcome to West Sant Transportation!*\n\n` +
+            `🎉 Welcome to West Sant Transportation!\n\n` +
             `✅ Successfully registered as passenger:\n` +
-            `👤 **Name:** ${newPassenger.name}\n` +
-            `📄 **Legal Name:** ${legalName}\n\n` +
+            `👤 Name: ${newPassenger.name}\n\n` +
             `You'll receive notifications for:\n` +
             `🔔 Flight confirmations\n` +
             `🔔 Flight updates and changes\n` +
             `🔔 24-hour check-in reminders\n` +
             `🔔 Volunteer contact information\n\n` +
-            `*Available commands:*\n` +
+            `Available commands:\n` +
             `/myflights - View your upcoming flights\n` +
             `/help - Show help menu\n\n` +
             `Thank you for registering! 🙏`,
-            { parse_mode: 'Markdown' }
           );
           
           // Clear registration state
-          this.registrationStates.delete(chatId);
+          await this.deleteRegistrationState(chatId);
+          return;
+          
+        } else if (registrationState.type === 'passenger' && registrationState.step === 'waiting_name') {
+          // Handle name input for passenger registration
+          const fullName = text.trim();
+          
+          // Validate name format (First Name & Last Name)
+          const nameParts = fullName.split(/\s+/);
+          if (nameParts.length < 2 || fullName.length < 3) {
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `❌ Please enter your name in First Name & Last Name format.\n\n` +
+              `Examples:\n` +
+              `• John Smith\n` +
+              `• Mary Johnson\n` +
+              `• Harinivas Swami\n\n` +
+              `Please try again:`
+            );
+            return;
+          }
+          
+          // First, search for existing passenger using fuzzy matching
+          console.log(`🔍 Searching for existing passenger: "${fullName}" for chatId ${chatId}`);
+          const existingPassenger = await findPassengerByName(fullName);
+          
+          if (existingPassenger) {
+            // Link existing passenger to Telegram chat ID
+            console.log(`✅ Found existing passenger: ${existingPassenger.name} (ID: ${existingPassenger.id})`);
+            
+            // Check if already linked to a different chat ID
+            if (existingPassenger.telegramChatId && existingPassenger.telegramChatId !== chatId) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `⚠️ This passenger account is already linked to another Telegram account.\n\n` +
+                `If this is your account and you need to update the link, please contact your administrator.\n\n` +
+                `👤 Found: ${existingPassenger.name}`
+              );
+              await this.deleteRegistrationState(chatId);
+              return;
+            }
+            
+            // Link the existing passenger to this chat ID
+            const passengers = await readPassengers();
+            const passengerIndex = passengers.findIndex(p => p.id === existingPassenger.id);
+            if (passengerIndex !== -1) {
+              passengers[passengerIndex].telegramChatId = String(chatId); // Ensure consistent string type
+              passengers[passengerIndex].updatedAt = new Date().toISOString();
+              await writePassengers(passengers);
+              console.log(`✅ Linked passenger ${existingPassenger.name} to chatId: ${chatId}`);
+              
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 Welcome back to West Sant Transportation!\n\n` +
+                `✅ Successfully linked your Telegram to existing passenger account:\n` +
+                `👤 Name: ${existingPassenger.name}\n` +
+                `📊 Previous Flights: ${existingPassenger.flightCount || 0}\n\n` +
+                `You'll receive notifications for:\n` +
+                `🔔 Flight confirmations\n` +
+                `🔔 Flight updates and changes\n` +
+                `🔔 24-hour check-in reminders\n` +
+                `🔔 Volunteer contact information\n\n` +
+                `Available commands:\n` +
+                `/myflights - View your upcoming flights\n` +
+                `/help - Show help menu\n\n` +
+                `Welcome back! 🙏`,
+              );
+            }
+          } else {
+            // No existing passenger found, create new one
+            console.log(`➕ No existing passenger found for "${fullName}", creating new passenger`);
+            const passengers = await readPassengers();
+            const newPassenger = {
+              id: require('uuid').v4(),
+              name: fullName,
+              legalName: fullName, // Use same name for legal name
+              telegramChatId: String(chatId), // Ensure consistent string type
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              flightCount: 0
+            };
+            
+            passengers.push(newPassenger);
+            await writePassengers(passengers);
+            console.log(`✅ Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+            
+            await this.bot.sendMessage(chatId, 
+              `Jai Swaminarayan 🙏\n\n` +
+              `🎉 Welcome to West Sant Transportation!\n\n` +
+              `✅ Successfully registered as new passenger:\n` +
+              `👤 Name: ${newPassenger.name}\n\n` +
+              `You'll receive notifications for:\n` +
+              `🔔 Flight confirmations\n` +
+              `🔔 Flight updates and changes\n` +
+              `🔔 24-hour check-in reminders\n` +
+              `🔔 Volunteer contact information\n\n` +
+              `Available commands:\n` +
+              `/myflights - View your upcoming flights\n` +
+              `/help - Show help menu\n\n` +
+              `Thank you for registering! 🙏`,
+            );
+          }
+          
+          // Clear registration state
+          await this.deleteRegistrationState(chatId);
           return;
           
         } else if (registrationState.type === 'passenger_new') {
@@ -837,40 +1494,14 @@ class TelegramNotificationService {
               return;
             }
             
-            // Store full name and move to legal name step
-            registrationState.data.fullName = fullName;
-            registrationState.step = 'legal_name';
-            
-            await this.bot.sendMessage(chatId, 
-              `Jai Swaminarayan 🙏\n\n` +
-              `✅ Full Name: ${fullName}\n\n` +
-              `📄 Please enter your *Legal Name* (as it appears on your ticket/ID).\n\n` +
-              `This should match exactly what's on your flight tickets.\n\n` +
-              `Enter your legal name:`,
-              { parse_mode: 'Markdown' }
-            );
-            
-          } else if (registrationState.step === 'legal_name') {
-            // Handle legal name input
-            const legalName = text.trim();
-            
-            // Validate legal name
-            if (legalName.length < 2) {
-              await this.bot.sendMessage(chatId, 
-                `Jai Swaminarayan 🙏\n\n` +
-                `❌ Please enter a valid legal name.\n\n` +
-                `Enter your legal name:`
-              );
-              return;
-            }
-            
-            // Create new passenger
+            // Create new passenger immediately (no legal name step)
             try {
+              console.log(`Creating passenger for chatId ${chatId}: fullName=${fullName}`);
               const passengers = await readPassengers();
               const passenger = {
                 id: require('uuid').v4(),
-                name: registrationState.data.fullName,
-                legalName: legalName,
+                name: fullName,
+                legalName: fullName, // Use same name for legal name
                 phone: null,
                 telegramChatId: chatId,
                 flightCount: 0,
@@ -879,26 +1510,25 @@ class TelegramNotificationService {
               };
               passengers.push(passenger);
               await writePassengers(passengers);
+              console.log(`Successfully created passenger with ID: ${passenger.id}`);
               
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
-                `🎉 *Welcome to West Sant Transportation!*\n\n` +
+                `🎉 Welcome to West Sant Transportation!\n\n` +
                 `✅ Successfully registered as passenger:\n` +
-                `👤 **Full Name:** ${passenger.name}\n` +
-                `📄 **Legal Name:** ${legalName}\n\n` +
+                `👤 Name: ${passenger.name}\n\n` +
                 `You'll receive notifications for:\n` +
                 `🔔 Flight updates\n` +
                 `🔔 Pickup/dropoff information\n` +
                 `🔔 Important announcements\n\n` +
-                `*Available commands:*\n` +
-                `/status - Check your registration status\n` +
+                `Available commands:\n` +
+                `/myflights - View your upcoming flights\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome to the system! 🙏`,
-                { parse_mode: 'Markdown' }
               );
               
               // Clear registration state
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
               
             } catch (error) {
@@ -907,7 +1537,7 @@ class TelegramNotificationService {
                 `Jai Swaminarayan 🙏\n\n` +
                 `❌ Registration failed. Please try again later.`
               );
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
             }
           }
@@ -938,10 +1568,9 @@ class TelegramNotificationService {
             await this.bot.sendMessage(chatId, 
               `Jai Swaminarayan 🙏\n\n` +
               `✅ Full Name: ${fullName}\n\n` +
-              `🏙️ Please enter your *City* where you live.\n\n` +
+              `🏙️ Please enter your City where you live.\n\n` +
               `This helps us assign you to nearby airport pickups/dropoffs.\n\n` +
               `Enter your city:`,
-              { parse_mode: 'Markdown' }
             );
             
           } else if (registrationState.step === 'city') {
@@ -1003,7 +1632,7 @@ class TelegramNotificationService {
                   `• Your account is active\n\n` +
                   `Contact your administrator if you need help.`
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1014,9 +1643,8 @@ class TelegramNotificationService {
                   `❌ Volunteers cannot register as dashboard users.\n\n` +
                   `Please use: \`/register_volunteer\`\n\n` +
                   `If you need dashboard access, contact your administrator.`, 
-                  { parse_mode: 'Markdown' }
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1032,10 +1660,9 @@ class TelegramNotificationService {
                   `🔔 Flight delays and updates\n` +
                   `🔔 System notifications\n\n` +
                   `Available commands:\n` +
-                  `/status - Check your registration status\n` +
                   `/help - Show help menu`
                 );
-                this.registrationStates.delete(chatId);
+                await this.deleteRegistrationState(chatId);
                 return;
               }
 
@@ -1049,25 +1676,24 @@ class TelegramNotificationService {
 
               await this.bot.sendMessage(chatId, 
                 `Jai Swaminarayan 🙏\n\n` +
-                `🎉 *Successfully linked to dashboard account!*\n\n` +
-                `✅ **Dashboard User:** ${user.name || user.username}\n` +
-                `👤 **Username:** ${user.username}\n` +
-                `🔑 **Role:** ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
-                `📊 **Access Level:** ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
+                `🎉 Successfully linked to dashboard account!\n\n` +
+                `✅ Dashboard User: ${user.name || user.username}\n` +
+                `👤 Username: ${user.username}\n` +
+                `🔑 Role: ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}\n` +
+                `📊 Access Level: ${user.role === 'superadmin' ? 'Full System Access' : user.role === 'admin' ? 'Administrative Access' : 'Standard User Access'}\n\n` +
                 `You'll now receive notifications for:\n` +
                 `🔔 Flight additions and changes\n` +
                 `🔔 Flight delays and updates\n` +
                 `🔔 System notifications\n` +
                 `🔔 Administrative alerts (if applicable)\n\n` +
-                `*Available commands:*\n` +
+                `Available commands:\n` +
                 `/status - Check your registration status\n` +
                 `/help - Show help menu\n\n` +
                 `Welcome to the system! 🙏`,
-                { parse_mode: 'Markdown' }
               );
               
               // Clear registration state
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
               
             } catch (error) {
@@ -1076,7 +1702,7 @@ class TelegramNotificationService {
                 `Jai Swaminarayan 🙏\n\n` +
                 `❌ Registration failed. Please try again later.`
               );
-              this.registrationStates.delete(chatId);
+              await this.deleteRegistrationState(chatId);
               return;
             }
           }
@@ -1118,22 +1744,21 @@ class TelegramNotificationService {
             
             await this.bot.sendMessage(chatId, 
               `Jai Swaminarayan 🙏\n\n` +
-              `🎉 *Welcome to West Sant Transportation!*\n\n` +
+              `🎉 Welcome to West Sant Transportation!\n\n` +
               `✅ Successfully registered as volunteer:\n` +
-              `👤 **Name:** ${user.name}\n` +
-              `🏙️ **City:** ${registrationState.data.city}\n` +
-              `📱 **Phone:** ${formattedPhone}\n` +
-              `🆔 **Username:** ${user.username}\n\n` +
+              `👤 Name: ${user.name}\n` +
+              `🏙️ City: ${registrationState.data.city}\n` +
+              `📱 Phone: ${formattedPhone}\n` +
+              `🆔 Username: ${user.username}\n\n` +
               `📝 Note: Your administrator can assign you to specific airports for pickups/dropoffs.\n\n` +
               `You'll receive notifications for:\n` +
               `🔔 Flight assignments\n` +
               `🔔 Passenger contact information\n` +
               `🔔 Schedule updates\n\n` +
-              `*Available commands:*\n` +
+              `Available commands:\n` +
               `/flights - View your assigned flights\n` +
               `/help - Show help menu\n\n` +
               `Thank you for volunteering! 🙏`,
-              { parse_mode: 'Markdown' }
             );
             
           } else if (registrationState.type === 'volunteer') {
@@ -1237,7 +1862,7 @@ class TelegramNotificationService {
           }
           
           // Clear registration state
-          this.registrationStates.delete(chatId);
+          await this.deleteRegistrationState(chatId);
         }
         
       } catch (error) {
@@ -1247,7 +1872,7 @@ class TelegramNotificationService {
           `❌ Registration failed. Please try again later.`
         );
         // Clear registration state on error
-        this.registrationStates.delete(chatId);
+        await this.deleteRegistrationState(chatId);
       }
     });
 
@@ -1270,13 +1895,12 @@ class TelegramNotificationService {
         
         // Send initial processing message
         processingMessage = await this.bot.sendMessage(chatId, 
-          '🔍 *Ticket Processing Started*\n\n' +
+          '🔍 Ticket Processing Started\n\n' +
           '• Analyzing image...\n' +
           '• Extracting text with Google Vision API...\n' +
           '• Identifying airline patterns...\n' +
           '• Matching passenger names...\n\n' +
           '_This may take a few seconds..._',
-          { parse_mode: 'Markdown' }
         );
 
         // Get highest resolution photo
@@ -1303,11 +1927,11 @@ class TelegramNotificationService {
           const passengerMatch = processingResult.passengerMatch;
 
           // Build detailed result message
-          let resultMessage = `✅ *Ticket Processing Successful!*\n\n`;
+          let resultMessage = `✅ Ticket Processing Successful!\n\n`;
           
           // Flight information
-          resultMessage += `🛩️ *Flight Details:*\n`;
-          resultMessage += `• Flight: *${flight.flightNumber}*\n`;
+          resultMessage += `🛩️ Flight Details:\n`;
+          resultMessage += `• Flight: ${flight.flightNumber}\n`;
           if (flight.airline) {
             resultMessage += `• Airline: ${flight.airline}\n`;
           }
@@ -1317,20 +1941,20 @@ class TelegramNotificationService {
           resultMessage += `• Confidence: ${Math.round((extractedData.confidence.overall || 0) * 100)}%\n`;
           
           // Passenger information
-          resultMessage += `\n👤 *Passenger Information:*\n`;
+          resultMessage += `\n👤 Passenger Information:\n`;
           if (passengerMatch.passenger) {
-            resultMessage += `• Matched: *${passengerMatch.passenger.name}*\n`;
-            resultMessage += `• Extracted Name: "${passengerMatch.extractedName}"\n`;
+            resultMessage += `• Matched: ${passengerMatch.passenger.name}\n`;
+            resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: "${extractedData.passengerName}"\n`;
-            resultMessage += `• *Requires manual passenger assignment*\n`;
+            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
+            resultMessage += `• Requires manual passenger assignment\n`;
           }
 
           // What was extracted
-          resultMessage += `\n📋 *Extracted Information:*\n`;
+          resultMessage += `\n📋 Extracted Information:\n`;
           const extractedFields = [];
           if (extractedData.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
           if (extractedData.date) extractedFields.push(`Date: ${extractedData.date}`);
@@ -1344,7 +1968,7 @@ class TelegramNotificationService {
           }
 
           // Next steps
-          resultMessage += `\n\n📝 *Next Steps:*\n`;
+          resultMessage += `\n\n📝 Next Steps:\n`;
           resultMessage += `• Complete departure/arrival times in dashboard\n`;
           if (!flight.from || !flight.to) {
             resultMessage += `• Add airport information manually\n`;
@@ -1358,33 +1982,32 @@ class TelegramNotificationService {
 
           // Add notes if available
           if (flight.notes) {
-            resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
+            resultMessage += `\n📝 Flight Notes:\n${flight.notes}\n`;
           }
 
-          resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
+          resultMessage += `\n🆔 Flight ID: ${flight.id}`;
 
           // Update the processing message with results
           await this.bot.editMessageText(resultMessage, {
             chat_id: chatId,
             message_id: processingMessage.message_id,
-            parse_mode: 'Markdown'
           });
 
           // Send additional technical details for debugging (if issues exist)
           if (processingResult.issues.length > 0) {
-            const debugMessage = `🔧 *Processing Issues:*\n` +
+            const debugMessage = `🔧 Processing Issues:\n` +
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
-              `\n\n📊 *Technical Details:*\n` +
+              `\n\n📊 Technical Details:\n` +
               `• Parse Strategy: ${extractedData.parseStrategy}\n` +
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
-            await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, debugMessage);
           }
 
         } else {
           // Processing failed
-          let errorMessage = `❌ *Ticket Processing Failed*\n\n`;
+          let errorMessage = `❌ Ticket Processing Failed\n\n`;
           errorMessage += `Error: ${processingResult.error}\n\n`;
           
           if (processingResult.issues.length > 0) {
@@ -1392,7 +2015,7 @@ class TelegramNotificationService {
             errorMessage += processingResult.issues.map(issue => `• ${issue}`).join('\n') + '\n\n';
           }
           
-          errorMessage += `💡 *Troubleshooting Tips:*\n`;
+          errorMessage += `💡 Troubleshooting Tips:\n`;
           errorMessage += `• Ensure image is clear and well-lit\n`;
           errorMessage += `• Make sure ticket text is readable\n`;
           errorMessage += `• Try with a different angle or closer photo\n`;
@@ -1402,7 +2025,6 @@ class TelegramNotificationService {
           await this.bot.editMessageText(errorMessage, {
             chat_id: chatId,
             message_id: processingMessage.message_id,
-            parse_mode: 'Markdown'
           });
         }
 
@@ -1411,19 +2033,19 @@ class TelegramNotificationService {
         
         let errorDetails = '';
         if (error.message.includes('credentials')) {
-          errorDetails = `\n\n🔐 *Credential Issue Detected*\n` +
+          errorDetails = `\n\n🔐 Credential Issue Detected\n` +
                         `The Google Vision API credentials may be invalid or missing. ` +
                         `Please check the GOOGLE_CREDENTIALS_JSON environment variable.`;
         } else if (error.message.includes('quota') || error.message.includes('billing')) {
-          errorDetails = `\n\n💳 *API Quota/Billing Issue*\n` +
+          errorDetails = `\n\n💳 API Quota/Billing Issue\n` +
                         `Google Vision API quota may be exceeded or billing not enabled. ` +
                         `Please check your Google Cloud Console.`;
         } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
-          errorDetails = `\n\n🌐 *Network Issue*\n` +
+          errorDetails = `\n\n🌐 Network Issue\n` +
                         `Unable to connect to Google Vision API. Check your internet connection.`;
         }
 
-        const errorMessage = `❌ *Ticket Processing Error*\n\n` +
+        const errorMessage = `❌ Ticket Processing Error\n\n` +
                             `${error.message}${errorDetails}\n\n` +
                             `Please try again or contact your administrator if the problem persists.`;
 
@@ -1432,14 +2054,13 @@ class TelegramNotificationService {
             await this.bot.editMessageText(errorMessage, {
               chat_id: chatId,
               message_id: processingMessage.message_id,
-              parse_mode: 'Markdown'
             });
           } catch (editError) {
             // If edit fails, send new message
-            await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, errorMessage);
           }
         } else {
-          await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+          await this.bot.sendMessage(chatId, errorMessage);
         }
       }
       
@@ -1475,13 +2096,12 @@ class TelegramNotificationService {
         
         // Send initial processing message
         processingMessage = await this.bot.sendMessage(chatId, 
-          '🔍 *Ticket Processing Started* (Document)\n\n' +
+          '🔍 Ticket Processing Started (Document)\n\n' +
           '• Analyzing document image...\n' +
           '• Extracting text with Google Vision API...\n' +
           '• Identifying airline patterns...\n' +
           '• Matching passenger names...\n\n' +
           '_This may take a few seconds..._',
-          { parse_mode: 'Markdown' }
         );
 
         // Get document file link
@@ -1509,11 +2129,11 @@ class TelegramNotificationService {
           const passengerMatch = processingResult.passengerMatch;
 
           // Build detailed result message (same as photo handler)
-          let resultMessage = `✅ *Ticket Processing Successful!* (Document)\n\n`;
+          let resultMessage = `✅ Ticket Processing Successful! (Document)\n\n`;
           
           // Flight information
-          resultMessage += `🛩️ *Flight Details:*\n`;
-          resultMessage += `• Flight: *${flight.flightNumber}*\n`;
+          resultMessage += `🛩️ Flight Details:\n`;
+          resultMessage += `• Flight: ${flight.flightNumber}\n`;
           if (flight.airline) {
             resultMessage += `• Airline: ${flight.airline}\n`;
           }
@@ -1523,20 +2143,20 @@ class TelegramNotificationService {
           resultMessage += `• Confidence: ${Math.round((extractedData.confidence.overall || 0) * 100)}%\n`;
           
           // Passenger information
-          resultMessage += `\n👤 *Passenger Information:*\n`;
+          resultMessage += `\n👤 Passenger Information:\n`;
           if (passengerMatch.passenger) {
-            resultMessage += `• Matched: *${passengerMatch.passenger.name}*\n`;
-            resultMessage += `• Extracted Name: "${passengerMatch.extractedName}"\n`;
+            resultMessage += `• Matched: ${passengerMatch.passenger.name}\n`;
+            resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: "${extractedData.passengerName}"\n`;
-            resultMessage += `• *Requires manual passenger assignment*\n`;
+            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
+            resultMessage += `• Requires manual passenger assignment\n`;
           }
 
           // What was extracted
-          resultMessage += `\n📋 *Extracted Information:*\n`;
+          resultMessage += `\n📋 Extracted Information:\n`;
           const extractedFields = [];
           if (extractedData.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
           if (extractedData.date) extractedFields.push(`Date: ${extractedData.date}`);
@@ -1550,7 +2170,7 @@ class TelegramNotificationService {
           }
 
           // Next steps
-          resultMessage += `\n\n📝 *Next Steps:*\n`;
+          resultMessage += `\n\n📝 Next Steps:\n`;
           resultMessage += `• Complete departure/arrival times in dashboard\n`;
           if (!flight.from || !flight.to) {
             resultMessage += `• Add airport information manually\n`;
@@ -1564,33 +2184,32 @@ class TelegramNotificationService {
 
           // Add notes if available
           if (flight.notes) {
-            resultMessage += `\n📝 *Flight Notes:*\n${flight.notes}\n`;
+            resultMessage += `\n📝 Flight Notes:\n${flight.notes}\n`;
           }
 
-          resultMessage += `\n🆔 Flight ID: \`${flight.id}\``;
+          resultMessage += `\n🆔 Flight ID: ${flight.id}`;
 
           // Update the processing message with results
           await this.bot.editMessageText(resultMessage, {
             chat_id: chatId,
             message_id: processingMessage.message_id,
-            parse_mode: 'Markdown'
           });
 
           // Send additional technical details for debugging (if issues exist)
           if (processingResult.issues.length > 0) {
-            const debugMessage = `🔧 *Processing Issues:*\n` +
+            const debugMessage = `🔧 Processing Issues:\n` +
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
-              `\n\n📊 *Technical Details:*\n` +
+              `\n\n📊 Technical Details:\n` +
               `• Parse Strategy: ${extractedData.parseStrategy}\n` +
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
-            await this.bot.sendMessage(chatId, debugMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, debugMessage);
           }
 
         } else {
           // Processing failed
-          let errorMessage = `❌ *Ticket Processing Failed* (Document)\n\n`;
+          let errorMessage = `❌ Ticket Processing Failed (Document)\n\n`;
           errorMessage += `Error: ${processingResult.error}\n\n`;
           
           if (processingResult.issues.length > 0) {
@@ -1598,7 +2217,7 @@ class TelegramNotificationService {
             errorMessage += processingResult.issues.map(issue => `• ${issue}`).join('\n') + '\n\n';
           }
           
-          errorMessage += `💡 *Troubleshooting Tips:*\n`;
+          errorMessage += `💡 Troubleshooting Tips:\n`;
           errorMessage += `• Ensure image is clear and well-lit\n`;
           errorMessage += `• Make sure ticket text is readable\n`;
           errorMessage += `• Try sending as photo instead of document\n`;
@@ -1608,7 +2227,6 @@ class TelegramNotificationService {
           await this.bot.editMessageText(errorMessage, {
             chat_id: chatId,
             message_id: processingMessage.message_id,
-            parse_mode: 'Markdown'
           });
         }
 
@@ -1617,19 +2235,19 @@ class TelegramNotificationService {
         
         let errorDetails = '';
         if (error.message.includes('credentials')) {
-          errorDetails = `\n\n🔐 *Credential Issue Detected*\n` +
+          errorDetails = `\n\n🔐 Credential Issue Detected\n` +
                         `The Google Vision API credentials may be invalid or missing. ` +
                         `Please check the GOOGLE_CREDENTIALS_JSON environment variable.`;
         } else if (error.message.includes('quota') || error.message.includes('billing')) {
-          errorDetails = `\n\n💳 *API Quota/Billing Issue*\n` +
+          errorDetails = `\n\n💳 API Quota/Billing Issue\n` +
                         `Google Vision API quota may be exceeded or billing not enabled. ` +
                         `Please check your Google Cloud Console.`;
         } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
-          errorDetails = `\n\n🌐 *Network Issue*\n` +
+          errorDetails = `\n\n🌐 Network Issue\n` +
                         `Unable to connect to Google Vision API. Check your internet connection.`;
         }
 
-        const errorMessage = `❌ *Document Ticket Processing Error*\n\n` +
+        const errorMessage = `❌ Document Ticket Processing Error\n\n` +
                             `${error.message}${errorDetails}\n\n` +
                             `Please try again or contact your administrator if the problem persists.`;
 
@@ -1638,19 +2256,92 @@ class TelegramNotificationService {
             await this.bot.editMessageText(errorMessage, {
               chat_id: chatId,
               message_id: processingMessage.message_id,
-              parse_mode: 'Markdown'
             });
           } catch (editError) {
             // If edit fails, send new message
-            await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(chatId, errorMessage);
           }
         } else {
-          await this.bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+          await this.bot.sendMessage(chatId, errorMessage);
         }
       }
       
       // Mark message as processed (both success and error cases)
       await this.markPhotoMessageAsProcessed(msg);
+    });
+
+    // Handle callback queries for flight navigation
+    this.bot.on('callback_query', async (callbackQuery) => {
+      const chatId = callbackQuery.message.chat.id;
+      const data = callbackQuery.data;
+      
+      console.log('🔍 CALLBACK_QUERY received:', data);
+      
+      if (data.startsWith('flight_nav_')) {
+        console.log('🔍 FLIGHT_NAV callback processing...');
+        try {
+          const [, , index, encodedPassengerName] = data.split('_');
+          const currentIndex = parseInt(index);
+          const passengerName = decodeURIComponent(encodedPassengerName);
+          
+          console.log('🔍 Parsed data:', { currentIndex, passengerName });
+          
+          // Find the passenger and get their flights
+          const passengers = await readPassengers();
+          const passenger = passengers.find(p => 
+            p.name.toLowerCase() === passengerName.toLowerCase() && 
+            p.telegramChatId === chatId
+          );
+          
+          console.log('🔍 Passenger search result:', passenger ? 'Found' : 'Not found');
+          
+          if (!passenger) {
+            console.log('❌ Passenger not found for navigation');
+            await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Passenger not found' });
+            return;
+          }
+          
+          const flights = await readFlights();
+          const now = new Date();
+          
+          // Filter flights for this passenger (upcoming flights only)
+          const passengerFlights = flights.filter(flight => {
+            const departureDate = new Date(flight.departureDateTime);
+            if (departureDate <= now) return false;
+            
+            return flight.passengers?.some(p => {
+              if (p.passengerId === passenger.id) return true;
+              if (p.name?.toLowerCase() === passenger.name.toLowerCase()) return true;
+              return false;
+            });
+          });
+          
+          // Sort flights by departure time
+          passengerFlights.sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+          
+          console.log('🔍 Flight navigation:', { 
+            totalFlights: passengerFlights.length, 
+            currentIndex, 
+            validIndex: currentIndex >= 0 && currentIndex < passengerFlights.length 
+          });
+          
+          if (currentIndex >= 0 && currentIndex < passengerFlights.length) {
+            console.log('✅ Navigating to flight:', currentIndex);
+            // Delete the old message
+            await this.bot.deleteMessage(chatId, callbackQuery.message.message_id);
+            
+            // Show the new flight
+            await this.showFlightWithNavigation(chatId, passengerFlights, currentIndex, passenger.name, passengers);
+          } else {
+            console.log('❌ Invalid flight index for navigation');
+          }
+          
+          await this.bot.answerCallbackQuery(callbackQuery.id);
+        } catch (error) {
+          console.error('Error handling flight navigation:', error);
+          await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Error navigating flights' });
+        }
+      }
     });
   }
 
@@ -1671,7 +2362,6 @@ class TelegramNotificationService {
       }
 
       await this.bot.sendMessage(user.telegramChatId, message, {
-        parse_mode: 'Markdown',
         ...options
       });
 
@@ -1724,44 +2414,61 @@ class TelegramNotificationService {
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `🚨 *${volunteerType.toUpperCase()} REMINDER*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `🕐 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
-      `👥 *Passengers:*\n${passengerDetails}\n\n` +
-      `📞 *Your contact:* ${volunteerPhone}\n\n` +
-      `⏰ *${timeUntil} until ${volunteerType}*\n\n` +
+      `🚨 ${volunteerType.toUpperCase()} REMINDER\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+      `👥 Passengers:\n${passengerDetails}\n\n` +
+      `📞 Your contact: ${volunteerPhone}\n\n` +
+      `⏰ ${timeUntil} until ${volunteerType}\n\n` +
       `Please be ready and confirm receipt of this message.`;
 
     return await this.sendNotification(volunteerUser.id, message);
   }
 
   // Send flight confirmation to passenger
-  async sendFlightConfirmation(flight, passengerName) {
+  async sendFlightConfirmation(flight, flightPassenger) {
     const passengers = await readPassengers();
-    const passenger = passengers.find(p => 
-      p.name.toLowerCase() === passengerName.toLowerCase()
-    );
+    let passenger = null;
+    
+    // Handle both old name-based and new ID-based passenger references
+    if (typeof flightPassenger === 'string') {
+      // Old format: passed passenger name as string
+      passenger = passengers.find(p => 
+        p.name && p.name.toLowerCase() === flightPassenger.toLowerCase()
+      );
+    } else if (flightPassenger.passengerId) {
+      // New format: flight passenger object with passengerId
+      passenger = passengers.find(p => p.id === flightPassenger.passengerId);
+    } else if (flightPassenger.name) {
+      // Old format: flight passenger object with name only
+      passenger = passengers.find(p => 
+        p.name && p.name.toLowerCase() === flightPassenger.name.toLowerCase()
+      );
+    }
 
     if (!passenger || !passenger.telegramChatId) {
-      console.log(`Passenger ${passengerName} not found or doesn't have Telegram`);
+      const identifier = typeof flightPassenger === 'string' 
+        ? flightPassenger 
+        : flightPassenger.passengerId || flightPassenger.name || 'Unknown';
+      console.log(`Passenger ${identifier} not found or doesn't have Telegram`);
       return false;
     }
 
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `✅ *FLIGHT CONFIRMATION*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
-      `🛬 *Arrival:* ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n` +
-      `${flight.pickupSevakName ? `🚗 *Pickup Volunteer:* ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
-      `${flight.dropoffSevakName ? `🚗 *Dropoff Volunteer:* ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
-      `${flight.notes ? `📝 *Notes:* ${flight.notes}\n` : ''}` +
+      `✅ FLIGHT CONFIRMATION\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `🛫 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
+      `🛬 Arrival: ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n` +
+      `${flight.pickupSevakName ? `🚗 Pickup Volunteer: ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
+      `${flight.dropoffSevakName ? `🚗 Dropoff Volunteer: ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
+      `${flight.notes ? `📝 Notes: ${flight.notes}\n` : ''}` +
       `\nHave a safe journey! ✈️`;
 
     try {
-      await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(passenger.telegramChatId, message);
       return true;
     } catch (error) {
       console.error('Error sending flight confirmation:', error);
@@ -1814,11 +2521,11 @@ class TelegramNotificationService {
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `🔄 *FLIGHT ${updateType.toUpperCase()}*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `🛫 *New Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
-      `👥 *Passengers:*\n${passengerDetails}\n\n` +
+      `🔄 FLIGHT ${updateType.toUpperCase()}\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `🛫 New Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+      `👥 Passengers:\n${passengerDetails}\n\n` +
       `Please update your schedule accordingly.`;
 
     const results = await Promise.all(
@@ -1850,7 +2557,7 @@ class TelegramNotificationService {
       const results = await Promise.all(
         eligibleUsers.map(async (user) => {
           try {
-            await this.bot.sendMessage(user.telegramChatId, message, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(user.telegramChatId, message);
             return true;
           } catch (error) {
             console.error(`Failed to send notification to dashboard user ${user.username}:`, error.message);
@@ -1870,19 +2577,25 @@ class TelegramNotificationService {
 
   // Send flight addition notification
   async sendFlightAddedNotification(flight) {
-    const passengers = flight.passengers?.map(p => p.name).join(', ') || 'No passengers';
+    // Get passenger names, handling both old name format and new passengerId format
+    let passengers = 'No passengers';
+    if (flight.passengers?.length > 0) {
+      const { resolveFlightPassengerNames } = require('./data-helpers');
+      const resolvedPassengers = await resolveFlightPassengerNames(flight.passengers);
+      passengers = resolvedPassengers.map(p => p.name).join(', ');
+    }
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `✅ *NEW FLIGHT ADDED*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `👥 *Passengers:* ${passengers}\n` +
-      `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
-      `🛬 *Arrival:* ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n` +
-      `${flight.pickupSevakName ? `🚗 *Pickup:* ${flight.pickupSevakName}\n` : ''}` +
-      `${flight.dropoffSevakName ? `🚗 *Dropoff:* ${flight.dropoffSevakName}\n` : ''}` +
-      `${flight.notes ? `📝 *Notes:* ${flight.notes}\n` : ''}`;
+      `✅ NEW FLIGHT ADDED\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `👥 Passengers: ${passengers}\n` +
+      `🛫 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n` +
+      `🛬 Arrival: ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n` +
+      `${flight.pickupSevakName ? `🚗 Pickup: ${flight.pickupSevakName}\n` : ''}` +
+      `${flight.dropoffSevakName ? `🚗 Dropoff: ${flight.dropoffSevakName}\n` : ''}` +
+      `${flight.notes ? `📝 Notes: ${flight.notes}\n` : ''}`;
 
     // Send to dashboard users
     await this.sendDashboardNotification(message, 'flightUpdates');
@@ -1890,7 +2603,7 @@ class TelegramNotificationService {
     // Send confirmation to passengers
     if (flight.passengers) {
       for (const passenger of flight.passengers) {
-        await this.sendFlightConfirmation(flight, passenger.name);
+        await this.sendFlightConfirmation(flight, passenger);
       }
     }
 
@@ -1915,16 +2628,16 @@ class TelegramNotificationService {
       
       let message = 
         `Jai Swaminarayan 🙏\n\n` +
-        `🔄 *FLIGHT ${updateType.toUpperCase()}*\n\n` +
-        `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-        `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-        `👥 *Passengers:* ${passengers}\n` +
-        `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
+        `🔄 FLIGHT ${updateType.toUpperCase()}\n\n` +
+        `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+        `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+        `👥 Passengers: ${passengers}\n` +
+        `🛫 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
 
       // Add real-time information if available
       if (flightInfo && !flightInfo.error) {
-        message += `\n🔴 *REAL-TIME STATUS*\n` +
-                  `Status: *${flightInfo.flightStatus.toUpperCase()}*\n` +
+        message += `\n🔴 REAL-TIME STATUS\n` +
+                  `Status: ${flightInfo.flightStatus.toUpperCase()}\n` +
                   `${flightInfo.delayNotification}\n`;
         
         if (flightInfo.estimatedDeparture !== 'Not available') {
@@ -1971,24 +2684,24 @@ class TelegramNotificationService {
     
     let message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `📱 *YOUR FLIGHT HAS BEEN UPDATED*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
+      `📱 YOUR FLIGHT HAS BEEN UPDATED\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `🛫 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
 
     // Add real-time status if available
     if (flightInfo && !flightInfo.error) {
-      message += `\n🔴 *CURRENT STATUS*\n` +
-                `Status: *${flightInfo.flightStatus.toUpperCase()}*\n` +
+      message += `\n🔴 CURRENT STATUS\n` +
+                `Status: ${flightInfo.flightStatus.toUpperCase()}\n` +
                 `${flightInfo.delayNotification}\n`;
     }
 
-    message += `\n${flight.pickupSevakName ? `🚗 *Pickup:* ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
-              `${flight.dropoffSevakName ? `🚗 *Dropoff:* ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
+    message += `\n${flight.pickupSevakName ? `🚗 Pickup: ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
+              `${flight.dropoffSevakName ? `🚗 Dropoff: ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
               `\n💡 Use /flightinfo ${flight.flightNumber} ${new Date(flight.departureDateTime).toISOString().split('T')[0]} for latest updates.`;
 
     try {
-      await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(passenger.telegramChatId, message);
       return true;
     } catch (error) {
       console.error('Error sending passenger flight update:', error);
@@ -2040,13 +2753,13 @@ class TelegramNotificationService {
     
     const message = 
       `Jai Swaminarayan 🙏\n\n` +
-      `🚨 *FLIGHT DELAY ALERT*\n\n` +
-      `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-      `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-      `👥 *Passengers:* ${passengers}\n` +
-      `🛫 *Departure:* ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
-      `🔴 *CURRENT STATUS*\n` +
-      `Status: *${flightInfo.flightStatus.toUpperCase()}*\n` +
+      `🚨 FLIGHT DELAY ALERT\n\n` +
+      `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+      `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+      `👥 Passengers: ${passengers}\n` +
+      `🛫 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+      `🔴 CURRENT STATUS\n` +
+      `Status: ${flightInfo.flightStatus.toUpperCase()}\n` +
       `${flightInfo.delayNotification}\n\n` +
       `${flightInfo.estimatedDeparture !== 'Not available' ? `🕐 New Estimated Departure: ${flightInfo.estimatedDeparture}\n` : ''}` +
       `\n📱 Please adjust your schedule accordingly.`;
@@ -2083,7 +2796,7 @@ class TelegramNotificationService {
   }
 
   // Process webhook update
-  processWebhookUpdate(req, res) {
+  async processWebhookUpdate(req, res) {
     if (!this.bot) {
       console.error('Webhook called but bot not initialized');
       return res.status(500).json({ error: 'Bot not initialized' });
@@ -2091,12 +2804,202 @@ class TelegramNotificationService {
 
     try {
       console.log('Processing webhook update:', JSON.stringify(req.body, null, 2));
-      this.bot.processUpdate(req.body);
+      
+      // Handle different message types
+      if (req.body.message) {
+        const message = req.body.message;
+        
+        if (message.text) {
+          // Handle text messages manually to avoid conflicts
+          console.log(`📨 Processing text message: "${message.text}" from chat ${message.chat.id}`);
+          await this.processManualCommand(message);
+        } else if (message.photo || message.document) {
+          // Handle photo/document messages through normal bot processing for Gemini
+          console.log(`📷 Processing photo/document message from chat ${message.chat.id}`);
+          this.bot.processUpdate(req.body);
+        } else {
+          // Handle other message types through normal processing
+          this.bot.processUpdate(req.body);
+        }
+      } else if (req.body.callback_query) {
+        // Handle callback queries (inline keyboard buttons)
+        console.log(`🔘 Processing callback query from chat ${req.body.callback_query.message.chat.id}`);
+        this.bot.processUpdate(req.body);
+      }
+      
       res.status(200).json({ ok: true });
     } catch (error) {
       console.error('Error processing webhook update:', error);
       console.error('Request body:', JSON.stringify(req.body, null, 2));
       res.status(500).json({ error: 'Failed to process update', details: error.message });
+    }
+  }
+
+  // Manual command processing for webhook mode
+  async processManualCommand(message) {
+    try {
+      const text = message.text;
+      const chatId = message.chat.id;
+      
+      // Mark message as processed to prevent duplicate processing
+      const messageId = `${message.chat.id}_${message.message_id}`;
+      if (this.processedMessages.has(messageId)) {
+        console.log('Message already processed, skipping');
+        return;
+      }
+      this.processedMessages.add(messageId);
+      
+      console.log(`🎯 Manual command processing for: ${text}`);
+      
+      // First check if user is in a registration state (for non-command text)
+      if (!text.startsWith('/')) {
+        const registrationState = this.registrationStates.get(chatId);
+        if (registrationState) {
+          console.log(`📝 Processing registration input for chatId ${chatId}: type=${registrationState.type}, step=${registrationState.step}`);
+          
+          // Handle passenger registration name input
+          if (registrationState.type === 'passenger' && registrationState.step === 'waiting_name') {
+            const fullName = text.trim();
+            
+            // Validate name format (First Name & Last Name)
+            const nameParts = fullName.split(/\s+/);
+            if (nameParts.length < 2 || fullName.length < 3) {
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `❌ Please enter your name in First Name & Last Name format.\n\n` +
+                `Examples:\n` +
+                `• John Smith\n` +
+                `• Mary Johnson\n` +
+                `• Harinivas Swami\n\n` +
+                `Please try again:`
+              );
+              return;
+            }
+            
+            // First, search for existing passenger using fuzzy matching
+            console.log(`🔍 Searching for existing passenger: "${fullName}" for chatId ${chatId}`);
+            const existingPassenger = await findPassengerByName(fullName);
+            
+            if (existingPassenger) {
+              // Link existing passenger to Telegram chat ID
+              console.log(`✅ Found existing passenger: ${existingPassenger.name} (ID: ${existingPassenger.id})`);
+              
+              // Check if already linked to a different chat ID
+              if (existingPassenger.telegramChatId && existingPassenger.telegramChatId !== chatId) {
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `⚠️ This passenger account is already linked to another Telegram account.\n\n` +
+                  `If this is your account and you need to update the link, please contact your administrator.\n\n` +
+                  `👤 Found: ${existingPassenger.name}`
+                );
+                await this.deleteRegistrationState(chatId);
+                return;
+              }
+              
+              // Link the existing passenger to this chat ID
+              const passengers = await readPassengers();
+              const passengerIndex = passengers.findIndex(p => p.id === existingPassenger.id);
+              if (passengerIndex !== -1) {
+                passengers[passengerIndex].telegramChatId = chatId;
+                passengers[passengerIndex].updatedAt = new Date().toISOString();
+                await writePassengers(passengers);
+                
+                await this.bot.sendMessage(chatId, 
+                  `Jai Swaminarayan 🙏\n\n` +
+                  `🎉 Welcome back to West Sant Transportation!\n\n` +
+                  `✅ Successfully linked your Telegram to existing passenger account:\n` +
+                  `👤 Name: ${existingPassenger.name}\n` +
+                  `📊 Previous Flights: ${existingPassenger.flightCount || 0}\n\n` +
+                  `You'll receive notifications for:\n` +
+                  `🔔 Flight confirmations\n` +
+                  `🔔 Flight updates and changes\n` +
+                  `🔔 24-hour check-in reminders\n` +
+                  `🔔 Volunteer contact information\n\n` +
+                  `Available commands:\n` +
+                  `/myflights - View your upcoming flights\n` +
+                  `/help - Show help menu\n\n` +
+                  `Welcome back! 🙏`
+                );
+              }
+            } else {
+              // No existing passenger found, create new one
+              console.log(`➕ No existing passenger found for "${fullName}", creating new passenger`);
+              const passengers = await readPassengers();
+              const newPassenger = {
+                id: require('uuid').v4(),
+                name: fullName,
+                legalName: fullName, // Use same name for legal name
+                telegramChatId: chatId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                flightCount: 0
+              };
+              
+              passengers.push(newPassenger);
+              await writePassengers(passengers);
+              console.log(`✅ Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+              
+              await this.bot.sendMessage(chatId, 
+                `Jai Swaminarayan 🙏\n\n` +
+                `🎉 Welcome to West Sant Transportation!\n\n` +
+                `✅ Successfully registered as new passenger:\n` +
+                `👤 Name: ${newPassenger.name}\n\n` +
+                `You'll receive notifications for:\n` +
+                `🔔 Flight confirmations\n` +
+                `🔔 Flight updates and changes\n` +
+                `🔔 24-hour check-in reminders\n` +
+                `🔔 Volunteer contact information\n\n` +
+                `Available commands:\n` +
+                `/myflights - View your upcoming flights\n` +
+                `/help - Show help menu\n\n` +
+                `Thank you for registering! 🙏`
+              );
+            }
+            
+            // Clear registration state
+            await this.deleteRegistrationState(chatId);
+            return;
+          }
+          
+          // Handle other registration types if needed
+          // (volunteer, user registration states would go here)
+        }
+      }
+      
+      // Since onText handlers might not work in webhook mode, directly execute command logic
+      if (text === '/help') {
+        console.log('Processing /help command manually');
+        await this.handleHelpCommand(chatId);
+      } else if (text === '/start') {
+        console.log('Processing /start command manually');
+        await this.handleStartCommand(chatId);
+      } else if (text === '/upcomingflights') {
+        console.log('Processing /upcomingflights command manually');
+        await this.handleUpcomingFlightsCommand(chatId);
+      } else if (text === '/flights') {
+        console.log('Processing /flights command manually');
+        await this.handleFlightsCommand(chatId);
+      } else if (text === '/myflights') {
+        console.log('Processing /myflights command manually');
+        await this.handleMyFlightsCommand(chatId);
+      } else if (text.startsWith('/flightinfo ')) {
+        console.log('Processing /flightinfo command manually');
+        const match = text.match(/\/flightinfo\s+(.+)/);
+        if (match) {
+          await this.handleFlightInfoCommand(chatId, match);
+        }
+      } else if (text === '/register_volunteer') {
+        console.log('Processing /register_volunteer command manually');
+        await this.handleRegisterVolunteerCommand(chatId);
+      } else if (text === '/register_passenger') {
+        console.log('Processing /register_passenger command manually');
+        await this.handleRegisterPassengerCommand(chatId);
+      } else if (text === '/register_user') {
+        console.log('Processing /register_user command manually');
+        await this.handleRegisterUserCommand(chatId);
+      }
+    } catch (error) {
+      console.error('Error in manual command processing:', error);
     }
   }
 
@@ -2108,10 +3011,7 @@ class TelegramNotificationService {
     }
 
     try {
-      await this.bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...options
-      });
+      await this.bot.sendMessage(chatId, message, options);
       return true;
     } catch (error) {
       console.error('Error sending Telegram message:', error);
@@ -2247,24 +3147,24 @@ class TelegramNotificationService {
         if (passenger && passenger.telegramChatId) {
           const message = 
             `Jai Swaminarayan 🙏\n\n` +
-            `⏰ *CHECK-IN REMINDER* - 24 Hours Notice\n\n` +
-            `✈️ *Flight:* ${flight.airline} ${flight.flightNumber}\n` +
-            `📍 *Route:* ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
-            `🛫 *Departure:* ${departureLocal}\n\n` +
-            `🎫 *Time to check in!*\n` +
+            `⏰ CHECK-IN REMINDER - 24 Hours Notice\n\n` +
+            `✈️ Flight: ${flight.airline} ${flight.flightNumber}\n` +
+            `📍 Route: ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n` +
+            `🛫 Departure: ${departureLocal}\n\n` +
+            `🎫 Time to check in!\n` +
             `Most airlines allow online check-in 24 hours before departure.\n\n` +
-            `📱 *Check in ${checkInText}*\n\n` +
-            `💡 *Tips:*\n` +
+            `📱 Check in ${checkInText}\n\n` +
+            `💡 Tips:\n` +
             `• Check in early to get better seat selection\n` +
             `• Download your boarding pass to your phone\n` +
             `• Arrive at airport 2-3 hours early for international flights\n` +
             `• Check baggage requirements and restrictions\n\n` +
-            `${flight.pickupSevakName ? `🚗 *Pickup:* ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
-            `${flight.dropoffSevakName ? `🚗 *Dropoff:* ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
+            `${flight.pickupSevakName ? `🚗 Pickup: ${flight.pickupSevakName} (${flight.pickupSevakPhone})\n` : ''}` +
+            `${flight.dropoffSevakName ? `🚗 Dropoff: ${flight.dropoffSevakName} (${flight.dropoffSevakPhone})\n` : ''}` +
             `\n💡 Use /flightinfo ${flight.flightNumber} ${new Date(flight.departureDateTime).toISOString().split('T')[0]} for latest flight updates.`;
 
           try {
-            await this.bot.sendMessage(passenger.telegramChatId, message, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(passenger.telegramChatId, message);
             remindersSent++;
             console.log(`✅ Check-in reminder sent to passenger: ${passenger.name}`);
           } catch (error) {
@@ -2282,6 +3182,103 @@ class TelegramNotificationService {
       console.error('Error sending check-in reminders:', error);
       return false;
     }
+  }
+
+  // Show flight with navigation buttons
+  async showFlightWithNavigation(chatId, flights, currentIndex, passengerName, allPassengers) {
+    if (!flights || flights.length === 0) return;
+    
+    const flight = flights[currentIndex];
+    
+    // Get all passenger names
+    const allPassengerNames = [];
+    if (flight.passengers?.length > 0) {
+      for (const p of flight.passengers) {
+        if (p.name) {
+          allPassengerNames.push(p.name);
+        } else if (p.passengerId) {
+          const passengerData = allPassengers.find(passenger => passenger.id === p.passengerId);
+          if (passengerData) {
+            allPassengerNames.push(passengerData.name);
+          } else {
+            allPassengerNames.push('Unknown Passenger');
+          }
+        }
+      }
+    }
+    
+    let message = `Jai Swaminarayan 🙏\n\n` +
+                  `✈️ Flight ${currentIndex + 1} of ${flights.length}\n\n` +
+                  `✈️ ${flight.airline} ${flight.flightNumber}\n\n` +
+                  `🛫 Departure\n` +
+                  `${this.formatAirportDisplay(flight.from)}\n` +
+                  `${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n` +
+                  `🛬 Arrival\n` +
+                  `${this.formatAirportDisplay(flight.to)}\n` +
+                  `${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
+    
+    // Show all passengers
+    if (allPassengerNames.length > 0) {
+      message += `👥 Passengers\n${allPassengerNames.join(', ')}\n\n`;
+    }
+    
+    // Transportation Details
+    if (flight.pickupSevakName || flight.dropoffSevakName) {
+      message += `🚗 Transportation\n`;
+      if (flight.pickupSevakName) {
+        message += `Pickup: ${flight.pickupSevakName}`;
+        if (flight.pickupSevakPhone) {
+          message += ` • ${flight.pickupSevakPhone}`;
+        }
+        message += `\n`;
+      }
+      if (flight.dropoffSevakName) {
+        message += `Dropoff: ${flight.dropoffSevakName}`;
+        if (flight.dropoffSevakPhone) {
+          message += ` • ${flight.dropoffSevakPhone}`;
+        }
+        message += `\n`;
+      }
+      message += `\n`;
+    }
+    
+    // Notes
+    if (flight.notes && flight.notes.trim()) {
+      message += `📝 Notes\n${flight.notes}`;
+    }
+    
+    // Create navigation buttons
+    const keyboard = [];
+    
+    if (flights.length > 1) {
+      const navRow = [];
+      
+      if (currentIndex > 0) {
+        navRow.push({ 
+          text: '⬅️ Previous', 
+          callback_data: `flight_nav_${currentIndex - 1}_${encodeURIComponent(passengerName)}` 
+        });
+      }
+      
+      if (currentIndex < flights.length - 1) {
+        navRow.push({ 
+          text: 'Next ➡️', 
+          callback_data: `flight_nav_${currentIndex + 1}_${encodeURIComponent(passengerName)}` 
+        });
+      }
+      
+      if (navRow.length > 0) {
+        keyboard.push(navRow);
+      }
+    }
+    
+    const options = {
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    };
+    
+    await this.bot.sendMessage(chatId, message, options);
   }
 
   // Get bot instance (for accessing from express routes)

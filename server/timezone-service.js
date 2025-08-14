@@ -12,9 +12,8 @@ class TimezoneService {
     try {
       const fs = require('fs').promises;
       const path = require('path');
-      const airportsFile = path.join(__dirname, 'data', 'airports.json');
-      const data = await fs.readFile(airportsFile, 'utf8');
-      this.airports = JSON.parse(data);
+      const airportsData = await fs.readFile(path.join(__dirname, 'data/airports.json'), 'utf8');
+      this.airports = JSON.parse(airportsData);
       console.log(`📍 Loaded ${this.airports.length} airports with timezone data`);
     } catch (error) {
       console.error('Error loading airports:', error);
