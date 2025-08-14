@@ -22,7 +22,7 @@ export default function TelegramInfo() {
             🤖 Telegram Bot
           </h1>
           <p style={{ color: '#6b7280', fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-            Get instant flight notifications, automatic delay alerts, and manage your travel preferences through our intelligent Telegram bot with 24/7 automated monitoring
+            Get instant flight notifications, automatic delay alerts, and real-time access to your flight data through our intelligent Telegram bot with Google Sheets integration
           </p>
         </div>
 

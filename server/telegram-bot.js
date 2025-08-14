@@ -2321,17 +2321,19 @@ class TelegramNotificationService {
           
           console.log('🔍 Parsed data:', { currentIndex, passengerName });
           
-          // Find the passenger and get their flights
+          // Find the passenger by chatId (more reliable than name matching)
           const passengers = await readPassengers();
           const passenger = passengers.find(p => 
-            p.name.toLowerCase() === passengerName.toLowerCase() && 
-            p.telegramChatId === chatId
+            p.telegramChatId === chatId || 
+            p.telegramChatId === String(chatId) || 
+            String(p.telegramChatId) === String(chatId)
           );
           
-          console.log('🔍 Passenger search result:', passenger ? 'Found' : 'Not found');
+          console.log('🔍 Passenger search result:', passenger ? `Found: ${passenger.name}` : 'Not found');
           
           if (!passenger) {
             console.log('❌ Passenger not found for navigation');
+            console.log(`Available passengers:`, passengers.map(p => ({ name: p.name, chatId: p.telegramChatId, type: typeof p.telegramChatId })));
             await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Passenger not found' });
             return;
           }

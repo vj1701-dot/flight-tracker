@@ -7,7 +7,6 @@ import Filters from '../components/Filters'
 import UserManagement from '../components/UserManagement'
 import AuditTrail from '../components/AuditTrail'
 import ArchiveComponent from '../components/Archive'
-import BackupManagement from '../components/BackupManagement'
 import FlightMonitoring from '../components/FlightMonitoring'
 import DataManagement from './DataManagement'
 import AddFlight from './AddFlight'
@@ -386,29 +385,6 @@ function Dashboard() {
           )}
 
 
-          {currentUser?.role === 'superadmin' && (
-            <button
-              onClick={() => { setActiveTab('backup'); setSidebarOpen(false) }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem',
-                background: activeTab === 'backup' ? '#e0f2fe' : 'transparent',
-                color: activeTab === 'backup' ? '#0369a1' : '#374151',
-                border: 'none',
-                borderRadius: '0.5rem',
-                cursor: 'pointer',
-                width: '100%',
-                textAlign: 'left',
-                fontSize: '0.875rem',
-                fontWeight: '500'
-              }}
-            >
-              <Database size={18} />
-              Backup Management
-            </button>
-          )}
           
           <div style={{ 
             borderTop: '1px solid #e5e7eb', 
@@ -570,8 +546,6 @@ function Dashboard() {
           <FlightMonitoring />
         ) : activeTab === 'audit' ? (
           <AuditTrail />
-        ) : activeTab === 'backup' ? (
-          <BackupManagement />
         ) : activeTab === 'archive' ? (
           <ArchiveComponent />
         ) : activeTab === 'addFlight' ? (

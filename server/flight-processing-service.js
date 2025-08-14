@@ -3,9 +3,12 @@ const path = require('path');
 const { extractTextFromImage } = require('./ocr-service');
 const GeminiService = require('./gemini-service');
 const { v4: uuidv4 } = require('uuid');
-
-const passengersFilePath = path.join(__dirname, 'passengers.json');
-const flightsFilePath = path.join(__dirname, 'flights.json');
+const { 
+  readPassengers, 
+  writePassengers, 
+  readFlights, 
+  writeFlights 
+} = require('./data-helpers');
 
 // Install fuzzy string matching library if needed
 let fuzzy;
@@ -374,8 +377,7 @@ function calculateNameSimilarity(extracted, stored) {
 async function findPassengerByExtractedName(extractedName) {
   console.log(`🔍 FLIGHT_PROCESSING: Searching for passenger: "${extractedName}"`);
   
-  const passengersData = await fs.readFile(passengersFilePath, 'utf-8');
-  const passengers = JSON.parse(passengersData);
+  const passengers = await readPassengers();
   
   const normalizedExtracted = normalizeNameForMatching(extractedName);
   const extractedComponents = parseNameComponents(extractedName);
@@ -570,8 +572,7 @@ async function createNewPassengerFromTicket(extractedName) {
   console.log(`🆕 FLIGHT_PROCESSING: Creating new passenger: "${extractedName}"`);
   
   try {
-    const passengersData = await fs.readFile(passengersFilePath, 'utf-8');
-    const passengers = JSON.parse(passengersData);
+    const passengers = await readPassengers();
     
     // Create a new passenger with extracted name
     const newPassenger = {
@@ -590,8 +591,8 @@ async function createNewPassengerFromTicket(extractedName) {
     // Add to passengers array
     passengers.push(newPassenger);
     
-    // Save back to file
-    await fs.writeFile(passengersFilePath, JSON.stringify(passengers, null, 2));
+    // Save to Google Sheets
+    await writePassengers(passengers);
     
     console.log(`✅ FLIGHT_PROCESSING: Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
     
@@ -866,8 +867,7 @@ function parseFlightData(text) {
  */
 async function updatePassengerWithExtractedName(passenger, extractedName) {
   try {
-    const passengersData = await fs.readFile(passengersFilePath, 'utf-8');
-    const passengers = JSON.parse(passengersData);
+    const passengers = await readPassengers();
     
     const passengerIndex = passengers.findIndex(p => p.id === passenger.id);
     if (passengerIndex === -1) return false;
@@ -887,7 +887,7 @@ async function updatePassengerWithExtractedName(passenger, extractedName) {
       passengers[passengerIndex].extractedNames.push(extractedName);
       passengers[passengerIndex].updatedAt = new Date().toISOString();
       
-      await fs.writeFile(passengersFilePath, JSON.stringify(passengers, null, 2));
+      await writePassengers(passengers);
       console.log(`✅ FLIGHT_PROCESSING: Added extracted name "${extractedName}" to passenger ${passenger.name}`);
       return true;
     }
@@ -1080,8 +1080,7 @@ async function processFlightTicket(imageUrl) {
 
     // Step 6: Load existing flights
     console.log('🔍 FLIGHT_PROCESSING: Step 4 - Creating flight record');
-    const flightsData = await fs.readFile(flightsFilePath, 'utf-8');
-    const flights = JSON.parse(flightsData);
+    const flights = await readFlights();
 
     // Step 7: Create enhanced flight object
     const newFlight = {
@@ -1130,7 +1129,7 @@ async function processFlightTicket(imageUrl) {
 
     // Step 8: Save flight
     flights.push(newFlight);
-    await fs.writeFile(flightsFilePath, JSON.stringify(flights, null, 2));
+    await writeFlights(flights);
     
     processingResult.success = true;
     processingResult.flight = newFlight;

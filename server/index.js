@@ -632,6 +632,170 @@ app.get('/api/volunteers', authenticateToken, authorizeRole(['superadmin', 'admi
   }
 });
 
+// Data Management CRUD endpoints (for DataManagement.jsx)
+app.get('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = await readPassengers();
+    res.json(passengers);
+  } catch (error) {
+    console.error('Error reading passengers:', error);
+    res.status(500).json({ error: 'Failed to read passengers' });
+  }
+});
+
+app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = await readPassengers();
+    const newPassenger = {
+      ...req.body,
+      id: req.body.id || uuidv4(),
+      createdAt: req.body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    passengers.push(newPassenger);
+    await writePassengers(passengers);
+    
+    res.json(newPassenger);
+  } catch (error) {
+    console.error('Error creating passenger:', error);
+    res.status(500).json({ error: 'Failed to create passenger' });
+  }
+});
+
+app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = await readPassengers();
+    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
+    
+    if (passengerIndex === -1) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+    
+    const updatedPassenger = {
+      ...passengers[passengerIndex],
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+    
+    passengers[passengerIndex] = updatedPassenger;
+    await writePassengers(passengers);
+    
+    res.json(updatedPassenger);
+  } catch (error) {
+    console.error('Error updating passenger:', error);
+    res.status(500).json({ error: 'Failed to update passenger' });
+  }
+});
+
+app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const passengers = await readPassengers();
+    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
+    
+    if (passengerIndex === -1) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+    
+    passengers.splice(passengerIndex, 1);
+    await writePassengers(passengers);
+    
+    res.json({ message: 'Passenger deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting passenger:', error);
+    res.status(500).json({ error: 'Failed to delete passenger' });
+  }
+});
+
+app.get('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const users = await readUsers();
+    // Remove password from response for security
+    const safeUsers = users.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+    res.json(safeUsers);
+  } catch (error) {
+    console.error('Error reading users:', error);
+    res.status(500).json({ error: 'Failed to read users' });
+  }
+});
+
+app.get('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = await readVolunteers();
+    res.json(volunteers);
+  } catch (error) {
+    console.error('Error reading volunteers:', error);
+    res.status(500).json({ error: 'Failed to read volunteers' });
+  }
+});
+
+app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = await readVolunteers();
+    const newVolunteer = {
+      ...req.body,
+      id: req.body.id || uuidv4(),
+      createdAt: req.body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    volunteers.push(newVolunteer);
+    await writeVolunteers(volunteers);
+    
+    res.json(newVolunteer);
+  } catch (error) {
+    console.error('Error creating volunteer:', error);
+    res.status(500).json({ error: 'Failed to create volunteer' });
+  }
+});
+
+app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = await readVolunteers();
+    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
+    
+    if (volunteerIndex === -1) {
+      return res.status(404).json({ error: 'Volunteer not found' });
+    }
+    
+    const updatedVolunteer = {
+      ...volunteers[volunteerIndex],
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+    
+    volunteers[volunteerIndex] = updatedVolunteer;
+    await writeVolunteers(volunteers);
+    
+    res.json(updatedVolunteer);
+  } catch (error) {
+    console.error('Error updating volunteer:', error);
+    res.status(500).json({ error: 'Failed to update volunteer' });
+  }
+});
+
+app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const volunteers = await readVolunteers();
+    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
+    
+    if (volunteerIndex === -1) {
+      return res.status(404).json({ error: 'Volunteer not found' });
+    }
+    
+    volunteers.splice(volunteerIndex, 1);
+    await writeVolunteers(volunteers);
+    
+    res.json({ message: 'Volunteer deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting volunteer:', error);
+    res.status(500).json({ error: 'Failed to delete volunteer' });
+  }
+});
+
 // Flights endpoint
 app.get('/api/flights', authenticateToken, async (req, res) => {
   try {

@@ -56,20 +56,20 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 - **Timezone-aware flight validation** for international travel
 - Real-time updates and intuitive UI
 
-### 💾 Automated Backup System
-- **Pre-deployment backups**: Automatic data backup before each deployment
-- **Post-deployment restore**: Seamless data restoration after deployment
-- **Cross-deployment continuity**: Passenger, volunteer, user, and flight data persists
-- **Google Cloud Storage integration**: Secure, durable backup storage
-- **Manual backup management**: On-demand backup creation and restoration
+### 💾 Google Sheets Integration
+- **Real-time data storage**: All data stored directly in Google Sheets for instant access
+- **No backup needed**: Google Sheets provides built-in versioning and reliability
+- **Cloud-native**: Seamless integration with Google Cloud infrastructure
+- **Collaborative**: Multiple admins can view/edit data simultaneously
+- **Reliable**: Enterprise-grade data persistence and availability
 
 ## Technology Stack
 
 - **Frontend**: React.js with Lucide icons
 - **Backend**: Node.js with Express
 - **Authentication**: JWT with bcrypt
-- **Database**: JSON file storage
-- **Deployment**: Google Cloud App Engine
+- **Database**: Google Sheets API integration
+- **Deployment**: Google Cloud Run with automatic CI/CD
 - **Bot Integration**: Telegram Bot API
 - **Flight Data**: FlightAware AeroAPI
 - **Monitoring**: Automated flight status tracking
@@ -78,9 +78,9 @@ A comprehensive flight tracking and volunteer coordination system designed for m
 
 ### Production Deployment (Recommended)
 
-Deploy with automatic backup and restore:
+Deploy to Google Cloud Run with automatic CI/CD:
 ```bash
-./deploy-backup.sh deploy
+git push origin main
 ```
 
 ### Simple Development Setup
@@ -138,13 +138,13 @@ Flight Tracker/
 - Flight-specific audit trail access
 - All flight operations
 - **Exclusive monitoring system control** (dashboard access, settings management)
-- **Exclusive backup management system access**
+- **Google Sheets data management** (full data access and management)
 
 ### Admin
 - User management (limited)
 - All flight operations
 - No monitoring dashboard access (superadmin exclusive)
-- No backup management access (superadmin exclusive)
+- No data management access (superadmin exclusive)
 - No audit trail access
 
 ### User
@@ -196,11 +196,13 @@ Flight Tracker/
 ```bash
 NODE_ENV=production                    # Environment mode
 JWT_SECRET=your-secure-secret-here     # JWT signing secret
-TELEGRAM_BOT_TOKEN=your-bot-token      # Telegram bot token
-FLIGHTAWARE_API_KEY=your-api-key       # FlightAware AeroAPI key
-GEMINI_API_KEY=your-gemini-api-key     # Google Gemini API key (for AI ticket processing)
-GOOGLE_CREDENTIALS_JSON="{...}"        # Google Cloud credentials (for OCR fallback)
-PORT=3333                              # Server port (optional)
+TELEGRAM_BOT_TOKEN=your-bot-token      # Telegram bot token (optional)
+WEBHOOK_URL=your-cloud-run-url         # Telegram webhook URL (optional)
+FLIGHTAWARE_API_KEY=your-api-key       # FlightAware AeroAPI key (optional)
+GEMINI_API_KEY=your-gemini-api-key     # Google Gemini API key (optional, for AI ticket processing)
+GOOGLE_CREDENTIALS_JSON="{...}"        # Google Cloud service account credentials (required)
+GOOGLE_SHEETS_ID=your-spreadsheet-id   # Google Sheets spreadsheet ID (required)
+PORT=8080                              # Server port (Cloud Run default)
 ```
 
 ### Default Users
@@ -255,20 +257,24 @@ On first startup, a default super admin is created:
 ## Data Management
 
 ### Flight Data
-- Stored in `server/flights.json`
-- Includes passenger lists, volunteer assignments, and notes
-- Automatic backup on each change
+- Stored in Google Sheets `Flights` tab
+- Includes passenger IDs, volunteer assignments, and notes
+- Real-time synchronization and automatic versioning
 
 ### User Data
-- Stored in `server/users.json`
+- Stored in Google Sheets `Users` tab
 - Passwords are bcrypt hashed
 - Role and permission settings included
 
+### Passenger & Volunteer Data
+- Stored in Google Sheets `Passengers` and `Volunteers` tabs
+- Telegram integration for real-time notifications
+- Automatic registration and linking
+
 ### Audit Trail
-- Stored in `server/audit_log.json`
+- Stored in Google Sheets `Audit Log` tab
 - Flight-specific change tracking accessible via dashboard
 - Tracks all user actions with timestamps
-- Includes IP addresses and user agents
 - Superadmin-only access for security
 
 ## Contributing
