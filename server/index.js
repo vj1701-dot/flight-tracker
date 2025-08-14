@@ -10,7 +10,7 @@ const TelegramNotificationService = require('./telegram-bot');
 const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
-const { getFlightsWithResolvedNames, findPassengerByName } = require('./data-helpers');
+const { getFlightsWithResolvedNames, findPassengerByName, listBackups, restoreBackup, deleteBackup } = require('./data-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -1753,13 +1753,8 @@ app.post('/api/backup/create', authenticateToken, authorizeRole(['superadmin']),
 
 app.get('/api/backup/list', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const result = await backupService.listBackups();
-    
-    if (result.success) {
-      res.json({ backups: result.backups });
-    } else {
-      res.status(500).json({ error: result.error });
-    }
+    const backups = await listBackups();
+    res.json({ backups });
   } catch (error) {
     console.error('Error listing backups:', error);
     res.status(500).json({ error: 'Failed to list backups' });
@@ -1768,19 +1763,19 @@ app.get('/api/backup/list', authenticateToken, authorizeRole(['superadmin']), as
 
 app.post('/api/backup/restore', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const { backupFolder } = req.body;
+    const { backupId, originalFileName } = req.body;
     
-    if (!backupFolder) {
-      return res.status(400).json({ error: 'Backup folder is required' });
+    if (!backupId || !originalFileName) {
+      return res.status(400).json({ error: 'Backup ID and original filename are required' });
     }
     
-    const result = await backupService.restoreBackup(backupFolder);
+    const result = await restoreBackup(backupId, originalFileName);
     
-    if (result.success) {
-      await logAuditEvent('restore', 'backup', backupFolder, req.user.id, req.user.username, null, null, { backupFolder });
+    if (result) {
+      await logAuditEvent('restore', 'backup', backupId, req.user.id, req.user.username, null, null, { backupId, originalFileName });
       res.json({ message: 'Backup restored successfully' });
     } else {
-      res.status(500).json({ error: result.error });
+      res.status(500).json({ error: 'Backup restore failed' });
     }
   } catch (error) {
     console.error('Error restoring backup:', error);
@@ -1790,11 +1785,37 @@ app.post('/api/backup/restore', authenticateToken, authorizeRole(['superadmin'])
 
 app.get('/api/backup/stats', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const stats = await backupService.getBackupStats();
+    const backups = await listBackups();
+    const stats = {
+      totalBackups: backups.length,
+      backups: backups
+    };
     res.json(stats);
   } catch (error) {
     console.error('Error getting backup stats:', error);
     res.status(500).json({ error: 'Failed to get backup statistics' });
+  }
+});
+
+app.post('/api/backup/delete', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { backupId } = req.body;
+    
+    if (!backupId) {
+      return res.status(400).json({ error: 'Backup ID is required' });
+    }
+    
+    const result = await deleteBackup(backupId);
+    
+    if (result) {
+      await logAuditEvent('delete', 'backup', backupId, req.user.id, req.user.username, null, null, { backupId });
+      res.json({ message: 'Backup deleted successfully' });
+    } else {
+      res.status(500).json({ error: 'Backup deletion failed' });
+    }
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    res.status(500).json({ error: 'Failed to delete backup' });
   }
 });
 
