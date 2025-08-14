@@ -25,11 +25,8 @@ const { googleSheets } = require('./google-sheets-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const FLIGHTS_FILE = path.join(__dirname, 'flights.json');
-const USERS_FILE = path.join(__dirname, 'users.json');
-const PASSENGERS_FILE = path.join(__dirname, 'passengers.json');
-const VOLUNTEERS_FILE = path.join(__dirname, 'volunteers.json');
-const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
+
+// Environment configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'flight-tracker-secret-key';
 
 // Security validation for production
@@ -47,44 +44,53 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', true);
 }
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Add multer for file uploads
-const multer = require('multer');
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only JSON files are allowed'));
+// File paths for local JSON files (used for some operations)
+const PASSENGERS_FILE = path.join(__dirname, 'passengers.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
+const VOLUNTEERS_FILE = path.join(__dirname, 'volunteers.json');
+const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
+
+// Auth middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
-  }
-});
+    req.user = user;
+    next();
+  });
+}
 
-// Security headers
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
-  next();
-});
+function authorizeRole(roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
+}
 
+// Rate limiting for API routes
 const limiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 2000,
-  message: 'Too many requests from this IP',
-  trustProxy: true, // Trust Cloud Run proxy headers
-  keyGenerator: (req) => {
-    // Use X-Forwarded-For header or fallback to connection IP
-    return req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip;
-  }
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+
 app.use('/api', limiter);
 
 if (process.env.NODE_ENV === 'production') {
@@ -96,7 +102,7 @@ app.get('/api/storage/health', authenticateToken, async (req, res) => {
   try {
     const isUsingGoogleSheets = process.env.GOOGLE_SHEETS_ID ? true : false;
     let healthStatus = {
-      primaryStorage: isUsingGoogleSheets ? 'Google Sheets' : 'Cloud Storage',
+      primaryStorage: isUsingGoogleSheets ? 'Google Sheets' : 'Local Files',
       status: 'unknown',
       details: {}
     };
@@ -111,7 +117,7 @@ app.get('/api/storage/health', authenticateToken, async (req, res) => {
         lastAccess: sheetsHealth.lastAccess
       };
     } else {
-      // Check Cloud Storage health by reading a small amount of data
+      // Check local storage health by reading a small amount of data
       try {
         const flights = await readFlights();
         healthStatus.status = 'healthy';
@@ -128,13 +134,13 @@ app.get('/api/storage/health', authenticateToken, async (req, res) => {
     res.json(healthStatus);
   } catch (error) {
     res.status(500).json({ 
-      error: 'Failed to check storage health',
+      status: 'error',
       details: error.message 
     });
   }
 });
 
-// All data operations now handled by data-helpers.js with Google Sheets/Cloud Storage integration
+// All data operations now handled by data-helpers.js with Google Sheets integration
 
 async function addOrUpdatePassenger(name, telegramChatId = null) {
   try {
@@ -148,13 +154,6 @@ async function addOrUpdatePassenger(name, telegramChatId = null) {
         existingPassenger.telegramChatId = telegramChatId;
         existingPassenger.updatedAt = new Date().toISOString();
         await writePassengers(passengers);
-        
-        // Create automatic backup after passenger update during flight processing
-        try {
-          await backupService.createAutoBackup('passenger-auto-update');
-        } catch (backupError) {
-          console.warn('Auto-backup after passenger auto-update failed:', backupError.message);
-        }
       }
       return existingPassenger;
     } else {
@@ -168,13 +167,6 @@ async function addOrUpdatePassenger(name, telegramChatId = null) {
       };
       passengers.push(newPassenger);
       await writePassengers(passengers);
-      
-      // Create automatic backup after passenger creation during flight processing
-      try {
-        await backupService.createAutoBackup('passenger-auto-add');
-      } catch (backupError) {
-        console.warn('Auto-backup after passenger auto-add failed:', backupError.message);
-      }
       
       return newPassenger;
     }
@@ -204,13 +196,6 @@ async function addOrUpdateVolunteer(name, phone = null, telegramChatId = null) {
       if (updated) {
         existingVolunteer.updatedAt = new Date().toISOString();
         await writeVolunteers(volunteers);
-        
-        // Create automatic backup after volunteer update during flight processing
-        try {
-          await backupService.createAutoBackup('volunteer-auto-update');
-        } catch (backupError) {
-          console.warn('Auto-backup after volunteer auto-update failed:', backupError.message);
-        }
       }
       return existingVolunteer;
     } else {
@@ -225,13 +210,6 @@ async function addOrUpdateVolunteer(name, phone = null, telegramChatId = null) {
       };
       volunteers.push(newVolunteer);
       await writeVolunteers(volunteers);
-      
-      // Create automatic backup after volunteer creation during flight processing
-      try {
-        await backupService.createAutoBackup('volunteer-auto-add');
-      } catch (backupError) {
-        console.warn('Auto-backup after volunteer auto-add failed:', backupError.message);
-      }
       
       return newVolunteer;
     }
@@ -297,51 +275,30 @@ function getChanges(oldObj, newObj, excludeFields = ['id', 'updatedAt']) {
     const oldValue = oldObj?.[key];
     const newValue = newObj?.[key];
     
-    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-      changes[key] = {
-        from: oldValue,
-        to: newValue
-      };
+    // Handle array comparison
+    if (Array.isArray(oldValue) && Array.isArray(newValue)) {
+      if (JSON.stringify(oldValue.sort()) !== JSON.stringify(newValue.sort())) {
+        changes[key] = { from: oldValue, to: newValue };
+      }
+    } else if (oldValue !== newValue) {
+      changes[key] = { from: oldValue, to: newValue };
     }
   }
   
   return Object.keys(changes).length > 0 ? changes : null;
 }
 
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    console.log('Authentication failed: No token provided');
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      console.log('JWT verification failed:', err.message);
-      console.log('Token (first 20 chars):', token.substring(0, 20) + '...');
-      console.log('JWT_SECRET (first 10 chars):', JWT_SECRET.substring(0, 10) + '...');
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    console.log('Authentication successful for user:', user.username, 'role:', user.role);
-    req.user = user;
-    next();
-  });
-};
-
-const authorizeRole = (roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    next();
-  };
-};
-
+// Initialize default users
 const initializeDefaultUsers = async () => {
-  const users = await readUsers();
-  if (users.length === 0) {
+  try {
+    const users = await readUsers();
+    if (users.length === 0) {
+      console.log('No users found, creating default super admin...');
+    }
+    
+    const superAdminExists = users.some(user => user.role === 'superadmin');
+    if (superAdminExists) return;
+    
     const hashedPassword = await bcrypt.hash('admin123', 10);
     const superAdmin = {
       id: uuidv4(),
@@ -350,7 +307,7 @@ const initializeDefaultUsers = async () => {
       email: 'superadmin@flighttracker.com',
       password: hashedPassword,
       role: 'superadmin',
-      allowedAirports: [], // Empty means all airports
+      allowedAirports: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -391,7 +348,6 @@ const migrateFlightUserNames = async () => {
 
     if (needsUpdate) {
       await writeFlights(updatedFlights);
-      // Flight user names migration completed
     }
   } catch (error) {
     console.error('Error during flight user names migration:', error);
@@ -402,26 +358,9 @@ function validateFlight(flight) {
   const required = ['airline', 'flightNumber', 'from', 'to', 'departureDateTime', 'arrivalDateTime'];
   for (const field of required) {
     if (!flight[field]) {
-      return `Missing required field: ${field}`;
+      return `${field} is required`;
     }
   }
-  
-  if (new Date(flight.departureDateTime) >= new Date(flight.arrivalDateTime)) {
-    return 'Departure time must be before arrival time';
-  }
-  
-  if (flight.passengers && Array.isArray(flight.passengers)) {
-    if (flight.passengers.length === 0) {
-      return 'At least one passenger is required';
-    }
-    
-    for (const passenger of flight.passengers) {
-      if (!passenger.name || typeof passenger.name !== 'string' || !passenger.name.trim()) {
-        return 'All passengers must have a valid name';
-      }
-    }
-  }
-  
   return null;
 }
 
@@ -439,9 +378,9 @@ app.post('/telegram/webhook', (req, res) => {
 // Set up webhook in production
 if (process.env.NODE_ENV === 'production') {
   const webhookUrl = `${process.env.WEBHOOK_URL || 'https://flight-tracker-352144879829.us-central1.run.app'}/telegram/webhook`;
-  telegramBot.setupWebhook(webhookUrl).then(success => {
+  telegramBot.setWebhook(webhookUrl).then(success => {
     if (success) {
-      console.log('✅ Telegram webhook configured successfully');
+      console.log('✅ Telegram webhook configured for production');
     } else {
       console.error('❌ Failed to configure Telegram webhook');
     }
@@ -490,335 +429,9 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
-  try {
-    const { username, name, email, password, role, allowedAirports } = req.body;
-    
-    if (!username || !name || !password || !role) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-
-    if (!['superadmin', 'admin', 'user'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    if (req.user.role === 'admin' && role === 'superadmin') {
-      return res.status(403).json({ error: 'Admins cannot create super admins' });
-    }
-
-    const users = await readUsers();
-    const existingUser = users.find(u => u.username === username);
-    if (existingUser) {
-      return res.status(409).json({ error: 'Username already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-      id: uuidv4(),
-      username,
-      name,
-      email,
-      password: hashedPassword,
-      role,
-      allowedAirports: allowedAirports || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    await writeUsers(users);
-
-    // Create automatic backup after user creation
-    try {
-      await backupService.createAutoBackup('user-add');
-    } catch (backupError) {
-      console.warn('Auto-backup after user creation failed:', backupError.message);
-    }
-
-    // Log audit event for user creation
-    await logAuditEvent(
-      'CREATE',
-      'USER',
-      newUser.id,
-      req.user.id,
-      req.user.username,
-      null,
-      null,
-      {
-        id: newUser.id,
-        username: newUser.username,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        allowedAirports: newUser.allowedAirports
-      }
-    );
-
-    res.status(201).json({
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        allowedAirports: newUser.allowedAirports
-      }
-    });
-  } catch (error) {
-    console.error('Error during registration:', error);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
-app.get('/api/users', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
-  try {
-    const users = await readUsers();
-    const userList = users.map(user => ({
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      allowedAirports: user.allowedAirports,
-      createdAt: user.createdAt
-    }));
-    res.json(userList);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { username, name, email, role, allowedAirports } = req.body;
-    
-    if (!username || !name || !role) {
-      return res.status(400).json({ error: 'Username, name, and role are required' });
-    }
-
-    if (!['superadmin', 'admin', 'user'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    if (req.user.role === 'admin' && role === 'superadmin') {
-      return res.status(403).json({ error: 'Admins cannot promote users to super admin' });
-    }
-
-    const users = await readUsers();
-    const userIndex = users.findIndex(u => u.id === id);
-    
-    if (userIndex === -1) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const oldUser = { ...users[userIndex] };
-    
-    // Prevent admins from updating super admins
-    if (req.user.role === 'admin' && oldUser.role === 'superadmin') {
-      return res.status(403).json({ error: 'Admins cannot modify super admin accounts' });
-    }
-    
-    // Check if username already exists for other users
-    const existingUser = users.find(u => u.id !== id && u.username === username);
-    if (existingUser) {
-      return res.status(409).json({ error: 'Username already exists' });
-    }
-
-    const updatedUser = {
-      ...users[userIndex],
-      username,
-      name,
-      email,
-      role,
-      allowedAirports: allowedAirports || [],
-      updatedAt: new Date().toISOString()
-    };
-
-    users[userIndex] = updatedUser;
-    await writeUsers(users);
-
-    // Create automatic backup after user update
-    try {
-      await backupService.createAutoBackup('user-update');
-    } catch (backupError) {
-      console.warn('Auto-backup after user update failed:', backupError.message);
-    }
-
-    // Log audit event with changes
-    const changes = getChanges(
-      { username: oldUser.username, name: oldUser.name, email: oldUser.email, role: oldUser.role, allowedAirports: oldUser.allowedAirports },
-      { username, name, email, role, allowedAirports: allowedAirports || [] }
-    );
-    
-    await logAuditEvent(
-      'UPDATE',
-      'USER',
-      id,
-      req.user.id,
-      req.user.username,
-      changes,
-      {
-        id: oldUser.id,
-        username: oldUser.username,
-        name: oldUser.name,
-        email: oldUser.email,
-        role: oldUser.role,
-        allowedAirports: oldUser.allowedAirports
-      },
-      {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        allowedAirports: updatedUser.allowedAirports
-      }
-    );
-
-    res.json({
-      user: {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        allowedAirports: updatedUser.allowedAirports
-      }
-    });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
-app.delete('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Prevent deletion of own account
-    if (req.user.id === id) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
-    }
-
-    const users = await readUsers();
-    const userIndex = users.findIndex(u => u.id === id);
-    
-    if (userIndex === -1) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const deletedUser = users[userIndex];
-    
-    // Prevent admins from deleting super admins
-    if (req.user.role === 'admin' && deletedUser.role === 'superadmin') {
-      return res.status(403).json({ error: 'Admins cannot delete super admins' });
-    }
-
-    users.splice(userIndex, 1);
-    await writeUsers(users);
-
-    // Log audit event
-    await logAuditEvent(
-      'DELETE',
-      'USER',
-      id,
-      req.user.id,
-      req.user.username,
-      null,
-      {
-        id: deletedUser.id,
-        username: deletedUser.username,
-        name: deletedUser.name,
-        email: deletedUser.email,
-        role: deletedUser.role,
-        allowedAirports: deletedUser.allowedAirports
-      },
-      null
-    );
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-// Passengers endpoints
-app.get('/api/passengers', authenticateToken, async (req, res) => {
-  try {
-    const passengers = await readPassengers();
-    // Sort by flight count and name for better suggestions
-    const sortedPassengers = passengers.sort((a, b) => {
-      if (b.flightCount !== a.flightCount) {
-        return b.flightCount - a.flightCount;
-      }
-      return a.name.localeCompare(b.name);
-    });
-    res.json(sortedPassengers);
-  } catch (error) {
-    console.error('Error reading passengers:', error);
-    res.status(500).json({ error: 'Failed to read passengers' });
-  }
-});
-
-app.get('/api/passengers/search', authenticateToken, async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.length < 2) {
-      return res.json([]);
-    }
-
-    const passengers = await readPassengers();
-    const filtered = passengers
-      .filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
-      .sort((a, b) => {
-        // Prioritize exact matches and higher flight counts
-        const aStartsWith = a.name.toLowerCase().startsWith(q.toLowerCase());
-        const bStartsWith = b.name.toLowerCase().startsWith(q.toLowerCase());
-        
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-        
-        return b.flightCount - a.flightCount;
-      })
-      .slice(0, 10); // Limit to 10 suggestions
-
-    res.json(filtered);
-  } catch (error) {
-    console.error('Error searching passengers:', error);
-    res.status(500).json({ error: 'Failed to search passengers' });
-  }
-});
-
-app.get('/api/volunteers/search', authenticateToken, async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.length < 2) {
-      return res.json([]);
-    }
-
-    const volunteers = await readVolunteers();
-    const filtered = volunteers
-      .filter(v => v.name.toLowerCase().includes(q.toLowerCase()))
-      .sort((a, b) => {
-        // Prioritize exact matches and higher flight counts
-        const aStartsWith = a.name.toLowerCase().startsWith(q.toLowerCase());
-        const bStartsWith = b.name.toLowerCase().startsWith(q.toLowerCase());
-        
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-        
-        return b.flightCount - a.flightCount;
-      })
-      .slice(0, 10); // Limit to 10 suggestions
-
-    res.json(filtered);
-  } catch (error) {
-    console.error('Error searching volunteers:', error);
-    res.status(500).json({ error: 'Failed to search volunteers' });
-  }
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 // Data endpoints
@@ -834,8 +447,7 @@ app.get('/api/airlines', async (req, res) => {
 
 app.get('/api/airports', async (req, res) => {
   try {
-    const { cloudStorage } = require('./cloud-storage-helpers');
-    const airports = await cloudStorage.readAirports();
+    const airports = JSON.parse(await fs.readFile(path.join(__dirname, 'data/airports.json'), 'utf8'));
     res.json(airports);
   } catch (error) {
     console.error('Error reading airports:', error);
@@ -843,354 +455,7 @@ app.get('/api/airports', async (req, res) => {
   }
 });
 
-// Data Management Endpoints (Superadmin only)
-
-// Passengers endpoints
-app.get('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
-    res.json(passengers);
-  } catch (error) {
-    console.error('Error reading passengers:', error);
-    res.status(500).json({ error: 'Failed to read passengers' });
-  }
-});
-
-app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
-    const newPassenger = {
-      id: uuidv4(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      flightCount: 0
-    };
-    
-    passengers.push(newPassenger);
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
-    
-    // Create automatic backup after passenger creation
-    try {
-      await backupService.createAutoBackup('passenger-add');
-    } catch (backupError) {
-      console.warn('Auto-backup after passenger creation failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('CREATE', 'PASSENGER', newPassenger.id, req.user.id, req.user.username, null, null, { passengerId: newPassenger.id, name: newPassenger.name });
-    
-    res.status(201).json(newPassenger);
-  } catch (error) {
-    console.error('Error creating passenger:', error);
-    res.status(500).json({ error: 'Failed to create passenger' });
-  }
-});
-
-app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
-    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
-    
-    if (passengerIndex === -1) {
-      return res.status(404).json({ error: 'Passenger not found' });
-    }
-    
-    passengers[passengerIndex] = {
-      ...passengers[passengerIndex],
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
-    
-    // Create automatic backup after passenger update
-    try {
-      await backupService.createAutoBackup('passenger-update');
-    } catch (backupError) {
-      console.warn('Auto-backup after passenger update failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('UPDATE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: passengers[passengerIndex].name });
-    
-    res.json(passengers[passengerIndex]);
-  } catch (error) {
-    console.error('Error updating passenger:', error);
-    res.status(500).json({ error: 'Failed to update passenger' });
-  }
-});
-
-app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
-    const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
-    
-    if (passengerIndex === -1) {
-      return res.status(404).json({ error: 'Passenger not found' });
-    }
-    
-    const deletedPassenger = passengers[passengerIndex];
-    passengers.splice(passengerIndex, 1);
-    
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
-    
-    // Log the action
-    await logAuditEvent('DELETE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: deletedPassenger.name });
-    
-    res.json({ message: 'Passenger deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting passenger:', error);
-    res.status(500).json({ error: 'Failed to delete passenger' });
-  }
-});
-
-// Users endpoints
-app.get('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
-    // Remove password hashes from response
-    const safeUsers = users.map(({ password, ...user }) => user);
-    res.json(safeUsers);
-  } catch (error) {
-    console.error('Error reading users:', error);
-    res.status(500).json({ error: 'Failed to read users' });
-  }
-});
-
-app.post('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
-    
-    // Check if username already exists
-    if (users.some(u => u.username === req.body.username)) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-    
-    const newUser = {
-      id: uuidv4(),
-      ...req.body,
-      password: await bcrypt.hash('password123', 10), // Default password
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      allowedAirports: req.body.allowedAirports || []
-    };
-    
-    users.push(newUser);
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-    
-    // Create automatic backup after data management user creation
-    try {
-      await backupService.createAutoBackup('data-mgmt-user-add');
-    } catch (backupError) {
-      console.warn('Auto-backup after data management user creation failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('CREATE', 'USER', newUser.id, req.user.id, req.user.username, null, null, { userId: newUser.id, username: newUser.username });
-    
-    // Remove password hash from response
-    const { password, ...safeUser } = newUser;
-    res.status(201).json(safeUser);
-  } catch (error) {
-    console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
-  }
-});
-
-app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
-    const userIndex = users.findIndex(u => u.id === req.params.id);
-    
-    if (userIndex === -1) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Check if username is being changed and if it conflicts
-    if (req.body.username && req.body.username !== users[userIndex].username) {
-      if (users.some(u => u.username === req.body.username && u.id !== req.params.id)) {
-        return res.status(400).json({ error: 'Username already exists' });
-      }
-    }
-    
-    users[userIndex] = {
-      ...users[userIndex],
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-    
-    // Create automatic backup after data management user update
-    try {
-      await backupService.createAutoBackup('data-mgmt-user-update');
-    } catch (backupError) {
-      console.warn('Auto-backup after data management user update failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('UPDATE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: users[userIndex].username });
-    
-    // Remove password hash from response
-    const { password, ...safeUser } = users[userIndex];
-    res.json(safeUser);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
-app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
-    const userIndex = users.findIndex(u => u.id === req.params.id);
-    
-    if (userIndex === -1) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Prevent deletion of the last superadmin
-    if (users[userIndex].role === 'superadmin') {
-      const superadminCount = users.filter(u => u.role === 'superadmin').length;
-      if (superadminCount <= 1) {
-        return res.status(400).json({ error: 'Cannot delete the last superadmin user' });
-      }
-    }
-    
-    const deletedUser = users[userIndex];
-    users.splice(userIndex, 1);
-    
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-    
-    // Log the action
-    await logAuditEvent('DELETE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: deletedUser.username });
-    
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-// Volunteers endpoints
-app.get('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
-    res.json(volunteers);
-  } catch (error) {
-    console.error('Error reading volunteers:', error);
-    res.status(500).json({ error: 'Failed to read volunteers' });
-  }
-});
-
-app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
-    
-    // Check if username already exists
-    if (volunteers.some(v => v.username === req.body.username)) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-    
-    const newVolunteer = {
-      id: uuidv4(),
-      ...req.body,
-      role: 'volunteer',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      allowedAirports: req.body.allowedAirports || []
-    };
-    
-    volunteers.push(newVolunteer);
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
-    
-    // Create automatic backup after volunteer creation
-    try {
-      await backupService.createAutoBackup('volunteer-add');
-    } catch (backupError) {
-      console.warn('Auto-backup after volunteer creation failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('CREATE', 'VOLUNTEER', newVolunteer.id, req.user.id, req.user.username, null, null, { volunteerId: newVolunteer.id, username: newVolunteer.username });
-    
-    res.status(201).json(newVolunteer);
-  } catch (error) {
-    console.error('Error creating volunteer:', error);
-    res.status(500).json({ error: 'Failed to create volunteer' });
-  }
-});
-
-app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
-    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
-    
-    if (volunteerIndex === -1) {
-      return res.status(404).json({ error: 'Volunteer not found' });
-    }
-    
-    // Check if username is being changed and if it conflicts
-    if (req.body.username && req.body.username !== volunteers[volunteerIndex].username) {
-      if (volunteers.some(v => v.username === req.body.username && v.id !== req.params.id)) {
-        return res.status(400).json({ error: 'Username already exists' });
-      }
-    }
-    
-    volunteers[volunteerIndex] = {
-      ...volunteers[volunteerIndex],
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
-    
-    // Create automatic backup after volunteer update
-    try {
-      await backupService.createAutoBackup('volunteer-update');
-    } catch (backupError) {
-      console.warn('Auto-backup after volunteer update failed:', backupError.message);
-    }
-    
-    // Log the action
-    await logAuditEvent('UPDATE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: volunteers[volunteerIndex].username });
-    
-    res.json(volunteers[volunteerIndex]);
-  } catch (error) {
-    console.error('Error updating volunteer:', error);
-    res.status(500).json({ error: 'Failed to update volunteer' });
-  }
-});
-
-app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
-    const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
-    
-    if (volunteerIndex === -1) {
-      return res.status(404).json({ error: 'Volunteer not found' });
-    }
-    
-    const deletedVolunteer = volunteers[volunteerIndex];
-    volunteers.splice(volunteerIndex, 1);
-    
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
-    
-    // Log the action
-    await logAuditEvent('DELETE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: deletedVolunteer.username });
-    
-    res.json({ message: 'Volunteer deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting volunteer:', error);
-    res.status(500).json({ error: 'Failed to delete volunteer' });
-  }
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
-
+// Flights endpoint
 app.get('/api/flights', authenticateToken, async (req, res) => {
   try {
     const flights = await getFlightsWithResolvedNames();
@@ -1226,1107 +491,10 @@ app.get('/api/flights', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/flights', authenticateToken, async (req, res) => {
-  try {
-    // Map new volunteer field names to legacy sevak field names for backward compatibility
-    const flightData = { ...req.body };
-    if (flightData.dropoffVolunteerName) {
-      flightData.dropoffSevakName = flightData.dropoffVolunteerName;
-      delete flightData.dropoffVolunteerName;
-    }
-    if (flightData.dropoffVolunteerPhone) {
-      flightData.dropoffSevakPhone = flightData.dropoffVolunteerPhone;
-      delete flightData.dropoffVolunteerPhone;
-    }
-    if (flightData.pickupVolunteerName) {
-      flightData.pickupSevakName = flightData.pickupVolunteerName;
-      delete flightData.pickupVolunteerName;
-    }
-    if (flightData.pickupVolunteerPhone) {
-      flightData.pickupSevakPhone = flightData.pickupVolunteerPhone;
-      delete flightData.pickupVolunteerPhone;
-    }
-
-    const validationError = validateFlight(flightData);
-    if (validationError) {
-      return res.status(400).json({ error: validationError });
-    }
-
-    const flights = await readFlights();
-    
-    // Check for duplicate flights (same flight number, from, to, and departure date)
-    const existingFlight = flights.find(f => 
-      f.flightNumber === flightData.flightNumber &&
-      f.from === flightData.from &&
-      f.to === flightData.to &&
-      new Date(f.departureDateTime).toDateString() === new Date(flightData.departureDateTime).toDateString()
-    );
-    
-    if (existingFlight) {
-      return res.status(409).json({ 
-        error: 'A flight with the same flight number, route, and departure date already exists',
-        existingFlight: existingFlight
-      });
-    }
-
-    // Convert passenger names to passenger IDs
-    let processedPassengers = [];
-    if (flightData.passengers && Array.isArray(flightData.passengers)) {
-      for (const passenger of flightData.passengers) {
-        if (passenger.name && passenger.name.trim()) {
-          const matchedPassenger = await findPassengerByName(passenger.name.trim());
-          if (matchedPassenger) {
-            // Use passenger ID reference
-            processedPassengers.push({
-              passengerId: matchedPassenger.id,
-              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
-              ...(passenger.notes && { notes: passenger.notes })
-            });
-          } else {
-            // Keep original format if no match found (backward compatibility)
-            processedPassengers.push({
-              id: passenger.id || Date.now() + Math.random(),
-              name: passenger.name.trim(),
-              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
-              ...(passenger.notes && { notes: passenger.notes })
-            });
-          }
-        }
-      }
-    }
-
-    const flight = {
-      id: uuidv4(),
-      ...flightData,
-      passengers: processedPassengers, // Use processed passengers with IDs
-      createdBy: req.user.username,
-      createdByName: req.user.name,
-      createdByUserId: req.user.id,
-      updatedBy: req.user.username,
-      updatedByName: req.user.name,
-      updatedByUserId: req.user.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    flights.push(flight);
-    await writeFlights(flights);
-
-    // Create automatic backup after flight creation
-    try {
-      await backupService.createAutoBackup('flight-add');
-    } catch (backupError) {
-      console.warn('Auto-backup after flight creation failed:', backupError.message);
-    }
-
-    // Add passengers to passenger database (only for name-based passengers that weren't matched)
-    if (flight.passengers && Array.isArray(flight.passengers)) {
-      for (const passenger of flight.passengers) {
-        // Only add to passenger database if it's name-based (not ID-based)
-        if (passenger.name && passenger.name.trim() && !passenger.passengerId) {
-          await addOrUpdatePassenger(passenger.name.trim());
-        }
-      }
-    }
-
-    // Add volunteers to volunteer database
-    if (flight.dropoffSevakName && flight.dropoffSevakName.trim()) {
-      await addOrUpdateVolunteer(
-        flight.dropoffSevakName.trim(), 
-        flight.dropoffSevakPhone ? flight.dropoffSevakPhone.trim() : null
-      );
-    }
-    if (flight.pickupSevakName && flight.pickupSevakName.trim()) {
-      await addOrUpdateVolunteer(
-        flight.pickupSevakName.trim(), 
-        flight.pickupSevakPhone ? flight.pickupSevakPhone.trim() : null
-      );
-    }
-
-    // Send Telegram notifications to passengers
-    if (telegramBot && flight.passengers) {
-      for (const passenger of flight.passengers) {
-        if (passenger.name || passenger.passengerId) {
-          const passengerInfo = await addOrUpdatePassenger(passenger.name?.trim());
-          if (passengerInfo && passengerInfo.telegramChatId) {
-            await telegramBot.sendFlightConfirmation(flight, passenger);
-          }
-        }
-      }
-    }
-
-    // Send flight addition notification
-    try {
-      await telegramBot.sendFlightAddedNotification(flight);
-    } catch (error) {
-      console.error('Error sending flight addition notification:', error);
-    }
-
-    // Log audit event
-    await logAuditEvent(
-      'CREATE',
-      'FLIGHT',
-      flight.id,
-      req.user.id,
-      req.user.username,
-      null,
-      null,
-      flight
-    );
-
-    // Return appropriate user tracking information based on role
-    let responseData = flight;
-    if (req.user.role !== 'superadmin') {
-      const { createdBy, createdByUserId, updatedBy, updatedByUserId, ...flightWithoutSensitiveInfo } = flight;
-      responseData = flightWithoutSensitiveInfo;
-    }
-
-    res.status(201).json(responseData);
-  } catch (error) {
-    console.error('Error creating flight:', error);
-    res.status(500).json({ error: 'Failed to create flight' });
-  }
-});
-
-// Public flight creation endpoint for standalone form
-app.post('/api/flights/public', async (req, res) => {
-  try {
-    // Map new volunteer field names to legacy sevak field names for backward compatibility
-    const flightData = { ...req.body };
-    if (flightData.dropoffVolunteerName) {
-      flightData.dropoffSevakName = flightData.dropoffVolunteerName;
-      delete flightData.dropoffVolunteerName;
-    }
-    if (flightData.dropoffVolunteerPhone) {
-      flightData.dropoffSevakPhone = flightData.dropoffVolunteerPhone;
-      delete flightData.dropoffVolunteerPhone;
-    }
-    if (flightData.pickupVolunteerName) {
-      flightData.pickupSevakName = flightData.pickupVolunteerName;
-      delete flightData.pickupVolunteerName;
-    }
-    if (flightData.pickupVolunteerPhone) {
-      flightData.pickupSevakPhone = flightData.pickupVolunteerPhone;
-      delete flightData.pickupVolunteerPhone;
-    }
-
-    const validationError = validateFlight(flightData);
-    if (validationError) {
-      return res.status(400).json({ error: validationError });
-    }
-
-    const flights = await readFlights();
-    
-    // Check for duplicate flights (same flight number, from, to, and departure date)
-    const existingFlight = flights.find(f => 
-      f.flightNumber === flightData.flightNumber &&
-      f.from === flightData.from &&
-      f.to === flightData.to &&
-      new Date(f.departureDateTime).toDateString() === new Date(flightData.departureDateTime).toDateString()
-    );
-    
-    if (existingFlight) {
-      return res.status(409).json({ 
-        error: 'A flight with the same flight number, route, and departure date already exists',
-        existingFlight: existingFlight
-      });
-    }
-
-    const flight = {
-      id: uuidv4(),
-      ...flightData,
-      createdBy: 'public-form',
-      createdByName: 'Public Form',
-      createdByUserId: null,
-      updatedBy: 'public-form', 
-      updatedByName: 'Public Form',
-      updatedByUserId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    flights.push(flight);
-    await writeFlights(flights);
-
-    // Create automatic backup after flight creation
-    try {
-      await backupService.createAutoBackup('flight-add-public');
-    } catch (backupError) {
-      console.warn('Auto-backup after public flight creation failed:', backupError.message);
-    }
-
-    // Add passengers to passenger database
-    if (flight.passengers && Array.isArray(flight.passengers)) {
-      for (const passenger of flight.passengers) {
-        if (passenger.name && passenger.name.trim()) {
-          await addOrUpdatePassenger(passenger.name.trim());
-        }
-      }
-    }
-
-    // Add volunteers to volunteer database
-    if (flight.dropoffSevakName && flight.dropoffSevakName.trim()) {
-      await addOrUpdateVolunteer(
-        flight.dropoffSevakName.trim(), 
-        flight.dropoffSevakPhone ? flight.dropoffSevakPhone.trim() : null
-      );
-    }
-    if (flight.pickupSevakName && flight.pickupSevakName.trim()) {
-      await addOrUpdateVolunteer(
-        flight.pickupSevakName.trim(), 
-        flight.pickupSevakPhone ? flight.pickupSevakPhone.trim() : null
-      );
-    }
-
-    // Send Telegram notifications to passengers
-    if (telegramBot && flight.passengers) {
-      for (const passenger of flight.passengers) {
-        if (passenger.name || passenger.passengerId) {
-          const passengerInfo = await addOrUpdatePassenger(passenger.name?.trim());
-          if (passengerInfo && passengerInfo.telegramChatId) {
-            await telegramBot.sendFlightConfirmation(flight, passenger);
-          }
-        }
-      }
-    }
-
-    // Log audit event (without user info since it's public)
-    await logAuditEvent(
-      'CREATE',
-      'FLIGHT',
-      flight.id,
-      null, // No user ID for public submissions
-      'public-form', // Username for public form
-      null,
-      null,
-      flight
-    );
-
-    // Return flight with user names but without sensitive user info for public form
-    const { createdBy, createdByUserId, updatedBy, updatedByUserId, ...responseData } = flight;
-    res.status(201).json(responseData);
-  } catch (error) {
-    console.error('Error creating flight via public form:', error);
-    res.status(500).json({ error: 'Failed to create flight' });
-  }
-});
-
-app.put('/api/flights/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Map new volunteer field names to legacy sevak field names for backward compatibility
-    const flightData = { ...req.body };
-    if (flightData.dropoffVolunteerName) {
-      flightData.dropoffSevakName = flightData.dropoffVolunteerName;
-      delete flightData.dropoffVolunteerName;
-    }
-    if (flightData.dropoffVolunteerPhone) {
-      flightData.dropoffSevakPhone = flightData.dropoffVolunteerPhone;
-      delete flightData.dropoffVolunteerPhone;
-    }
-    if (flightData.pickupVolunteerName) {
-      flightData.pickupSevakName = flightData.pickupVolunteerName;
-      delete flightData.pickupVolunteerName;
-    }
-    if (flightData.pickupVolunteerPhone) {
-      flightData.pickupSevakPhone = flightData.pickupVolunteerPhone;
-      delete flightData.pickupVolunteerPhone;
-    }
-
-    const validationError = validateFlight(flightData);
-    if (validationError) {
-      return res.status(400).json({ error: validationError });
-    }
-
-    const flights = await readFlights();
-    const flightIndex = flights.findIndex(f => f.id === id);
-    
-    if (flightIndex === -1) {
-      return res.status(404).json({ error: 'Flight not found' });
-    }
-
-    // Convert passenger names to passenger IDs (same as creation logic)
-    let processedPassengers = [];
-    if (flightData.passengers && Array.isArray(flightData.passengers)) {
-      for (const passenger of flightData.passengers) {
-        if (passenger.name && passenger.name.trim()) {
-          const matchedPassenger = await findPassengerByName(passenger.name.trim());
-          if (matchedPassenger) {
-            // Use passenger ID reference
-            processedPassengers.push({
-              passengerId: matchedPassenger.id,
-              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
-              ...(passenger.notes && { notes: passenger.notes })
-            });
-          } else {
-            // Keep original format if no match found (backward compatibility)
-            processedPassengers.push({
-              id: passenger.id || Date.now() + Math.random(),
-              name: passenger.name.trim(),
-              ...(passenger.seatNumber && { seatNumber: passenger.seatNumber }),
-              ...(passenger.notes && { notes: passenger.notes })
-            });
-          }
-        }
-      }
-    }
-
-    const oldFlight = { ...flights[flightIndex] };
-    const updatedFlight = {
-      ...flights[flightIndex],
-      ...flightData,
-      passengers: processedPassengers.length > 0 ? processedPassengers : flightData.passengers, // Use processed passengers if any
-      id,
-      updatedBy: req.user.username,
-      updatedByName: req.user.name,
-      updatedByUserId: req.user.id,
-      updatedAt: new Date().toISOString()
-    };
-
-    flights[flightIndex] = updatedFlight;
-    await writeFlights(flights);
-
-    // Create automatic backup after flight update
-    try {
-      await backupService.createAutoBackup('flight-update');
-    } catch (backupError) {
-      console.warn('Auto-backup after flight update failed:', backupError.message);
-    }
-
-    // Send flight update notification
-    try {
-      await telegramBot.sendFlightUpdateNotification(updatedFlight, 'updated');
-    } catch (error) {
-      console.error('Error sending flight update notification:', error);
-    }
-
-    // Log audit event with changes
-    const changes = getChanges(oldFlight, updatedFlight);
-    await logAuditEvent(
-      'UPDATE',
-      'FLIGHT',
-      id,
-      req.user.id,
-      req.user.username,
-      changes,
-      oldFlight,
-      updatedFlight
-    );
-
-    // Return appropriate user tracking information based on role
-    let responseData = updatedFlight;
-    if (req.user.role !== 'superadmin') {
-      const { createdBy, createdByUserId, updatedBy, updatedByUserId, ...flightWithoutSensitiveInfo } = updatedFlight;
-      responseData = flightWithoutSensitiveInfo;
-    }
-
-    res.json(responseData);
-  } catch (error) {
-    console.error('Error updating flight:', error);
-    res.status(500).json({ error: 'Failed to update flight' });
-  }
-});
-
-app.delete('/api/flights/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const flights = await readFlights();
-    const flightIndex = flights.findIndex(f => f.id === id);
-    
-    if (flightIndex === -1) {
-      return res.status(404).json({ error: 'Flight not found' });
-    }
-
-    const deletedFlight = flights[flightIndex];
-    flights.splice(flightIndex, 1);
-    await writeFlights(flights);
-
-    // Create automatic backup after flight deletion
-    try {
-      await backupService.createAutoBackup('flight-delete');
-    } catch (backupError) {
-      console.warn('Auto-backup after flight deletion failed:', backupError.message);
-    }
-
-    // Log audit event
-    await logAuditEvent(
-      'DELETE',
-      'FLIGHT',
-      id,
-      req.user.id,
-      req.user.username,
-      null,
-      deletedFlight,
-      null
-    );
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting flight:', error);
-    res.status(500).json({ error: 'Failed to delete flight' });
-  }
-});
-
-// Audit log endpoint for super admins only
-app.get('/api/audit-logs', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const { limit = 100, offset = 0, entityType, action, userId } = req.query;
-    let logs = await readAuditLog();
-    
-    // Filter logs based on query parameters
-    if (entityType) {
-      logs = logs.filter(log => log.entityType === entityType);
-    }
-    if (action) {
-      logs = logs.filter(log => log.action === action);
-    }
-    if (userId) {
-      logs = logs.filter(log => log.userId === userId);
-    }
-    
-    // Sort by timestamp (newest first)
-    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Apply pagination
-    const paginatedLogs = logs.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
-    
-    res.json({
-      logs: paginatedLogs,
-      total: logs.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-  } catch (error) {
-    console.error('Error fetching audit logs:', error);
-    res.status(500).json({ error: 'Failed to fetch audit logs' });
-  }
-});
-
-// Flight-specific audit log endpoint for super admins only
-app.get('/api/audit-logs/flight/:flightId', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const { flightId } = req.params;
-    let logs = await readAuditLog();
-    
-    // Filter logs for the specific flight
-    logs = logs.filter(log => log.entityType === 'FLIGHT' && log.entityId === flightId);
-    
-    // Sort by timestamp ascending (chronological order for flight history)
-    logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
-    res.json({
-      logs: logs,
-      total: logs.length,
-      flightId: flightId
-    });
-  } catch (error) {
-    console.error('Error fetching flight audit logs:', error);
-    res.status(500).json({ error: 'Failed to fetch flight audit logs' });
-  }
-});
-
-// Backup endpoints (superadmin only)
-app.post('/api/backup/create', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const result = await backupService.createBackup(true); // Manual backup
-    
-    if (result.success) {
-      await logAuditEvent('create', 'backup', result.backupFolder, req.user.id, req.user.username, null, null, { backupFolder: result.backupFolder });
-      res.json({ message: 'Backup created successfully', backupFolder: result.backupFolder });
-    } else {
-      res.status(500).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Error creating backup:', error);
-    res.status(500).json({ error: 'Failed to create backup' });
-  }
-});
-
-app.get('/api/backup/list', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const result = await backupService.listBackups();
-    
-    if (result.success) {
-      res.json({ backups: result.backups });
-    } else {
-      res.status(500).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Error listing backups:', error);
-    res.status(500).json({ error: 'Failed to list backups' });
-  }
-});
-
-app.post('/api/backup/restore', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const { backupFolder } = req.body;
-    
-    if (!backupFolder) {
-      return res.status(400).json({ error: 'Backup folder is required' });
-    }
-    
-    const result = await backupService.restoreBackup(backupFolder);
-    
-    if (result.success) {
-      await logAuditEvent('restore', 'backup', backupFolder, req.user.id, req.user.username, null, null, { backupFolder });
-      res.json({ message: 'Backup restored successfully' });
-    } else {
-      res.status(500).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Error restoring backup:', error);
-    res.status(500).json({ error: 'Failed to restore backup' });
-  }
-});
-
-app.get('/api/backup/stats', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    const stats = await backupService.getBackupStats();
-    res.json(stats);
-  } catch (error) {
-    console.error('Error getting backup stats:', error);
-    res.status(500).json({ error: 'Failed to get backup statistics' });
-  }
-});
-
-app.post('/api/backup/upload-restore', authenticateToken, authorizeRole(['superadmin']), upload.array('backupFiles', 10), async (req, res) => {
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No backup files uploaded' });
-    }
-
-    // Create pre-restore backup first
-    console.log('💾 Creating pre-restore backup...');
-    const preRestoreResult = await backupService.createBackup(true, true); // manual backup, skip pre-backup
-    if (preRestoreResult.success) {
-      console.log(`✅ Pre-restore backup created: ${preRestoreResult.backupFolder}`);
-    } else {
-      console.warn(`⚠️ Pre-restore backup failed: ${preRestoreResult.error}`);
-    }
-
-    // Validate and process uploaded files
-    const allowedFiles = ['flights.json', 'users.json', 'passengers.json', 'volunteers.json', 'audit_log.json'];
-    const processedFiles = {};
-    
-    for (const file of req.files) {
-      if (!allowedFiles.includes(file.originalname)) {
-        return res.status(400).json({ error: `Invalid file: ${file.originalname}. Allowed files: ${allowedFiles.join(', ')}` });
-      }
-      
-      try {
-        const fileContent = JSON.parse(file.buffer.toString());
-        processedFiles[file.originalname] = fileContent;
-        console.log(`📄 Processed ${file.originalname}: ${Array.isArray(fileContent) ? fileContent.length : 'object'} ${Array.isArray(fileContent) ? 'items' : ''}`);
-      } catch (parseError) {
-        return res.status(400).json({ error: `Invalid JSON in ${file.originalname}: ${parseError.message}` });
-      }
-    }
-
-    // Write the uploaded data to the respective files
-    let restoredFiles = 0;
-    
-    if (processedFiles['flights.json']) {
-      await writeFlights(processedFiles['flights.json']);
-      restoredFiles++;
-      console.log('✅ Flights data restored');
-      
-      // Run migration for uploaded flights to convert name-based passengers to ID-based
-      console.log('🔄 Running passenger reference migration on uploaded flights...');
-      try {
-        const DataMigration = require('./data-migration');
-        const migrationResult = await DataMigration.runMigration();
-        if (migrationResult.success && migrationResult.migratedFlights > 0) {
-          console.log(`✅ Migration completed: ${migrationResult.migratedFlights} flights migrated`);
-        } else if (migrationResult.success) {
-          console.log('ℹ️  No flights needed migration (already using ID references)');
-        } else {
-          console.warn(`⚠️  Migration failed: ${migrationResult.error}`);
-        }
-      } catch (migrationError) {
-        console.warn('⚠️  Migration error:', migrationError.message);
-      }
-    }
-    
-    if (processedFiles['users.json']) {
-      await writeUsers(processedFiles['users.json']);
-      restoredFiles++;
-      console.log('✅ Users data restored');
-    }
-    
-    if (processedFiles['passengers.json']) {
-      await writePassengers(processedFiles['passengers.json']);
-      restoredFiles++;
-      console.log('✅ Passengers data restored');
-    }
-    
-    if (processedFiles['volunteers.json']) {
-      await writeVolunteers(processedFiles['volunteers.json']);
-      restoredFiles++;
-      console.log('✅ Volunteers data restored');
-    }
-    
-    if (processedFiles['audit_log.json']) {
-      await writeAuditLog(processedFiles['audit_log.json']);
-      restoredFiles++;
-      console.log('✅ Audit log restored');
-    }
-
-    // Create backup after successful restore
-    try {
-      await backupService.createAutoBackup('upload-restore');
-    } catch (backupError) {
-      console.warn('Auto-backup after upload restore failed:', backupError.message);
-    }
-
-    // Log audit event
-    await logAuditEvent(
-      'RESTORE',
-      'BACKUP_UPLOAD',
-      'upload-restore',
-      req.user.id,
-      req.user.username,
-      null,
-      null,
-      { 
-        uploadedFiles: req.files.map(f => f.originalname),
-        restoredFiles,
-        preRestoreBackup: preRestoreResult.backupFolder
-      }
-    );
-
-    res.json({ 
-      message: 'Backup files uploaded and restored successfully',
-      restoredFiles,
-      uploadedFiles: req.files.map(f => f.originalname),
-      preRestoreBackup: preRestoreResult.backupFolder
-    });
-  } catch (error) {
-    console.error('Error uploading and restoring backup:', error);
-    res.status(500).json({ error: 'Failed to upload and restore backup' });
-  }
-});
-
-// Airport timezone information endpoint
-app.get('/api/airports/timezone/:airportCode', (req, res) => {
-  try {
-    const { airportCode } = req.params;
-    const airportInfo = timezoneService.getAirportInfo(airportCode);
-    
-    if (!airportInfo) {
-      return res.status(404).json({ error: 'Airport not found' });
-    }
-
-    const currentTime = timezoneService.getCurrentAirportTime(airportCode);
-    
-    res.json({
-      airport: airportInfo,
-      currentTime: currentTime,
-      hasTimezoneData: timezoneService.hasTimezoneData(airportCode)
-    });
-  } catch (error) {
-    console.error('Error getting airport timezone:', error);
-    res.status(500).json({ error: 'Failed to get airport timezone' });
-  }
-});
-
-// Auto-populate flight data endpoint
-app.get('/api/flights/auto-populate/:from/:to', (req, res) => {
-  try {
-    const { from, to } = req.params;
-    const flightData = timezoneService.autoPopulateFlightData(from, to);
-    
-    if (!flightData.departure || !flightData.arrival) {
-      return res.status(404).json({ 
-        error: 'One or both airports not found',
-        found: {
-          departure: !!flightData.departure,
-          arrival: !!flightData.arrival
-        }
-      });
-    }
-
-    res.json(flightData);
-  } catch (error) {
-    console.error('Error auto-populating flight data:', error);
-    res.status(500).json({ error: 'Failed to auto-populate flight data' });
-  }
-});
-
-// Convert flight times to timezone-aware format
-app.post('/api/flights/convert-times', (req, res) => {
-  try {
-    const flight = req.body;
-    const convertedFlight = timezoneService.convertFlightTimes(flight);
-    
-    res.json(convertedFlight);
-  } catch (error) {
-    console.error('Error converting flight times:', error);
-    res.status(500).json({ error: 'Failed to convert flight times' });
-  }
-});
-
-// Get real-time flight information from FlightAware AeroAPI
-// Public flight info endpoint for standalone form
-app.get('/api/flights/info/:flightNumber/:date', async (req, res) => {
-  try {
-    const { flightNumber, date } = req.params;
-    
-    console.log(`🔍 Fetching flight info for ${flightNumber} on ${date}`);
-    
-    // Use the FlightInfoService to get real-time data
-    const FlightInfoService = require('./flight-info-service');
-    const flightInfoService = new FlightInfoService();
-    
-    const result = await flightInfoService.getFlightInfo(flightNumber, date);
-    
-    if (result.multipleFlights) {
-      // Handle multiple flights case - transform each flight
-      console.log(`🔄 Transforming ${result.flights.length} flights for multiple flights response`);
-      
-      const transformedFlights = result.flights.map((flight, index) => {
-        console.log(`🔄 Transforming flight ${index + 1}:`, {
-          airline: flight.airlineName,
-          departure: flight.departureAirport,
-          arrival: flight.arrivalAirport,
-          scheduledDepartureRaw: flight.scheduledDepartureRaw,
-          scheduledArrivalRaw: flight.scheduledArrivalRaw
-        });
-        
-        const transformed = {
-          airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
-          departure: {
-            airport: flight.departureAirport,
-            scheduled: flight.scheduledDeparture,
-            scheduledTime: flight.scheduledDeparture,
-            scheduledForInput: flight.scheduledDepartureRaw,
-            timezone: flight.departureTimezone
-          },
-          arrival: {
-            airport: flight.arrivalAirport,
-            scheduled: flight.scheduledArrival,
-            scheduledTime: flight.scheduledArrival,
-            scheduledForInput: flight.scheduledArrivalRaw,
-            timezone: flight.arrivalTimezone
-          },
-          status: flight.flightStatus,
-          duration: flight.duration
-        };
-        
-        console.log(`✅ Transformed flight ${index + 1} scheduledForInput values:`, {
-          departure: transformed.departure.scheduledForInput,
-          arrival: transformed.arrival.scheduledForInput
-        });
-        
-        return transformed;
-      });
-      
-      console.log(`✅ Successfully transformed multiple flights, sending response`);
-      res.json({
-        multipleFlights: true,
-        flights: transformedFlights,
-        source: 'FlightAware AeroAPI'
-      });
-    } else if (!result.error) {
-      // Transform the FlightAware data to match our expected format
-      console.log(`🔄 Transforming single flight raw data:`, {
-        scheduledDepartureRaw: result.scheduledDepartureRaw,
-        scheduledArrivalRaw: result.scheduledArrivalRaw
-      });
-      
-      const transformedData = {
-        airline: result.airlineName || flightNumber.substring(0, 2).toUpperCase(),
-        departure: {
-          airport: result.departureAirport,
-          scheduled: result.scheduledDeparture,
-          scheduledForInput: result.scheduledDepartureRaw, // Already converted to airport timezone
-          timezone: result.departureTimezone
-        },
-        arrival: {
-          airport: result.arrivalAirport,
-          scheduled: result.scheduledArrival,
-          scheduledForInput: result.scheduledArrivalRaw, // Already converted to airport timezone
-          timezone: result.arrivalTimezone
-        },
-        status: result.flightStatus,
-        duration: result.duration
-      };
-      
-      console.log(`✅ Single flight scheduledForInput values:`, {
-        departure: transformedData.departure.scheduledForInput,
-        arrival: transformedData.arrival.scheduledForInput
-      });
-      
-      res.json({
-        success: true,
-        data: transformedData,
-        source: 'FlightAware AeroAPI'
-      });
-    } else {
-      // Handle error case with fallback data
-      const response = {
-        success: false,
-        error: result.message || 'Flight information not available'
-      };
-      
-      // Include fallback suggestions if available
-      if (result.fallback) {
-        response.fallback = result.fallback;
-      }
-      
-      res.json(response);
-    }
-  } catch (error) {
-    console.error('Error fetching flight information:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch flight information',
-      details: error.message
-    });
-  }
-});
-
-// Get upcoming flights (48-72 hours) for a flight number
-app.get('/api/flights/upcoming/:flightNumber', async (req, res) => {
-  try {
-    const { flightNumber } = req.params;
-    
-    console.log(`🔍 Fetching upcoming flights for ${flightNumber} in next 48-72 hours`);
-    
-    // Calculate date range (today to +1 day max due to API limitations)  
-    const today = new Date();
-    const maxDate = new Date(today);
-    maxDate.setDate(today.getDate() + 1); // FlightAware allows max 2 days total (today + 1)
-    
-    const startDate = today.toISOString().split('T')[0];
-    const endDate = maxDate.toISOString().split('T')[0];
-    
-    console.log(`📅 Searching for flights from ${startDate} to ${endDate}`);
-    
-    // Use the FlightInfoService to get real-time data
-    const FlightInfoService = require('./flight-info-service');
-    const flightInfoService = new FlightInfoService();
-    
-    // Try each date in the range to find flights
-    const allFlights = [];
-    const currentDate = new Date(today);
-    
-    while (currentDate <= maxDate) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      console.log(`🔍 Checking ${flightNumber} on ${dateStr}`);
-      
-      try {
-        const dayResult = await flightInfoService.getFlightInfo(flightNumber, dateStr);
-        
-        if (dayResult.multipleFlights) {
-          // Add all flights from this day
-          allFlights.push(...dayResult.flights);
-          console.log(`✅ Found ${dayResult.flights.length} flights on ${dateStr}`);
-        } else if (!dayResult.error) {
-          // Add single flight from this day
-          allFlights.push(dayResult);
-          console.log(`✅ Found 1 flight on ${dateStr}`);
-        } else {
-          console.log(`ℹ️ No flights found on ${dateStr}: ${dayResult.message}`);
-        }
-      } catch (error) {
-        console.log(`⚠️ Error checking ${dateStr}: ${error.message}`);
-      }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    if (allFlights.length > 0) {
-      console.log(`🔄 Transforming ${allFlights.length} upcoming flights for response`);
-      
-      const transformedFlights = allFlights.map((flight, index) => {
-        console.log(`🔄 Transforming upcoming flight ${index + 1}:`, {
-          airline: flight.airlineName,
-          departure: flight.departureAirport,
-          arrival: flight.arrivalAirport,
-          scheduledDepartureRaw: flight.scheduledDepartureRaw,
-          scheduledArrivalRaw: flight.scheduledArrivalRaw,
-          flightDate: flight.flightDate
-        });
-        
-        const transformed = {
-          airline: flight.airlineName || flightNumber.substring(0, 2).toUpperCase(),
-          departure: {
-            airport: flight.departureAirport,
-            scheduled: flight.scheduledDeparture,
-            scheduledTime: flight.scheduledDeparture,
-            scheduledForInput: flight.scheduledDepartureRaw,
-            timezone: flight.departureTimezone
-          },
-          arrival: {
-            airport: flight.arrivalAirport,
-            scheduled: flight.scheduledArrival,
-            scheduledTime: flight.scheduledArrival,
-            scheduledForInput: flight.scheduledArrivalRaw,
-            timezone: flight.arrivalTimezone
-          },
-          status: flight.flightStatus,
-          duration: flight.duration,
-          flightDate: flight.flightDate
-        };
-        
-        console.log(`✅ Transformed upcoming flight ${index + 1} scheduledForInput values:`, {
-          departure: transformed.departure.scheduledForInput,
-          arrival: transformed.arrival.scheduledForInput,
-          flightDate: transformed.flightDate
-        });
-        
-        return transformed;
-      });
-      
-      console.log(`✅ Successfully found and transformed ${transformedFlights.length} upcoming flights`);
-      res.json({
-        flights: transformedFlights,
-        dateRange: { start: startDate, end: endDate },
-        source: 'FlightAware AeroAPI'
-      });
-    } else {
-      // No flights found in the date range
-      console.log(`ℹ️ No upcoming flights found for ${flightNumber} in date range ${startDate} to ${endDate}`);
-      
-      // Generate fallback suggestion
-      const fallbackSuggestion = flightInfoService.generateFlightSuggestion(flightNumber, startDate);
-      
-      res.json({
-        flights: [],
-        fallback: {
-          airline: fallbackSuggestion.airline,
-          message: `No upcoming flights found for ${flightNumber} in the next 48-72 hours. The FlightAware API may have limited data for this flight. Please manually enter flight details and verify with your booking confirmation.`,
-          tips: fallbackSuggestion.tips,
-          searchedDates: `${startDate} to ${endDate}`
-        },
-        dateRange: { start: startDate, end: endDate },
-        source: 'FlightAware AeroAPI'
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching upcoming flights:', error);
-    res.status(500).json({ 
-      flights: [],
-      error: 'Failed to fetch upcoming flight information',
-      details: error.message,
-      fallback: {
-        message: 'Unable to search for upcoming flights due to a technical error. Please manually enter flight details.',
-        tips: [
-          'Check the airline\'s website for accurate flight times',
-          'Verify departure and arrival airports',
-          'Consider time zone differences for scheduling'
-        ]
-      }
-    });
-  }
-});
-
-// Get available timezones
-app.get('/api/timezones', (req, res) => {
-  try {
-    const timezones = timezoneService.getTimezoneOptions();
-    res.json(timezones);
-  } catch (error) {
-    console.error('Error getting timezones:', error);
-    res.status(500).json({ error: 'Failed to get timezones' });
-  }
-});
-
-
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-  });
-}
-
-// Flight monitoring endpoints
-app.get('/api/monitoring/status', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
-  try {
-    const status = flightMonitor.getMonitoringStatus();
-    res.json({
-      success: true,
-      data: status
-    });
-  } catch (error) {
-    console.error('Error getting monitoring status:', error);
-    res.status(500).json({ error: 'Failed to get monitoring status' });
-  }
-});
-
-app.post('/api/monitoring/start', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
-  try {
-    flightMonitor.startMonitoring();
-    res.json({
-      success: true,
-      message: 'Flight monitoring started'
-    });
-  } catch (error) {
-    console.error('Error starting monitoring:', error);
-    res.status(500).json({ error: 'Failed to start monitoring' });
-  }
-});
-
-app.post('/api/monitoring/stop', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
-  try {
-    flightMonitor.stopMonitoring();
-    res.json({
-      success: true,
-      message: 'Flight monitoring stopped'
-    });
-  } catch (error) {
-    console.error('Error stopping monitoring:', error);
-    res.status(500).json({ error: 'Failed to stop monitoring' });
-  }
-});
-
-app.post('/api/monitoring/interval', authenticateToken, authorizeRole(['superadmin']), (req, res) => {
-  try {
-    const { minutes } = req.body;
-    
-    if (!minutes || minutes < 15 || minutes > 120) {
-      return res.status(400).json({ error: 'Interval must be between 15 and 120 minutes' });
-    }
-    
-    flightMonitor.setCheckInterval(minutes);
-    res.json({
-      success: true,
-      message: `Monitoring interval updated to ${minutes} minutes`
-    });
-  } catch (error) {
-    console.error('Error updating monitoring interval:', error);
-    res.status(500).json({ error: 'Failed to update monitoring interval' });
-  }
-});
-
-app.post('/api/monitoring/check-now', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
-  try {
-    // Run immediate check without waiting
-    flightMonitor.checkAllFlights().catch(err => {
-      console.error('Error in manual flight check:', err);
-    });
-    
-    res.json({
-      success: true,
-      message: 'Manual flight check initiated'
-    });
-  } catch (error) {
-    console.error('Error initiating manual check:', error);
-    res.status(500).json({ error: 'Failed to initiate manual check' });
-  }
-});
-
 // Catchall route for SPA - serve index.html for non-API routes
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    // Only serve index.html for non-API routes
-    if (!req.path.startsWith('/api/')) {
-      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-    } else {
-      // If it's an API route that wasn't found, return 404
-      res.status(404).json({ error: 'API endpoint not found' });
-    }
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
 
@@ -2334,24 +502,8 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Migrate local data to Cloud Storage (one-time migration)
-  try {
-    const { cloudStorage } = require('./cloud-storage-helpers');
-    console.log('🚀 Starting data migration to Cloud Storage...');
-    await cloudStorage.migrateLocalToCloud();
-  } catch (error) {
-    console.error('Cloud Storage migration failed:', error.message);
-    console.log('Continuing with local file storage for now...');
-  }
-  
   await initializeDefaultUsers();
   await migrateFlightUserNames();
-  
-  // Start automatic backups in production (no startup backup, only scheduled)
-  if (process.env.NODE_ENV === 'production' && process.env.BACKUP_BUCKET_NAME) {
-    console.log('⏰ Starting automatic backup scheduler (24-hour intervals)...');
-    backupService.startScheduledBackups(24); // Every 24 hours, no startup backup
-  }
 
   // Start automated flight delay monitoring
   console.log('🚨 Starting automated flight delay monitoring...');
