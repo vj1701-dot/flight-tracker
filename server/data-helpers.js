@@ -7,6 +7,7 @@ class GoogleDriveStorage {
     this.backupFolderId = null;
     this.drive = null;
     this.initialized = false;
+    this.serviceAccountEmail = null;
     
     if (!this.folderId) {
       console.log('⚠️  GOOGLE_DRIVE_FOLDER_ID not set. Google Drive storage will be disabled.');
@@ -18,13 +19,52 @@ class GoogleDriveStorage {
 
   async init() {
     try {
-      // Use Google Cloud default credentials (service account on Cloud Run)
-      const auth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/drive']
-      });
+      let authClient;
       
-      const authClient = await auth.getClient();
+      // Try to use hardcoded credentials first (from GOOGLE_CREDENTIALS_JSON env var)
+      if (process.env.GOOGLE_CREDENTIALS_JSON) {
+        try {
+          const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+          const auth = new google.auth.GoogleAuth({
+            credentials: credentials,
+            scopes: ['https://www.googleapis.com/auth/drive']
+          });
+          authClient = await auth.getClient();
+          console.log('🔑 GOOGLE_DRIVE: Using hardcoded service account credentials');
+        } catch (credError) {
+          console.warn('⚠️ GOOGLE_DRIVE: Failed to parse hardcoded credentials, falling back to default');
+          throw credError;
+        }
+      }
+      
+      // Fallback to Google Cloud default credentials if no hardcoded credentials
+      if (!authClient) {
+        const auth = new google.auth.GoogleAuth({
+          scopes: ['https://www.googleapis.com/auth/drive']
+        });
+        authClient = await auth.getClient();
+        console.log('🔑 GOOGLE_DRIVE: Using Google Cloud default credentials');
+      }
+      
       this.drive = google.drive({ version: 'v3', auth: authClient });
+      
+      // Get service account email for debugging
+      try {
+        if (process.env.GOOGLE_CREDENTIALS_JSON) {
+          const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+          this.serviceAccountEmail = credentials.client_email;
+        } else {
+          // Try to get from auth client
+          const auth = new google.auth.GoogleAuth({
+            scopes: ['https://www.googleapis.com/auth/drive']
+          });
+          const credentials = await auth.getCredentials();
+          this.serviceAccountEmail = credentials.client_email;
+        }
+        console.log(`🔑 GOOGLE_DRIVE: Using service account: ${this.serviceAccountEmail}`);
+      } catch (credError) {
+        console.warn('⚠️ GOOGLE_DRIVE: Could not retrieve service account email');
+      }
       
       // Validate the main folder exists and is accessible
       await this.validateMainFolder();
@@ -36,6 +76,7 @@ class GoogleDriveStorage {
       console.log('✅ GOOGLE_DRIVE: Initialized successfully');
     } catch (error) {
       console.error('❌ GOOGLE_DRIVE: Initialization failed:', error.message);
+      console.error('💡 GOOGLE_DRIVE: Make sure the folder is shared with the service account email above');
     }
   }
 

@@ -10,7 +10,7 @@ const TelegramNotificationService = require('./telegram-bot');
 const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
-const { getFlightsWithResolvedNames, findPassengerByName, listBackups, restoreBackup, deleteBackup } = require('./data-helpers');
+const { getFlightsWithResolvedNames, findPassengerByName, listBackups, restoreBackup, deleteBackup, driveStorage } = require('./data-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -1816,6 +1816,39 @@ app.post('/api/backup/delete', authenticateToken, authorizeRole(['superadmin']),
   } catch (error) {
     console.error('Error deleting backup:', error);
     res.status(500).json({ error: 'Failed to delete backup' });
+  }
+});
+
+// Debug endpoint for Google Drive access
+app.get('/api/debug/google-drive', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const status = {
+      folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || 'Not set',
+      isAvailable: driveStorage.isAvailable(),
+      serviceAccountEmail: driveStorage.serviceAccountEmail || 'Not available',
+      initialized: driveStorage.initialized
+    };
+    
+    if (driveStorage.isAvailable()) {
+      try {
+        // Try to list files in the folder
+        const testResult = await driveStorage.drive.files.list({
+          q: `parents in '${driveStorage.folderId}'`,
+          fields: 'files(id, name, mimeType)',
+          pageSize: 5
+        });
+        status.folderContents = testResult.data.files;
+        status.canAccessFolder = true;
+      } catch (accessError) {
+        status.canAccessFolder = false;
+        status.accessError = accessError.message;
+      }
+    }
+    
+    res.json(status);
+  } catch (error) {
+    console.error('Error in Google Drive debug:', error);
+    res.status(500).json({ error: 'Debug endpoint failed', message: error.message });
   }
 });
 
