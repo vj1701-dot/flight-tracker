@@ -1760,6 +1760,9 @@ app.post('/api/backup/delete', authenticateToken, authorizeRole(['superadmin']),
 // Debug endpoint for Google Drive access
 app.get('/api/debug/google-drive', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
+    // Wait for Google Drive to initialize
+    await driveStorage.ensureInitialized();
+    
     const status = {
       folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || 'Not set',
       isAvailable: driveStorage.isAvailable(),

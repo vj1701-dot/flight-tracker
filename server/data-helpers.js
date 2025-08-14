@@ -8,13 +8,15 @@ class GoogleDriveStorage {
     this.drive = null;
     this.initialized = false;
     this.serviceAccountEmail = null;
+    this.initPromise = null;
     
     if (!this.folderId) {
       console.log('⚠️  GOOGLE_DRIVE_FOLDER_ID not set. Google Drive storage will be disabled.');
       return;
     }
 
-    this.init();
+    // Start initialization but don't await it in constructor
+    this.initPromise = this.init();
   }
 
   async init() {
@@ -130,11 +132,20 @@ class GoogleDriveStorage {
     }
   }
 
+  async ensureInitialized() {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    return this.isAvailable();
+  }
+
   isAvailable() {
     return this.initialized && this.drive && this.folderId;
   }
 
   async readFile(fileName) {
+    await this.ensureInitialized();
+    
     if (!this.isAvailable()) {
       throw new Error('Google Drive storage not available');
     }
@@ -173,6 +184,8 @@ class GoogleDriveStorage {
   }
 
   async writeFile(fileName, data) {
+    await this.ensureInitialized();
+    
     if (!this.isAvailable()) {
       throw new Error('Google Drive storage not available');
     }
@@ -246,6 +259,8 @@ class GoogleDriveStorage {
   }
 
   async listBackups() {
+    await this.ensureInitialized();
+    
     if (!this.isAvailable()) {
       throw new Error('Google Drive storage not available');
     }
@@ -270,6 +285,8 @@ class GoogleDriveStorage {
   }
 
   async restoreBackup(backupId, originalFileName) {
+    await this.ensureInitialized();
+    
     if (!this.isAvailable()) {
       throw new Error('Google Drive storage not available');
     }
@@ -295,6 +312,8 @@ class GoogleDriveStorage {
   }
 
   async deleteBackup(backupId) {
+    await this.ensureInitialized();
+    
     if (!this.isAvailable()) {
       throw new Error('Google Drive storage not available');
     }
