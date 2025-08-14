@@ -83,6 +83,10 @@ class GoogleSheetsDataManager {
       return this.initialized;
     }
     
+    if (!this.spreadsheetId) {
+      throw new Error('Google Sheets not configured - GOOGLE_SHEETS_ID environment variable not set');
+    }
+    
     throw new Error('Google Sheets not initialized');
   }
 
@@ -193,6 +197,10 @@ class GoogleSheetsDataManager {
         return data;
       });
     } catch (error) {
+      if (error.message.includes('Google Sheets not configured')) {
+        console.warn(`⚠️  ${sheetType} data unavailable: Google Sheets not configured`);
+        return [];
+      }
       console.error(`Error reading ${sheetType}:`, error.message);
       return [];
     }

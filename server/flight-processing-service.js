@@ -145,9 +145,9 @@ async function convertSingleGeminiFlightToInternalFormat(geminiData) {
         
         hour24 = hours;
         minutes = mins;
-        if (period.toUpperCase() === 'PM' && hours !== 12) {
+        if (period && period.toUpperCase() === 'PM' && hours !== 12) {
           hour24 = hours + 12;
-        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        } else if (period && period.toUpperCase() === 'AM' && hours === 12) {
           hour24 = 0;
         }
       }
@@ -226,8 +226,8 @@ async function convertSingleGeminiFlightToInternalFormat(geminiData) {
     airline: isMissing(geminiData.airlineName) ? null : geminiData.airlineName,
     
     // Route information
-    from: isMissing(geminiData.departureAirport) ? null : geminiData.departureAirport?.toUpperCase(),
-    to: isMissing(geminiData.arrivalAirport) ? null : geminiData.arrivalAirport?.toUpperCase(),
+    from: isMissing(geminiData.departureAirport) ? null : geminiData.departureAirport?.toUpperCase?.(),
+    to: isMissing(geminiData.arrivalAirport) ? null : geminiData.arrivalAirport?.toUpperCase?.(),
     fromCity: null, // Not provided in new format
     toCity: null,   // Not provided in new format
     

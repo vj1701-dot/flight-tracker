@@ -41,7 +41,8 @@ const flightMonitor = new FlightMonitorService();
 
 // Trust proxy for Cloud Run (required for rate limiting)
 if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', true);
+  // For Google Cloud Run, trust the first proxy only
+  app.set('trust proxy', 1);
 }
 
 // Middleware
@@ -49,10 +50,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// File paths for local JSON files (used for some operations)
-const PASSENGERS_FILE = path.join(__dirname, 'passengers.json');
-const USERS_FILE = path.join(__dirname, 'users.json');
-const VOLUNTEERS_FILE = path.join(__dirname, 'volunteers.json');
+// Audit log file (still used for local logging)
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 
 // Auth middleware
@@ -378,10 +376,10 @@ app.post('/telegram/webhook', (req, res) => {
 });
 
 // Set up webhook in production
-if (process.env.NODE_ENV === 'production' && telegramBot && telegramBot.setWebhook) {
+if (process.env.NODE_ENV === 'production' && telegramBot && telegramBot.getBot()) {
   if (process.env.WEBHOOK_URL) {
     const webhookUrl = `${process.env.WEBHOOK_URL}/telegram/webhook`;
-    telegramBot.setWebhook(webhookUrl).then(success => {
+    telegramBot.getBot().setWebhook(webhookUrl).then(success => {
       if (success) {
         console.log('✅ Telegram webhook configured for production');
       } else {
