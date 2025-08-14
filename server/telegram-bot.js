@@ -374,7 +374,7 @@ class TelegramNotificationService {
         const flight = upcomingFlights[i];
         
         flightList += `Flight ${i + 1} of ${upcomingFlights.length}\n`;
-        flightList += `✈️ ${flight.airline} ${flight.flightNumber}\n\n`;
+        flightList += `✈️ ${this.formatFlightDisplay(flight)}\n\n`;
         
         // Route Information with timezone
         flightList += `🛫 Departure\n`;
@@ -511,7 +511,7 @@ class TelegramNotificationService {
         const flight = userFlights[i];
         
         flightList += `Assignment ${i + 1} of ${userFlights.length}\n`;
-        flightList += `✈️ ${flight.airline} ${flight.flightNumber}\n\n`;
+        flightList += `✈️ ${this.formatFlightDisplay(flight)}\n\n`;
         
         // Route Information with timezone
         flightList += `🛫 Departure\n`;
@@ -3321,6 +3321,69 @@ class TelegramNotificationService {
   // Get bot instance (for accessing from express routes)
   getBot() {
     return this.bot;
+  }
+
+  /**
+   * Convert airline name to airline code for compact display
+   * @param {string} airlineName - Full airline name
+   * @returns {string} - Airline code or abbreviated name
+   */
+  getAirlineCode(airlineName) {
+    if (!airlineName) return 'XX';
+    
+    const airlineCodes = {
+      'Alaska Airlines': 'AS',
+      'American Airlines': 'AA', 
+      'Delta Airlines': 'DL',
+      'Delta Air Lines': 'DL',
+      'United Airlines': 'UA',
+      'Southwest Airlines': 'WN',
+      'JetBlue Airways': 'B6',
+      'Frontier Airlines': 'F9',
+      'Spirit Airlines': 'NK',
+      'Hawaiian Airlines': 'HA',
+      'Air Canada': 'AC',
+      'British Airways': 'BA',
+      'Lufthansa': 'LH',
+      'Emirates': 'EK',
+      'Qatar Airways': 'QR',
+      'Singapore Airlines': 'SQ',
+      'Air France': 'AF',
+      'KLM': 'KL',
+      'Virgin Atlantic': 'VS',
+      'Turkish Airlines': 'TK'
+    };
+    
+    // Direct match
+    if (airlineCodes[airlineName]) {
+      return airlineCodes[airlineName];
+    }
+    
+    // Partial match for variations
+    for (const [fullName, code] of Object.entries(airlineCodes)) {
+      if (airlineName.toLowerCase().includes(fullName.toLowerCase()) || 
+          fullName.toLowerCase().includes(airlineName.toLowerCase())) {
+        return code;
+      }
+    }
+    
+    // Fallback: Extract first letters or use first 2-3 chars
+    const words = airlineName.split(' ').filter(w => w.length > 2);
+    if (words.length >= 2) {
+      return words.slice(0, 2).map(w => w[0].toUpperCase()).join('');
+    }
+    
+    return airlineName.substring(0, 2).toUpperCase();
+  }
+
+  /**
+   * Format flight display with airline code + flight number
+   * @param {Object} flight - Flight object
+   * @returns {string} - Formatted flight display (e.g., "DL1367")
+   */
+  formatFlightDisplay(flight) {
+    const airlineCode = this.getAirlineCode(flight.airline);
+    return `${airlineCode}${flight.flightNumber}`;
   }
 }
 
