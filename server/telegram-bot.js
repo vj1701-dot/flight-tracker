@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs').promises;
 const path = require('path');
-const { readUsers, writeUsers, readFlights, readPassengers, writePassengers, findPassengerByName } = require('./data-helpers');
+const { readUsers, writeUsers, readFlights, readPassengers, writePassengers, findPassengerByName, getFlightsWithResolvedNames } = require('./data-helpers');
 const FlightInfoService = require('./flight-info-service');
 const TimezoneService = require('./timezone-service');
 const { processFlightTicket } = require('./flight-processing-service');
@@ -605,23 +605,29 @@ class TelegramNotificationService {
 
       console.log(`✅ [handleMyFlightsCommand] Found passenger: ${passenger.name} (chatId: ${passenger.telegramChatId})`);
 
-      const flights = await readFlights();
+      // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+      const flights = await getFlightsWithResolvedNames();
+      console.log(`📊 [handleMyFlightsCommand] Loaded ${flights.length} flights with resolved names`);
+      
       const now = new Date();
       const passengerFlights = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
-        return departureTime > now &&
-               flight.passengers?.some(p => {
-                 // Handle new passengerId format
-                 if (p.passengerId === passenger.id) {
-                   return true;
-                 }
-                 // Handle old name format for backward compatibility
-                 if (p.name?.toLowerCase().includes(passenger.name.toLowerCase())) {
-                   return true;
-                 }
-                 return false;
-               });
+        const isUpcoming = departureTime > now;
+        
+        // Check if this passenger is on this flight using the resolved passengers array
+        const isPassengerOnFlight = flight.passengers?.some(p => {
+          // Handle both ID matching and name matching for backward compatibility
+          return p.id === passenger.id || 
+                 p.passengerId === passenger.id ||
+                 (p.name && passenger.name && p.name.toLowerCase().includes(passenger.name.toLowerCase()));
+        });
+        
+        console.log(`🛫 Flight ${flight.flightNumber}: upcoming=${isUpcoming}, passengerOnFlight=${isPassengerOnFlight}, passengers=${flight.passengers?.length || 0}`);
+        
+        return isUpcoming && isPassengerOnFlight;
       });
+
+      console.log(`✈️ [handleMyFlightsCommand] Found ${passengerFlights.length} upcoming flights for passenger ${passenger.name}`);
 
       if (passengerFlights.length === 0) {
         await this.bot.sendMessage(chatId, 
@@ -1109,15 +1115,29 @@ class TelegramNotificationService {
 
         console.log(`✅ Found passenger: ${passenger.name} (chatId: ${passenger.telegramChatId})`);
 
-        const flights = await readFlights();
+        // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+        const flights = await getFlightsWithResolvedNames();
+        console.log(`📊 Loaded ${flights.length} flights with resolved names`);
+        
         const now = new Date();
         const passengerFlights = flights.filter(flight => {
           const departureTime = new Date(flight.departureDateTime);
-          const isPassenger = flight.passengers && flight.passengers.some(p => 
-            p.name.toLowerCase() === passenger.name.toLowerCase()
-          );
-          return departureTime >= now && isPassenger;
+          const isUpcoming = departureTime >= now;
+          
+          // Check if this passenger is on this flight using the resolved passengers array
+          const isPassengerOnFlight = flight.passengers?.some(p => {
+            // Handle both ID matching and name matching for backward compatibility
+            return p.id === passenger.id || 
+                   p.passengerId === passenger.id ||
+                   (p.name && passenger.name && p.name.toLowerCase().includes(passenger.name.toLowerCase()));
+          });
+          
+          console.log(`🛫 Flight ${flight.flightNumber}: upcoming=${isUpcoming}, passengerOnFlight=${isPassengerOnFlight}, passengers=${flight.passengers?.length || 0}`);
+          
+          return isUpcoming && isPassengerOnFlight;
         }).sort((a, b) => new Date(a.departureDateTime) - new Date(b.departureDateTime));
+
+        console.log(`✈️ Found ${passengerFlights.length} upcoming flights for passenger ${passenger.name}`);
 
         if (passengerFlights.length === 0) {
           await this.bot.sendMessage(chatId, 
