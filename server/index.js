@@ -483,7 +483,7 @@ app.get('/api/users', authenticateToken, authorizeRole(['superadmin', 'admin']),
 
 app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
   try {
-    const { username, name, email, password, role, allowedAirports, telegramChatId } = req.body;
+    const { username, name, email, password, role, allowedAirports, telegramChatId, phone } = req.body;
 
     if (!username || !name || !password) {
       return res.status(400).json({ error: 'Username, name, and password are required' });
@@ -508,6 +508,7 @@ app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin
       role: role || 'user',
       allowedAirports: allowedAirports || [],
       telegramChatId: telegramChatId || null,
+      phone: phone ? phone.trim() : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -530,7 +531,7 @@ app.post('/api/register', authenticateToken, authorizeRole(['superadmin', 'admin
 app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, name, email, password, role, allowedAirports, telegramChatId } = req.body;
+    const { username, name, email, password, role, allowedAirports, telegramChatId, phone } = req.body;
 
     if (!username || !name) {
       return res.status(400).json({ error: 'Username and name are required' });
@@ -559,6 +560,7 @@ app.put('/api/users/:id', authenticateToken, authorizeRole(['superadmin', 'admin
       role: role || users[userIndex].role,
       allowedAirports: allowedAirports || [],
       telegramChatId: telegramChatId !== undefined ? telegramChatId : users[userIndex].telegramChatId,
+      phone: phone !== undefined ? (phone ? phone.trim() : null) : users[userIndex].phone,
       updatedAt: new Date().toISOString()
     };
 
@@ -803,7 +805,10 @@ app.get('/api/flights', authenticateToken, async (req, res) => {
     let filteredFlights = flights;
 
     // Filter flights based on user's allowed airports
-    if (req.user.role === 'user' && req.user.allowedAirports.length > 0) {
+    // Note: Empty array or ["*"] means access to all airports
+    if (req.user.role === 'user' && 
+        req.user.allowedAirports.length > 0 && 
+        !req.user.allowedAirports.includes("*")) {
       filteredFlights = flights.filter(flight => 
         req.user.allowedAirports.includes(flight.from) || 
         req.user.allowedAirports.includes(flight.to)

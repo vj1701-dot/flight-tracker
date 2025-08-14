@@ -1151,19 +1151,8 @@ class TelegramNotificationService {
           return;
         }
 
-        let message = `Jai Swaminarayan 🙏\n\n` +
-                     `✈️ Your Upcoming Flights\n\n`;
-        passengerFlights.slice(0, 5).forEach((flight, index) => {
-          message += `${index + 1}. ${flight.airline} ${flight.flightNumber}\n`;
-          message += `   ${this.formatAirportDisplay(flight.from)} → ${this.formatAirportDisplay(flight.to)}\n`;
-          message += `   🕐 Departure: ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n`;
-          if (flight.pickupSevakName) {
-            message += `   🚗 Pickup: ${flight.pickupSevakName}\n`;
-          }
-          message += `\n`;
-        });
-
-        await this.bot.sendMessage(chatId, message);
+        // Show detailed view with navigation for the first flight
+        await this.showPassengerFlightDetails(chatId, passengerFlights, 0, passenger.name);
 
       } catch (error) {
         console.error('Error fetching passenger flights:', error);
@@ -2338,19 +2327,24 @@ class TelegramNotificationService {
             return;
           }
           
-          const flights = await readFlights();
+          // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+          const flights = await getFlightsWithResolvedNames();
           const now = new Date();
           
           // Filter flights for this passenger (upcoming flights only)
           const passengerFlights = flights.filter(flight => {
-            const departureDate = new Date(flight.departureDateTime);
-            if (departureDate <= now) return false;
+            const departureTime = new Date(flight.departureDateTime);
+            const isUpcoming = departureTime >= now;
             
-            return flight.passengers?.some(p => {
-              if (p.passengerId === passenger.id) return true;
-              if (p.name?.toLowerCase() === passenger.name.toLowerCase()) return true;
-              return false;
+            // Check if this passenger is on this flight using the resolved passengers array
+            const isPassengerOnFlight = flight.passengers?.some(p => {
+              // Handle both ID matching and name matching for backward compatibility
+              return p.id === passenger.id || 
+                     p.passengerId === passenger.id ||
+                     (p.name && passenger.name && p.name.toLowerCase().includes(passenger.name.toLowerCase()));
             });
+            
+            return isUpcoming && isPassengerOnFlight;
           });
           
           // Sort flights by departure time
@@ -2368,7 +2362,7 @@ class TelegramNotificationService {
             await this.bot.deleteMessage(chatId, callbackQuery.message.message_id);
             
             // Show the new flight
-            await this.showFlightWithNavigation(chatId, passengerFlights, currentIndex, passenger.name, passengers);
+            await this.showPassengerFlightDetails(chatId, passengerFlights, currentIndex, passenger.name);
           } else {
             console.log('❌ Invalid flight index for navigation');
           }
@@ -3321,6 +3315,108 @@ class TelegramNotificationService {
   // Get bot instance (for accessing from express routes)
   getBot() {
     return this.bot;
+  }
+
+  /**
+   * Show detailed flight information with navigation for passenger flights
+   */
+  async showPassengerFlightDetails(chatId, flights, currentIndex, passengerName) {
+    if (!flights || flights.length === 0) {
+      await this.bot.sendMessage(chatId, 
+        `Jai Swaminarayan 🙏\n\n` +
+        `📅 No flights found.`
+      );
+      return;
+    }
+
+    const flight = flights[currentIndex];
+    
+    let message = `Jai Swaminarayan 🙏\n\n`;
+    message += `✈️ Flight ${currentIndex + 1} of ${flights.length}\n`;
+    message += `${this.formatFlightDisplay(flight)}\n\n`;
+    
+    // Route Information with timezone
+    message += `🛫 Departure\n`;
+    message += `${this.formatAirportDisplay(flight.from)}\n`;
+    message += `🕐 ${this.formatDateTimeWithTimezone(flight.departureDateTime, flight.from)}\n\n`;
+    
+    message += `🛬 Arrival\n`;
+    message += `${this.formatAirportDisplay(flight.to)}\n`;
+    message += `🕐 ${this.formatDateTimeWithTimezone(flight.arrivalDateTime, flight.to)}\n\n`;
+    
+    // Flight Details
+    if (flight.confirmationCode) {
+      message += `🎫 Confirmation: ${flight.confirmationCode}\n`;
+    }
+    if (flight.seatNumbers && flight.seatNumbers.length > 0) {
+      message += `💺 Seats: ${flight.seatNumbers.join(', ')}\n`;
+    }
+    if (flight.gate) {
+      message += `🚪 Gate: ${flight.gate}\n`;
+    }
+    if (flight.terminal) {
+      message += `🏢 Terminal: ${flight.terminal}\n`;
+    }
+    
+    // Pickup Information
+    if (flight.pickupVolunteerName || flight.pickupVolunteerPhone) {
+      message += `\n🚗 Pickup Volunteer\n`;
+      if (flight.pickupVolunteerName) {
+        message += `👤 ${flight.pickupVolunteerName}\n`;
+      }
+      if (flight.pickupVolunteerPhone) {
+        message += `📱 ${flight.pickupVolunteerPhone}\n`;
+      }
+    }
+    
+    // Dropoff Information
+    if (flight.dropoffVolunteerName || flight.dropoffVolunteerPhone) {
+      message += `\n🚛 Dropoff Volunteer\n`;
+      if (flight.dropoffVolunteerName) {
+        message += `👤 ${flight.dropoffVolunteerName}\n`;
+      }
+      if (flight.dropoffVolunteerPhone) {
+        message += `📱 ${flight.dropoffVolunteerPhone}\n`;
+      }
+    }
+    
+    // Notes
+    if (flight.notes && flight.notes.trim()) {
+      message += `\n📝 Notes\n${flight.notes}`;
+    }
+    
+    // Create navigation buttons
+    const keyboard = [];
+    
+    if (flights.length > 1) {
+      const navRow = [];
+      
+      if (currentIndex > 0) {
+        navRow.push({ 
+          text: '⬅️ Previous', 
+          callback_data: `flight_nav_${currentIndex - 1}_${encodeURIComponent(passengerName)}` 
+        });
+      }
+      
+      if (currentIndex < flights.length - 1) {
+        navRow.push({ 
+          text: 'Next ➡️', 
+          callback_data: `flight_nav_${currentIndex + 1}_${encodeURIComponent(passengerName)}` 
+        });
+      }
+      
+      if (navRow.length > 0) {
+        keyboard.push(navRow);
+      }
+    }
+    
+    const options = {
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    };
+    
+    await this.bot.sendMessage(chatId, message, options);
   }
 
   /**

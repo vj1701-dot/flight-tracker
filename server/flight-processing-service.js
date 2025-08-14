@@ -244,7 +244,15 @@ async function convertSingleGeminiFlightToInternalFormat(geminiData) {
     // Passenger information - use first passenger as primary
     passengerName: extractedPassengerNames.length > 0 ? extractedPassengerNames[0] : null,
     allPassengerNames: extractedPassengerNames, // Store all passenger names
-    seatNumbers: isMissing(geminiData.seatNumber) ? [] : [geminiData.seatNumber],
+    seatNumbers: (() => {
+      // Handle both new seatNumbers array and old seatNumber format
+      if (!isMissing(geminiData.seatNumbers) && Array.isArray(geminiData.seatNumbers)) {
+        return geminiData.seatNumbers.filter(seat => !isMissing(seat));
+      } else if (!isMissing(geminiData.seatNumber)) {
+        return [geminiData.seatNumber];
+      }
+      return [];
+    })(),
     
     // Additional information
     confirmationCode: null, // Not in new simplified format
@@ -975,15 +983,28 @@ async function processFlightTicket(imageUrl) {
           console.warn('⚠️  FLIGHT_PROCESSING: Failed to cleanup temp file:', cleanupError.message);
         }
 
-        if (geminiResult.success && geminiResult.data) {
+        if (geminiResult.success && (geminiResult.data || geminiResult.flights)) {
           console.log('✅ FLIGHT_PROCESSING: Gemini extraction successful');
-          console.log('📊 FLIGHT_PROCESSING: Gemini summary:', geminiService.getDataSummary(geminiResult));
           
-          // Convert Gemini data to our internal format
-          extractedData = await convertGeminiDataToInternalFormat(geminiResult.data);
-          extractionMethod = 'gemini';
-          processingResult.metadata.extractionMethod = 'gemini';
-          processingResult.metadata.geminiConfidence = geminiResult.confidence;
+          // Handle new multi-flight structure
+          if (geminiResult.flights && geminiResult.flights.length > 0) {
+            console.log(`📊 FLIGHT_PROCESSING: Processing ${geminiResult.flights.length} flight(s) from Gemini`);
+            
+            // Convert the new structure to internal format
+            extractedData = await convertGeminiDataToInternalFormat({ flights: geminiResult.flights });
+            extractionMethod = 'gemini';
+            processingResult.metadata.extractionMethod = 'gemini';
+            processingResult.metadata.geminiConfidence = geminiResult.confidence;
+          } else if (geminiResult.data) {
+            // Fallback for old single-flight structure
+            console.log('📊 FLIGHT_PROCESSING: Processing single flight from Gemini (legacy format)');
+            extractedData = await convertGeminiDataToInternalFormat(geminiResult.data);
+            extractionMethod = 'gemini';
+            processingResult.metadata.extractionMethod = 'gemini';
+            processingResult.metadata.geminiConfidence = geminiResult.confidence;
+          } else {
+            console.log('⚠️  FLIGHT_PROCESSING: No valid flight data in Gemini result, falling back to OCR');
+          }
         } else {
           console.log('⚠️  FLIGHT_PROCESSING: Gemini extraction failed, falling back to OCR');
         }

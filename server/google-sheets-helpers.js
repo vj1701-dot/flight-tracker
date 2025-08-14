@@ -124,7 +124,8 @@ class GoogleSheetsDataManager {
       ],
       users: [
         'id', 'username', 'name', 'email', 'password', 
-        'role', 'allowedAirports', 'createdAt', 'updatedAt'
+        'role', 'allowedAirports', 'createdAt', 'updatedAt',
+        'telegramChatId', 'phone'
       ],
       volunteers: [
         'id', 'name', 'phone', 'email', 'createdAt', 'updatedAt'

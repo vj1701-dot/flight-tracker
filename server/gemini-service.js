@@ -154,21 +154,26 @@ CRITICAL INSTRUCTIONS:
         throw new Error(`Invalid JSON response from Gemini: ${parseError.message}`);
       }
 
-      // Validate and enhance the extracted data
-      const processedData = this.processExtractedData(extractedData);
+      // Validate and process the multi-flight structure
+      const processedFlights = this.processMultiFlightData(extractedData);
       
       console.log('✅ GEMINI_SERVICE: Flight data extraction completed');
-      console.log('📊 GEMINI_SERVICE: Extracted data summary:', {
-        airlineName: processedData.airlineName || 'missing',
-        flightNumber: processedData.flightNumber || 'missing',
-        passengerName: processedData.passengerName || 'missing',
-        route: `${processedData.departureAirport || 'missing'} → ${processedData.arrivalAirport || 'missing'}`,
-        seatNumber: processedData.seatNumber || 'missing'
-      });
+      console.log(`📊 GEMINI_SERVICE: Extracted ${processedFlights.length} flight(s)`);
+      
+      for (let i = 0; i < processedFlights.length; i++) {
+        const flight = processedFlights[i];
+        console.log(`✈️ Flight ${i + 1}:`, {
+          airlineName: flight.airlineName || 'missing',
+          flightNumber: flight.flightNumber || 'missing',
+          passengerNames: flight.passengerNames || [],
+          route: `${flight.departureAirport || 'missing'} → ${flight.arrivalAirport || 'missing'}`,
+          seatNumbers: flight.seatNumbers || []
+        });
+      }
 
       return {
         success: true,
-        data: processedData,
+        flights: processedFlights,
         source: 'gemini',
         timestamp: new Date().toISOString(),
         confidence: 0.95 // Gemini generally has high confidence
@@ -181,11 +186,87 @@ CRITICAL INSTRUCTIONS:
   }
 
   /**
+   * Process multi-flight data structure from Gemini
+   * @param {Object} rawData - Raw data from Gemini with flights array
+   * @returns {Array} - Array of processed flight objects
+   */
+  processMultiFlightData(rawData) {
+    console.log('🔄 GEMINI_SERVICE: Processing multi-flight data structure...');
+    
+    let flights = [];
+    
+    // Handle the new multi-flight structure
+    if (rawData.flights && Array.isArray(rawData.flights)) {
+      console.log(`📋 GEMINI_SERVICE: Found ${rawData.flights.length} flight(s) in response`);
+      flights = rawData.flights;
+    } else {
+      // Fallback: treat the entire response as a single flight (backward compatibility)
+      console.log('📋 GEMINI_SERVICE: Using backward compatibility mode - treating as single flight');
+      flights = [rawData];
+    }
+    
+    const processedFlights = [];
+    
+    for (let i = 0; i < flights.length; i++) {
+      const flight = flights[i];
+      console.log(`🔄 Processing flight ${i + 1}:`, flight.flightNumber || 'unknown');
+      
+      const processedFlight = this.processSingleFlightData(flight);
+      
+      // Ensure passengerNames is always an array
+      if (processedFlight.passengerNames && Array.isArray(processedFlight.passengerNames)) {
+        // Filter out any invalid passenger names and ensure they're full names
+        processedFlight.passengerNames = processedFlight.passengerNames
+          .filter(name => name && name !== 'missing' && name.trim().length > 0)
+          .map(name => name.trim())
+          .filter(name => {
+            // Ensure we have reasonable full names (at least first and last name)
+            const nameParts = name.split(/\s+/);
+            return nameParts.length >= 2;
+          });
+        
+        console.log(`👥 GEMINI_SERVICE: Flight ${i + 1} has ${processedFlight.passengerNames.length} passenger(s):`, processedFlight.passengerNames);
+      } else {
+        // Fallback for old single passenger format
+        if (processedFlight.passengerName && processedFlight.passengerName !== 'missing') {
+          processedFlight.passengerNames = [processedFlight.passengerName];
+          console.log(`👤 GEMINI_SERVICE: Flight ${i + 1} fallback - single passenger:`, processedFlight.passengerName);
+        } else {
+          processedFlight.passengerNames = [];
+          console.log(`⚠️ GEMINI_SERVICE: Flight ${i + 1} has no valid passenger names`);
+        }
+      }
+      
+      // Ensure seatNumbers is always an array  
+      if (!processedFlight.seatNumbers || !Array.isArray(processedFlight.seatNumbers)) {
+        if (processedFlight.seatNumber && processedFlight.seatNumber !== 'missing') {
+          processedFlight.seatNumbers = [processedFlight.seatNumber];
+        } else {
+          processedFlight.seatNumbers = [];
+        }
+      }
+      
+      // Only add flights that have the minimum required data
+      if (processedFlight.flightNumber && 
+          processedFlight.flightNumber !== 'missing' && 
+          processedFlight.passengerNames.length > 0) {
+        processedFlights.push(processedFlight);
+        console.log(`✅ GEMINI_SERVICE: Flight ${i + 1} processed successfully`);
+      } else {
+        console.log(`❌ GEMINI_SERVICE: Flight ${i + 1} rejected - insufficient data`);
+      }
+    }
+    
+    console.log(`✅ GEMINI_SERVICE: Processed ${processedFlights.length} valid flight(s)`);
+    return processedFlights;
+  }
+
+  /**
    * Process and validate extracted data from Gemini (simplified format)
    * @param {Object} rawData - Raw data from Gemini
    * @returns {Object} - Processed and validated data
    */
-  processExtractedData(rawData) {
+  processSingleFlightData(rawData) {
     const processed = { ...rawData };
 
     // Clean up airport codes
