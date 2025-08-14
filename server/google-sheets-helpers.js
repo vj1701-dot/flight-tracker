@@ -7,6 +7,8 @@ class GoogleSheetsDataManager {
     this.spreadsheetId = process.env.GOOGLE_SHEETS_ID || null;
     this.serviceAccountAuth = null;
     this.doc = null;
+    this.initialized = false;
+    this.initializationPromise = null;
     
     // Sheet names for different data types
     this.sheetNames = {
@@ -20,17 +22,17 @@ class GoogleSheetsDataManager {
     console.log('📊 Google Sheets Data Manager initialized');
     
     if (this.spreadsheetId) {
-      this.initializeSheets();
+      this.initializationPromise = this.initializeSheets();
     } else {
       console.log('⚠️  GOOGLE_SHEETS_ID not set - Google Sheets integration disabled');
     }
   }
 
   async createAuth() {
-    // Method 1: Try GOOGLE_CREDENTIALS_JSON (full JSON credential)
+    // Only use GOOGLE_CREDENTIALS_JSON method
     if (process.env.GOOGLE_CREDENTIALS_JSON) {
       try {
-        console.log('🔑 Trying GOOGLE_CREDENTIALS_JSON authentication...');
+        console.log('🔑 Using GOOGLE_CREDENTIALS_JSON authentication...');
         const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
         const auth = new JWT({
           email: credentials.client_email,
@@ -41,70 +43,16 @@ class GoogleSheetsDataManager {
         return auth;
       } catch (error) {
         console.error('❌ GOOGLE_CREDENTIALS_JSON authentication failed:', error.message);
+        throw error;
       }
     }
 
-    // Method 2: Try individual environment variables
-    if (process.env.GOOGLE_SHEETS_CLIENT_EMAIL && process.env.GOOGLE_SHEETS_PRIVATE_KEY) {
-      try {
-        console.log('🔑 Trying individual environment variables authentication...');
-        let privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
-        
-        // Try different formatting approaches for the private key
-        const keyFormats = [
-          privateKey,
-          privateKey.replace(/\\n/g, '\n'),
-          privateKey.replace(/\n/g, '\n'),
-          privateKey.replace(/\\\\n/g, '\n')
-        ];
-        
-        for (const key of keyFormats) {
-          try {
-            const auth = new JWT({
-              email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
-              key: key,
-              scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-            });
-            // Test the auth by getting access token
-            await auth.getAccessToken();
-            console.log('✅ Individual environment variables authentication successful');
-            return auth;
-          } catch (keyError) {
-            continue; // Try next format
-          }
-        }
-        throw new Error('All private key formats failed');
-      } catch (error) {
-        console.error('❌ Individual environment variables authentication failed:', error.message);
-      }
-    }
-
-    // Method 3: Try default Google Cloud credentials (for Cloud Run)
-    try {
-      console.log('🔑 Trying default Google Cloud credentials...');
-      const { GoogleAuth } = require('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-      });
-      const client = await auth.getClient();
-      console.log('✅ Default Google Cloud credentials authentication successful');
-      return client;
-    } catch (error) {
-      console.error('❌ Default Google Cloud credentials authentication failed:', error.message);
-    }
-
-    console.error('❌ All authentication methods failed');
-    return null;
+    throw new Error('GOOGLE_CREDENTIALS_JSON environment variable is required');
   }
 
   async initializeSheets() {
     try {
-      // Try multiple authentication methods
       this.serviceAccountAuth = await this.createAuth();
-      
-      if (!this.serviceAccountAuth) {
-        throw new Error('No valid authentication method found');
-      }
 
       // Initialize the spreadsheet document
       this.doc = new GoogleSpreadsheet(this.spreadsheetId, this.serviceAccountAuth);
@@ -115,12 +63,27 @@ class GoogleSheetsDataManager {
       // Ensure all required sheets exist
       await this.ensureSheetsExist();
       
+      this.initialized = true;
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize Google Sheets:', error.message);
-      console.error('Available auth methods: GOOGLE_CREDENTIALS_JSON, individual env vars, or default credentials');
+      console.error('Ensure GOOGLE_CREDENTIALS_JSON environment variable is set correctly');
+      this.initialized = false;
       return false;
     }
+  }
+
+  async ensureInitialized() {
+    if (this.initialized) {
+      return true;
+    }
+    
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return this.initialized;
+    }
+    
+    throw new Error('Google Sheets not initialized');
   }
 
   async ensureSheetsExist() {
@@ -194,6 +157,7 @@ class GoogleSheetsDataManager {
   // Generic CRUD operations
   async readAll(sheetType) {
     try {
+      await this.ensureInitialized();
       const sheet = await this.getSheet(sheetType);
       const rows = await sheet.getRows();
       
@@ -228,6 +192,7 @@ class GoogleSheetsDataManager {
 
   async writeAll(sheetType, data) {
     try {
+      await this.ensureInitialized();
       const sheet = await this.getSheet(sheetType);
       
       // Clear existing data (keep headers) - clear from row 2 onwards
