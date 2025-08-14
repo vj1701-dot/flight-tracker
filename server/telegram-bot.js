@@ -337,8 +337,9 @@ class TelegramNotificationService {
         return;
       }
 
-      const flights = await readFlights();
-      const passengers = await readPassengers();
+      // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+      const flights = await getFlightsWithResolvedNames();
+      console.log(`📊 [handleUpcomingFlightsCommand] Loaded ${flights.length} flights with resolved names`);
       const now = new Date();
       
       // Get upcoming flights for user's airports (next 7 days)
@@ -480,8 +481,9 @@ class TelegramNotificationService {
         return;
       }
 
-      const flights = await readFlights();
-      const passengers = await readPassengers();
+      // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+      const flights = await getFlightsWithResolvedNames();
+      console.log(`📊 [handleFlightsCommand] Loaded ${flights.length} flights with resolved names`);
       const now = new Date();
       const userFlights = flights.filter(flight => {
         const departureTime = new Date(flight.departureDateTime);
@@ -1047,7 +1049,9 @@ class TelegramNotificationService {
           return;
         }
 
-        const flights = await readFlights();
+        // Use getFlightsWithResolvedNames to get flights with proper passenger objects
+        const flights = await getFlightsWithResolvedNames();
+        console.log(`📊 [/flights regex] Loaded ${flights.length} flights with resolved names`);
         const now = new Date();
         const userFlights = flights.filter(flight => {
           const departureTime = new Date(flight.departureDateTime);
