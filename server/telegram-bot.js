@@ -584,15 +584,26 @@ class TelegramNotificationService {
   async handleMyFlightsCommand(chatId) {
     try {
       const passengers = await readPassengers();
-      const passenger = passengers.find(p => p.telegramChatId === chatId);
+      console.log(`🔍 [handleMyFlightsCommand] Looking for passenger with chatId: ${chatId} (type: ${typeof chatId})`);
+      
+      // Check both string and number versions of chatId for compatibility
+      const passenger = passengers.find(p => 
+        p.telegramChatId === chatId || 
+        p.telegramChatId === String(chatId) || 
+        String(p.telegramChatId) === String(chatId)
+      );
 
       if (!passenger) {
+        console.log(`❌ [handleMyFlightsCommand] No passenger found with chatId: ${chatId}`);
+        console.log(`Available passengers:`, passengers.map(p => ({ name: p.name, chatId: p.telegramChatId, type: typeof p.telegramChatId })));
         await this.bot.sendMessage(chatId, 
           `Jai Swaminarayan 🙏\n\n` +
           `❌ You're not registered as a passenger. Please send /start to register first.`
         );
         return;
       }
+
+      console.log(`✅ [handleMyFlightsCommand] Found passenger: ${passenger.name} (chatId: ${passenger.telegramChatId})`);
 
       const flights = await readFlights();
       const now = new Date();
