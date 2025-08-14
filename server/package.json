@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "init-drive": "node initialize-drive-storage.js"
+    "init-drive": "node initialize-drive-storage.js",
+    "force-reset-drive": "node force-reset-drive.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.7.0",
