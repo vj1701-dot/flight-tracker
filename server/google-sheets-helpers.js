@@ -107,6 +107,9 @@ class GoogleSheetsDataManager {
       if (!initialized) throw new Error('Failed to initialize Google Sheets');
     }
 
+    // Ensure document info is loaded
+    await this.doc.loadInfo();
+
     const sheetName = this.sheetNames[sheetType];
     const sheet = this.doc.sheetsByTitle[sheetName];
     
@@ -156,8 +159,13 @@ class GoogleSheetsDataManager {
     try {
       const sheet = await this.getSheet(sheetType);
       
-      // Clear existing data (keep headers)
-      await sheet.clear(2); // Start from row 2 to keep headers
+      // Clear existing data (keep headers) - clear from row 2 onwards
+      if (sheet.rowCount > 1) {
+        await sheet.clearRows({
+          startIndex: 1, // 0-based index, so row 2 (keep headers in row 1)
+          endIndex: sheet.rowCount
+        });
+      }
       
       // Prepare data for insertion
       const processedData = data.map(item => {
