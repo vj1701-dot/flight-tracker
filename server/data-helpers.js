@@ -99,14 +99,29 @@ async function getFlightsWithResolvedNames(flights = null) {
   // Resolve passenger names for each flight
   const resolvedFlights = await Promise.all(
     flights.map(async (flight) => {
-      if (flight.passengers) {
+      // Handle Google Sheets format with passengerIds array
+      if (flight.passengerIds && Array.isArray(flight.passengerIds)) {
+        // Convert passengerIds to passenger objects format
+        const flightPassengers = flight.passengerIds.map(passengerId => ({ passengerId }));
+        const resolvedPassengers = await resolveFlightPassengerNames(flightPassengers, passengers);
+        return {
+          ...flight,
+          passengers: resolvedPassengers
+        };
+      }
+      // Handle legacy format with passengers array
+      else if (flight.passengers) {
         const resolvedPassengers = await resolveFlightPassengerNames(flight.passengers, passengers);
         return {
           ...flight,
           passengers: resolvedPassengers
         };
       }
-      return flight;
+      // No passengers found
+      return {
+        ...flight,
+        passengers: []
+      };
     })
   );
   
