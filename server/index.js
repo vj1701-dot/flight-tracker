@@ -379,16 +379,20 @@ app.post('/telegram/webhook', (req, res) => {
 
 // Set up webhook in production
 if (process.env.NODE_ENV === 'production' && telegramBot && telegramBot.setWebhook) {
-  const webhookUrl = `${process.env.WEBHOOK_URL || 'https://flight-tracker-352144879829.us-central1.run.app'}/telegram/webhook`;
-  telegramBot.setWebhook(webhookUrl).then(success => {
-    if (success) {
-      console.log('✅ Telegram webhook configured for production');
-    } else {
-      console.error('❌ Failed to configure Telegram webhook');
-    }
-  }).catch(error => {
-    console.error('❌ Error setting up Telegram webhook:', error.message);
-  });
+  if (process.env.WEBHOOK_URL) {
+    const webhookUrl = `${process.env.WEBHOOK_URL}/telegram/webhook`;
+    telegramBot.setWebhook(webhookUrl).then(success => {
+      if (success) {
+        console.log('✅ Telegram webhook configured for production');
+      } else {
+        console.error('❌ Failed to configure Telegram webhook');
+      }
+    }).catch(error => {
+      console.error('❌ Error setting up Telegram webhook:', error.message);
+    });
+  } else {
+    console.log('⚠️ WEBHOOK_URL environment variable not set - Telegram webhook setup skipped');
+  }
 } else if (process.env.NODE_ENV === 'production') {
   console.log('⚠️ Telegram bot not configured - webhook setup skipped');
 }
