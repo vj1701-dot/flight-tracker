@@ -166,12 +166,18 @@ class GoogleSheetsDataManager {
         sheet.headerValues.forEach(header => {
           let value = row.get(header);
           
-          // Parse JSON fields
+          // Parse JSON fields and comma-separated fields
           if (['passengerIds', 'extractedNames', 'allowedAirports', 'changes', 'oldData', 'newData'].includes(header)) {
             try {
               value = value ? JSON.parse(value) : (header === 'allowedAirports' ? [] : null);
             } catch (e) {
-              value = header === 'allowedAirports' ? [] : null;
+              // Handle comma-separated passenger IDs (fallback for legacy format)
+              if (header === 'passengerIds' && value && typeof value === 'string') {
+                value = value.split(',').map(id => id.trim()).filter(id => id.length > 0);
+                console.log(`🔧 Converted comma-separated passengerIds: "${value.join(',')}" → [${value.length} IDs]`);
+              } else {
+                value = header === 'allowedAirports' ? [] : null;
+              }
             }
           }
           
