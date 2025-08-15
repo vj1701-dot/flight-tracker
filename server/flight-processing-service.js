@@ -887,7 +887,53 @@ function parseFlightData(text) {
 
 
 /**
- * Process passengers from Gemini format with intelligent ID handling
+ * Process passenger names from Gemini and match/create passengers
+ * @param {Array} passengerNames - Array of passenger names from ticket
+ * @returns {Array} - Array of processed passenger objects
+ */
+async function processFlightPassengerNames(passengerNames) {
+  const processedPassengers = [];
+  const existingPassengers = await readPassengers();
+  
+  for (const passengerName of passengerNames) {
+    if (!passengerName || passengerName === 'missing') continue;
+    
+    console.log(`👤 FLIGHT_PROCESSING: Processing passenger: ${passengerName}`);
+    
+    // Try to find existing passenger by name matching
+    const existingPassenger = await findPassengerByName(passengerName, existingPassengers);
+    
+    if (existingPassenger) {
+      // Use existing passenger
+      processedPassengers.push(existingPassenger);
+      console.log(`✅ FLIGHT_PROCESSING: Found existing passenger: ${existingPassenger.name} (ID: ${existingPassenger.id})`);
+    } else {
+      // Create new passenger
+      const newPassenger = {
+        id: uuidv4(),
+        name: passengerName.trim(),
+        legalName: passengerName.trim(), // Use ticket name as legal name
+        phone: null,
+        telegramChatId: null,
+        flightCount: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save new passenger
+      existingPassengers.push(newPassenger);
+      await writePassengers(existingPassengers);
+      
+      processedPassengers.push(newPassenger);
+      console.log(`🆕 FLIGHT_PROCESSING: Created new passenger: ${newPassenger.name} (ID: ${newPassenger.id})`);
+    }
+  }
+  
+  return processedPassengers;
+}
+
+/**
+ * Process passengers from Gemini format with intelligent ID handling (LEGACY)
  * @param {Array} geminiPassengers - Passengers from Gemini response
  * @param {Array} passengerIds - Array of passenger IDs for this flight
  * @returns {Array} - Array of processed passenger objects
@@ -1127,26 +1173,44 @@ async function processFlightTicket(imageUrl) {
       console.log(`🔢 FLIGHT_PROCESSING: Processing ${extractedData.flights.length} flights from Gemini multi-flight format`);
       
       const createdFlights = [];
-      const allPassengers = geminiResult.passengers || [];
       
       for (const flightData of extractedData.flights) {
         try {
           console.log(`✈️ FLIGHT_PROCESSING: Processing flight ${flightData.flightNumber}`);
           
-          // Create flight directly from Gemini structured data
+          // Process passengers first to get their IDs
+          const flightPassengers = await processFlightPassengerNames(flightData.passengerNames || []);
+          
+          // Create complete flight object with server-generated fields
           const flight = {
             id: uuidv4(),
-            ...flightData,
+            flightNumber: flightData.flightNumber,
+            airline: flightData.airline,
+            from: flightData.from,
+            to: flightData.to,
+            departureDateTime: flightData.departureDateTime,
+            arrivalDateTime: flightData.arrivalDateTime,
+            passengerIds: flightPassengers.map(p => p.id),
+            pickupVolunteerName: null,
+            pickupVolunteerPhone: null,
+            dropoffVolunteerName: null,
+            dropoffVolunteerPhone: null,
+            status: 'confirmed',
+            notes: '',
+            confirmationCode: flightData.confirmationCode !== 'missing' ? flightData.confirmationCode : null,
+            seatNumbers: flightData.seatNumbers || [],
+            gate: flightData.gate !== 'missing' ? flightData.gate : null,
+            terminal: flightData.terminal !== 'missing' ? flightData.terminal : null,
+            createdBy: 'telegram',
+            createdByName: 'Telegram Bot',
+            updatedBy: 'telegram',
+            updatedByName: 'Telegram Bot',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
           
-          // Process passengers for this flight
-          const flightPassengers = await processFlightPassengers(allPassengers, flightData.passengerIds || []);
-          flight.passengerIds = flightPassengers.map(p => p.id);
-          
           createdFlights.push(flight);
-          console.log(`✅ FLIGHT_PROCESSING: Successfully processed flight ${flight.flightNumber}`);
+          console.log(`✅ FLIGHT_PROCESSING: Successfully processed flight ${flight.flightNumber} with ${flightPassengers.length} passengers`);
           
         } catch (flightError) {
           console.error(`❌ FLIGHT_PROCESSING: Error processing flight:`, flightError.message);

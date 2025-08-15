@@ -112,46 +112,21 @@ id, flightNumber, airline, from, to, departureDateTime, arrivalDateTime, passeng
 PASSENGERS SHEET COLUMNS:  
 id, name, legalName, phone, telegramChatId, flightCount, createdAt, updatedAt
 
-REQUIRED JSON FORMAT (match our database exactly):
+REQUIRED JSON FORMAT - ONLY ESSENTIAL FLIGHT INFORMATION:
 {
   "flights": [
     {
-      "id": "NEW_FLIGHT_1",
       "flightNumber": "complete flight number (e.g., 'AA1855')",
       "airline": "airline name (e.g., 'American Airlines')", 
       "from": "departure airport 3-letter IATA code (e.g., 'SFO')",
       "to": "arrival airport 3-letter IATA code (e.g., 'LAX')",
       "departureDateTime": "YYYY-MM-DD HH:MM AM/PM format in DEPARTURE airport's local timezone (e.g., '2025-08-17 08:30 AM')",
       "arrivalDateTime": "YYYY-MM-DD HH:MM AM/PM format in ARRIVAL airport's local timezone (e.g., '2025-08-17 10:01 AM')",
-      "passengerIds": ["array of passenger IDs - USE EXISTING IDs if names match, or 'NEW_PASSENGER_X' for new ones"],
-      "pickupVolunteerName": "missing",
-      "pickupVolunteerPhone": "missing", 
-      "dropoffVolunteerName": "missing",
-      "dropoffVolunteerPhone": "missing",
-      "status": "confirmed",
-      "notes": "",
+      "passengerNames": ["array of ALL passenger names on this flight (e.g., ['John Smith', 'Jane Doe'])"],
       "confirmationCode": "confirmation/PNR code if visible or 'missing'",
       "seatNumbers": ["array of seat assignments if available (e.g., ['24A', '24B']) or empty array"],
       "gate": "gate number if visible or 'missing'",
-      "terminal": "terminal if visible or 'missing'",
-      "createdBy": "telegram",
-      "createdByName": "Telegram Bot",
-      "updatedBy": "telegram", 
-      "updatedByName": "Telegram Bot",
-      "createdAt": "auto-generated",
-      "updatedAt": "auto-generated"
-    }
-  ],
-  "passengers": [
-    {
-      "id": "use existing ID if name matches, or 'NEW_PASSENGER_X' format",
-      "name": "use EXACT name from database if matched, or cleaned name for new passengers",
-      "legalName": "use EXACT legalName from database if matched, or ticket name for new passengers",
-      "phone": "phone number if visible on ticket or 'missing'",
-      "telegramChatId": "missing",
-      "flightCount": 1,
-      "createdAt": "auto-generated",
-      "updatedAt": "auto-generated"
+      "terminal": "terminal if visible or 'missing'"
     }
   ]
 }${passengerContext}
@@ -159,16 +134,15 @@ REQUIRED JSON FORMAT (match our database exactly):
 CRITICAL INSTRUCTIONS:
 1. Return ONLY valid JSON, no additional text or explanation
 2. Use exactly "missing" for any field that is not clearly visible
-3. For passenger matching: If a name on the ticket closely matches an existing passenger, use their EXACT database ID, name, and legalName
-4. For new passengers: use "NEW_PASSENGER_1", "NEW_PASSENGER_2", etc. as temporary IDs
+3. Extract ONLY the 5 essential pieces: airline, flight number, airports, date/time, passengers
+4. For passenger names: Extract names exactly as they appear on ticket, try to match with existing database
 5. Combine date and time into single dateTime fields (e.g., "2025-08-17 08:30 AM")
 6. Airport codes must be 3-letter IATA codes in UPPERCASE
 7. Current date for smart year inference: ${new Date().toISOString().split('T')[0]}
 8. Extract ALL passengers - the ticket may have multiple people
-9. Be intelligent about name matching - "JOHN SMITH" might match existing "John Smith"
-10. Use empty arrays [] for missing array fields, not "missing"
-11. TIMEZONE IMPORTANT: Times on tickets are in the airport's local timezone - keep them as-is, don't convert
-12. Departure time should be in departure airport's timezone, arrival time in arrival airport's timezone
+9. Use empty arrays [] for missing array fields, not "missing"
+10. TIMEZONE IMPORTANT: Times on tickets are in the airport's local timezone - keep them as-is, don't convert
+11. Server will generate IDs and handle all other fields automatically
 `;`
 
       // Send request to Gemini
