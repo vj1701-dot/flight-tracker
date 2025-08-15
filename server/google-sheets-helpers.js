@@ -124,7 +124,7 @@ class GoogleSheetsDataManager {
       ],
       passengers: [
         'id', 'name', 'legalName', 'phone', 'telegramChatId', 
-        'flightCount', 'extractedNames', 'createdAt', 'updatedAt'
+        'flightCount', 'createdAt', 'updatedAt'
       ],
       users: [
         'id', 'username', 'name', 'email', 'password', 
@@ -178,7 +178,7 @@ class GoogleSheetsDataManager {
           let value = row.get(header);
           
           // Parse JSON fields and comma-separated fields
-          if (['passengerIds', 'extractedNames', 'allowedAirports', 'changes', 'oldData', 'newData'].includes(header)) {
+          if (['passengerIds', 'allowedAirports', 'changes', 'oldData', 'newData'].includes(header)) {
             try {
               value = value ? JSON.parse(value) : (header === 'allowedAirports' ? [] : null);
             } catch (e) {
@@ -236,7 +236,7 @@ class GoogleSheetsDataManager {
         const processedItem = { ...item };
         
         // Convert arrays and objects to JSON strings
-        ['passengerIds', 'extractedNames', 'allowedAirports', 'changes', 'oldData', 'newData'].forEach(field => {
+        ['passengerIds', 'allowedAirports', 'changes', 'oldData', 'newData'].forEach(field => {
           if (processedItem[field] !== undefined) {
             processedItem[field] = JSON.stringify(processedItem[field] || []);
           }
@@ -271,7 +271,7 @@ class GoogleSheetsDataManager {
       
       // Process the item for storage
       const processedItem = { ...item };
-      ['passengerIds', 'extractedNames', 'allowedAirports', 'changes', 'oldData', 'newData'].forEach(field => {
+      ['passengerIds', 'allowedAirports', 'changes', 'oldData', 'newData'].forEach(field => {
         if (processedItem[field] !== undefined) {
           processedItem[field] = JSON.stringify(processedItem[field] || []);
         }
@@ -301,7 +301,7 @@ class GoogleSheetsDataManager {
         let value = updates[key];
         
         // Convert arrays and objects to JSON strings
-        if (['passengerIds', 'extractedNames', 'allowedAirports', 'changes', 'oldData', 'newData'].includes(key)) {
+        if (['passengerIds', 'allowedAirports', 'changes', 'oldData', 'newData'].includes(key)) {
           value = JSON.stringify(value || []);
         }
         

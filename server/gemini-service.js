@@ -110,12 +110,13 @@ FLIGHTS SHEET COLUMNS:
 id, flightNumber, airline, from, to, departureDateTime, arrivalDateTime, passengerIds, pickupVolunteerName, pickupVolunteerPhone, dropoffVolunteerName, dropoffVolunteerPhone, status, notes, confirmationCode, seatNumbers, gate, terminal, createdBy, createdByName, updatedBy, updatedByName, createdAt, updatedAt
 
 PASSENGERS SHEET COLUMNS:  
-id, name, legalName, phone, telegramChatId, flightCount, extractedNames, createdAt, updatedAt
+id, name, legalName, phone, telegramChatId, flightCount, createdAt, updatedAt
 
 REQUIRED JSON FORMAT (match our database exactly):
 {
   "flights": [
     {
+      "id": "NEW_FLIGHT_1",
       "flightNumber": "complete flight number (e.g., 'AA1855')",
       "airline": "airline name (e.g., 'American Airlines')", 
       "from": "departure airport 3-letter IATA code (e.g., 'SFO')",
@@ -123,19 +124,34 @@ REQUIRED JSON FORMAT (match our database exactly):
       "departureDateTime": "YYYY-MM-DD HH:MM AM/PM format in DEPARTURE airport's local timezone (e.g., '2025-08-17 08:30 AM')",
       "arrivalDateTime": "YYYY-MM-DD HH:MM AM/PM format in ARRIVAL airport's local timezone (e.g., '2025-08-17 10:01 AM')",
       "passengerIds": ["array of passenger IDs - USE EXISTING IDs if names match, or 'NEW_PASSENGER_X' for new ones"],
+      "pickupVolunteerName": "missing",
+      "pickupVolunteerPhone": "missing", 
+      "dropoffVolunteerName": "missing",
+      "dropoffVolunteerPhone": "missing",
+      "status": "confirmed",
+      "notes": "",
       "confirmationCode": "confirmation/PNR code if visible or 'missing'",
       "seatNumbers": ["array of seat assignments if available (e.g., ['24A', '24B']) or empty array"],
       "gate": "gate number if visible or 'missing'",
       "terminal": "terminal if visible or 'missing'",
-      "status": "confirmed",
-      "notes": "any additional notes from ticket or empty string"
+      "createdBy": "telegram",
+      "createdByName": "Telegram Bot",
+      "updatedBy": "telegram", 
+      "updatedByName": "Telegram Bot",
+      "createdAt": "auto-generated",
+      "updatedAt": "auto-generated"
     }
   ],
   "passengers": [
     {
       "id": "use existing ID if name matches, or 'NEW_PASSENGER_X' format",
       "name": "use EXACT name from database if matched, or cleaned name for new passengers",
-      "legalName": "use EXACT legalName from database if matched, or ticket name for new passengers"
+      "legalName": "use EXACT legalName from database if matched, or ticket name for new passengers",
+      "phone": "phone number if visible on ticket or 'missing'",
+      "telegramChatId": "missing",
+      "flightCount": 1,
+      "createdAt": "auto-generated",
+      "updatedAt": "auto-generated"
     }
   ]
 }${passengerContext}

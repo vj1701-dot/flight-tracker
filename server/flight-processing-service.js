@@ -887,6 +887,59 @@ function parseFlightData(text) {
 
 
 /**
+ * Process passengers from Gemini format with intelligent ID handling
+ * @param {Array} geminiPassengers - Passengers from Gemini response
+ * @param {Array} passengerIds - Array of passenger IDs for this flight
+ * @returns {Array} - Array of processed passenger objects
+ */
+async function processFlightPassengers(geminiPassengers, passengerIds) {
+  const processedPassengers = [];
+  
+  for (const passengerId of passengerIds) {
+    // Find passenger data from Gemini response
+    const geminiPassenger = geminiPassengers.find(p => p.id === passengerId);
+    
+    if (geminiPassenger) {
+      if (passengerId.startsWith('NEW_PASSENGER_')) {
+        // Create new passenger
+        const newPassenger = {
+          id: uuidv4(),
+          name: geminiPassenger.name,
+          legalName: geminiPassenger.legalName || geminiPassenger.name,
+          phone: geminiPassenger.phone !== 'missing' ? geminiPassenger.phone : null,
+          telegramChatId: null,
+          flightCount: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Save new passenger
+        const passengers = await readPassengers();
+        passengers.push(newPassenger);
+        await writePassengers(passengers);
+        
+        processedPassengers.push(newPassenger);
+        console.log(`👤 FLIGHT_PROCESSING: Created new passenger: ${newPassenger.name}`);
+      } else {
+        // Use existing passenger
+        const passengers = await readPassengers();
+        const existingPassenger = passengers.find(p => p.id === passengerId);
+        if (existingPassenger) {
+          processedPassengers.push(existingPassenger);
+          console.log(`✅ FLIGHT_PROCESSING: Using existing passenger: ${existingPassenger.name}`);
+        } else {
+          console.warn(`⚠️ FLIGHT_PROCESSING: Passenger ID ${passengerId} not found in database`);
+        }
+      }
+    } else {
+      console.warn(`⚠️ FLIGHT_PROCESSING: Passenger ID ${passengerId} not found in Gemini response`);
+    }
+  }
+  
+  return processedPassengers;
+}
+
+/**
  * Updates passenger with extracted name for future matching
  * @param {object} passenger - The passenger object to update
  * @param {string} extractedName - The newly extracted name to add
@@ -1069,7 +1122,56 @@ async function processFlightTicket(imageUrl) {
     
     console.log(`📊 FLIGHT_PROCESSING: Parsing completed with ${extractedData.confidence?.overall?.toFixed(2) || 0} overall confidence`);
 
-    // Step 3: Validate minimum required data
+    // Step 3: Handle multi-flight processing from Gemini (bypass old validation)
+    if (extractedData.multipleFlights && extractedData.flights && extractedData.flights.length > 0) {
+      console.log(`🔢 FLIGHT_PROCESSING: Processing ${extractedData.flights.length} flights from Gemini multi-flight format`);
+      
+      const createdFlights = [];
+      const allPassengers = geminiResult.passengers || [];
+      
+      for (const flightData of extractedData.flights) {
+        try {
+          console.log(`✈️ FLIGHT_PROCESSING: Processing flight ${flightData.flightNumber}`);
+          
+          // Create flight directly from Gemini structured data
+          const flight = {
+            id: uuidv4(),
+            ...flightData,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          // Process passengers for this flight
+          const flightPassengers = await processFlightPassengers(allPassengers, flightData.passengerIds || []);
+          flight.passengerIds = flightPassengers.map(p => p.id);
+          
+          createdFlights.push(flight);
+          console.log(`✅ FLIGHT_PROCESSING: Successfully processed flight ${flight.flightNumber}`);
+          
+        } catch (flightError) {
+          console.error(`❌ FLIGHT_PROCESSING: Error processing flight:`, flightError.message);
+          processingResult.issues.push(`Flight processing error: ${flightError.message}`);
+        }
+      }
+      
+      // Save all flights to Google Sheets
+      if (createdFlights.length > 0) {
+        const existingFlights = await readFlights();
+        const allFlights = [...existingFlights, ...createdFlights];
+        await writeFlights(allFlights);
+        
+        processingResult.flights = createdFlights;
+        processingResult.success = true;
+        processingResult.metadata.flightsProcessed = createdFlights.length;
+      }
+      
+      processingResult.metadata.processingEndTime = new Date().toISOString();
+      
+      console.log(`✅ FLIGHT_PROCESSING: Successfully processed ${createdFlights.length}/${extractedData.flights.length} flights`);
+      return processingResult;
+    }
+
+    // Step 3: Validate minimum required data (for legacy single flight format)
     const requiredFields = [];
     if (!extractedData.flightNumber) requiredFields.push('flightNumber');
     
