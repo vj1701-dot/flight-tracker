@@ -134,9 +134,8 @@ REQUIRED JSON FORMAT (match our database exactly):
   "passengers": [
     {
       "id": "use existing ID if name matches, or 'NEW_PASSENGER_X' format",
-      "name": "cleaned passenger name for display",
-      "legalName": "exact name as appears on ticket", 
-      "extractedNames": ["all name variations found on ticket"]
+      "name": "use EXACT name from database if matched, or cleaned name for new passengers",
+      "legalName": "use EXACT legalName from database if matched, or ticket name for new passengers"
     }
   ]
 }${passengerContext}
@@ -144,7 +143,7 @@ REQUIRED JSON FORMAT (match our database exactly):
 CRITICAL INSTRUCTIONS:
 1. Return ONLY valid JSON, no additional text or explanation
 2. Use exactly "missing" for any field that is not clearly visible
-3. For passenger matching: If a name on the ticket closely matches an existing passenger, use their exact ID and name format
+3. For passenger matching: If a name on the ticket closely matches an existing passenger, use their EXACT database ID, name, and legalName
 4. For new passengers: use "NEW_PASSENGER_1", "NEW_PASSENGER_2", etc. as temporary IDs
 5. Combine date and time into single dateTime fields (e.g., "2025-08-17 08:30 AM")
 6. Airport codes must be 3-letter IATA codes in UPPERCASE
