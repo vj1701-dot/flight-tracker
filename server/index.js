@@ -830,10 +830,13 @@ app.get('/api/volunteers/search', authenticateToken, async (req, res) => {
   }
 });
 
+// Import data helpers for Cloud Storage operations
+const { readAirlines, writeAirlines, readAirports, writeAirports } = require('./data-helpers');
+
 // Data endpoints
 app.get('/api/airlines', async (req, res) => {
   try {
-    const airlines = JSON.parse(await fs.readFile(path.join(__dirname, 'data/airlines.json'), 'utf8'));
+    const airlines = await readAirlines();
     res.json(airlines);
   } catch (error) {
     console.error('Error reading airlines:', error);
@@ -843,8 +846,7 @@ app.get('/api/airlines', async (req, res) => {
 
 app.get('/api/airports', async (req, res) => {
   try {
-    const { cloudStorage } = require('./cloud-storage-helpers');
-    const airports = await cloudStorage.readAirports();
+    const airports = await readAirports();
     res.json(airports);
   } catch (error) {
     console.error('Error reading airports:', error);
@@ -1193,6 +1195,237 @@ app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRo
   } catch (error) {
     console.error('Error deleting volunteer:', error);
     res.status(500).json({ error: 'Failed to delete volunteer' });
+  }
+});
+
+// Airports Data Management endpoints
+app.get('/api/data-management/airports', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const airports = await readAirports();
+    res.json(airports);
+  } catch (error) {
+    console.error('Error fetching airports:', error);
+    res.status(500).json({ error: 'Failed to fetch airports' });
+  }
+});
+
+app.post('/api/data-management/airports', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { code, name, city, state, country } = req.body;
+    
+    if (!code || !name || !city || !country) {
+      return res.status(400).json({ error: 'Code, name, city, and country are required' });
+    }
+    
+    const airports = await readAirports();
+    
+    // Check if airport code already exists
+    const existingAirport = airports.find(a => a.code.toLowerCase() === code.toLowerCase());
+    if (existingAirport) {
+      return res.status(409).json({ error: 'Airport with this code already exists' });
+    }
+    
+    const newAirport = {
+      code: code.toUpperCase(),
+      name: name.trim(),
+      city: city.trim(),
+      state: state?.trim() || null,
+      country: country.trim()
+    };
+    
+    airports.push(newAirport);
+    await writeAirports(airports);
+    
+    // Log the action
+    await logAuditEvent('CREATE', 'AIRPORT', newAirport.code, req.user.id, req.user.username, null, null, { airportCode: newAirport.code, name: newAirport.name });
+    
+    res.status(201).json(newAirport);
+  } catch (error) {
+    console.error('Error creating airport:', error);
+    res.status(500).json({ error: 'Failed to create airport' });
+  }
+});
+
+app.put('/api/data-management/airports/:code', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { name, city, state, country } = req.body;
+    const airportCode = req.params.code.toUpperCase();
+    
+    if (!name || !city || !country) {
+      return res.status(400).json({ error: 'Name, city, and country are required' });
+    }
+    
+    const airports = await readAirports();
+    const airportIndex = airports.findIndex(a => a.code === airportCode);
+    
+    if (airportIndex === -1) {
+      return res.status(404).json({ error: 'Airport not found' });
+    }
+    
+    const oldAirport = { ...airports[airportIndex] };
+    airports[airportIndex] = {
+      ...airports[airportIndex],
+      name: name.trim(),
+      city: city.trim(),
+      state: state?.trim() || null,
+      country: country.trim()
+    };
+    
+    await writeAirports(airports);
+    
+    // Log the action
+    await logAuditEvent('UPDATE', 'AIRPORT', airportCode, req.user.id, req.user.username, null, null, { 
+      airportCode, 
+      oldName: oldAirport.name, 
+      newName: airports[airportIndex].name 
+    });
+    
+    res.json(airports[airportIndex]);
+  } catch (error) {
+    console.error('Error updating airport:', error);
+    res.status(500).json({ error: 'Failed to update airport' });
+  }
+});
+
+app.delete('/api/data-management/airports/:code', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const airportCode = req.params.code.toUpperCase();
+    
+    const airports = await readAirports();
+    const airportIndex = airports.findIndex(a => a.code === airportCode);
+    
+    if (airportIndex === -1) {
+      return res.status(404).json({ error: 'Airport not found' });
+    }
+    
+    const deletedAirport = airports[airportIndex];
+    airports.splice(airportIndex, 1);
+    await writeAirports(airports);
+    
+    // Log the action
+    await logAuditEvent('DELETE', 'AIRPORT', airportCode, req.user.id, req.user.username, null, null, { 
+      airportCode, 
+      name: deletedAirport.name 
+    });
+    
+    res.json({ message: 'Airport deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting airport:', error);
+    res.status(500).json({ error: 'Failed to delete airport' });
+  }
+});
+
+// Airlines Data Management endpoints  
+app.get('/api/data-management/airlines', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const airlines = await readAirlines();
+    res.json(airlines);
+  } catch (error) {
+    console.error('Error fetching airlines:', error);
+    res.status(500).json({ error: 'Failed to fetch airlines' });
+  }
+});
+
+app.post('/api/data-management/airlines', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { iata, name } = req.body;
+    
+    if (!iata || !name) {
+      return res.status(400).json({ error: 'IATA code and name are required' });
+    }
+    
+    const airlines = await readAirlines();
+    
+    // Check if airline IATA code already exists
+    const existingAirline = airlines.find(a => a.iata.toLowerCase() === iata.toLowerCase());
+    if (existingAirline) {
+      return res.status(409).json({ error: 'Airline with this IATA code already exists' });
+    }
+    
+    const newAirline = {
+      iata: iata.toUpperCase(),
+      name: name.trim()
+    };
+    
+    airlines.push(newAirline);
+    await writeAirlines(airlines);
+    
+    // Log the action
+    await logAuditEvent('CREATE', 'AIRLINE', newAirline.iata, req.user.id, req.user.username, null, null, { 
+      iataCode: newAirline.iata, 
+      name: newAirline.name 
+    });
+    
+    res.status(201).json(newAirline);
+  } catch (error) {
+    console.error('Error creating airline:', error);
+    res.status(500).json({ error: 'Failed to create airline' });
+  }
+});
+
+app.put('/api/data-management/airlines/:iata', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const { name } = req.body;
+    const iataCode = req.params.iata.toUpperCase();
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    
+    const airlines = await readAirlines();
+    const airlineIndex = airlines.findIndex(a => a.iata === iataCode);
+    
+    if (airlineIndex === -1) {
+      return res.status(404).json({ error: 'Airline not found' });
+    }
+    
+    const oldAirline = { ...airlines[airlineIndex] };
+    airlines[airlineIndex] = {
+      ...airlines[airlineIndex],
+      name: name.trim()
+    };
+    
+    await writeAirlines(airlines);
+    
+    // Log the action
+    await logAuditEvent('UPDATE', 'AIRLINE', iataCode, req.user.id, req.user.username, null, null, { 
+      iataCode, 
+      oldName: oldAirline.name, 
+      newName: airlines[airlineIndex].name 
+    });
+    
+    res.json(airlines[airlineIndex]);
+  } catch (error) {
+    console.error('Error updating airline:', error);
+    res.status(500).json({ error: 'Failed to update airline' });
+  }
+});
+
+app.delete('/api/data-management/airlines/:iata', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
+  try {
+    const iataCode = req.params.iata.toUpperCase();
+    
+    const airlines = await readAirlines();
+    const airlineIndex = airlines.findIndex(a => a.iata === iataCode);
+    
+    if (airlineIndex === -1) {
+      return res.status(404).json({ error: 'Airline not found' });
+    }
+    
+    const deletedAirline = airlines[airlineIndex];
+    airlines.splice(airlineIndex, 1);
+    await writeAirlines(airlines);
+    
+    // Log the action
+    await logAuditEvent('DELETE', 'AIRLINE', iataCode, req.user.id, req.user.username, null, null, { 
+      iataCode, 
+      name: deletedAirline.name 
+    });
+    
+    res.json({ message: 'Airline deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting airline:', error);
+    res.status(500).json({ error: 'Failed to delete airline' });
   }
 });
 

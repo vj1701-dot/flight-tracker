@@ -2,7 +2,21 @@ const { Storage } = require('@google-cloud/storage');
 
 class CloudStorageDataManager {
   constructor() {
-    this.storage = new Storage();
+    // Initialize Google Cloud Storage with custom service account if provided
+    const storageOptions = {};
+    
+    // If service account key is provided via environment variable
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      try {
+        const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        storageOptions.credentials = credentials;
+        console.log('📋 Using custom service account from GOOGLE_APPLICATION_CREDENTIALS_JSON');
+      } catch (error) {
+        console.warn('⚠️  Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON, falling back to default authentication');
+      }
+    }
+    
+    this.storage = new Storage(storageOptions);
     
     // Use the same bucket naming convention as backup service
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'n8n-projects-460107';
@@ -17,13 +31,25 @@ class CloudStorageDataManager {
       passengers: 'data/passengers.json',
       volunteers: 'data/volunteers.json',
       airports: 'data/airports.json',
+      airlines: 'data/airlines.json',
       audit_log: 'data/audit_log.json',
       registrationStates: 'data/registration-states.json',
       processedMessages: 'data/processed-messages.json'
     };
     
-    // Initialize bucket on startup
-    this.initializeBucket();
+    // Initialize bucket and data structures on startup
+    this.initializeStorage();
+  }
+
+  async initializeStorage() {
+    try {
+      await this.initializeBucket();
+      // Only initialize empty data if bucket was successfully initialized
+      await this.initializeEmptyData();
+    } catch (error) {
+      console.error('❌ Failed to initialize Cloud Storage:', error.message);
+      console.log('📂 Falling back to local file storage mode');
+    }
   }
 
   async initializeBucket() {
@@ -40,16 +66,16 @@ class CloudStorageDataManager {
         });
         console.log(`✅ Data bucket created: ${this.bucketName}`);
       } else {
-        console.log(`✅ Data bucket already exists: ${this.bucketName}`);
+        console.log(`✅ Data bucket ready: ${this.bucketName}`);
       }
       
       // Test bucket access
       await bucket.getMetadata();
+      console.log('✅ Cloud Storage bucket access confirmed');
       return true;
     } catch (error) {
-      console.error('Error initializing data bucket:', error.message);
-      console.error('Falling back to local file storage');
-      return false;
+      console.error('❌ Error initializing data bucket:', error.message);
+      throw error; // Don't fall back, let the application handle the error
     }
   }
 
@@ -144,6 +170,16 @@ class CloudStorageDataManager {
     await this.writeToStorage(this.files.airports, airports);
   }
 
+  // Airline operations
+  async readAirlines() {
+    const data = await this.readFromStorage(this.files.airlines);
+    return data || [];
+  }
+
+  async writeAirlines(airlines) {
+    await this.writeToStorage(this.files.airlines, airlines);
+  }
+
   // Audit log operations
   async readAuditLog() {
     const data = await this.readFromStorage(this.files.audit_log);
@@ -174,84 +210,99 @@ class CloudStorageDataManager {
     await this.writeToStorage(this.files.processedMessages, messages);
   }
 
-  // Migration helper - copy local files to Cloud Storage
-  async migrateLocalToCloud() {
-    const fs = require('fs').promises;
-    const path = require('path');
+  // Initialize empty data structures in Cloud Storage (only if they don't exist)
+  async initializeEmptyData() {
+    console.log('🚀 Initializing empty data structures in Cloud Storage...');
     
-    console.log('🚀 Starting migration from local files to Cloud Storage...');
-    
-    const localFiles = [
-      { local: path.join(__dirname, 'flights.json'), cloud: this.files.flights },
-      { local: path.join(__dirname, 'users.json'), cloud: this.files.users },
-      { local: path.join(__dirname, 'passengers.json'), cloud: this.files.passengers },
-      { local: path.join(__dirname, 'volunteers.json'), cloud: this.files.volunteers },
-      { local: path.join(__dirname, 'data/airports.json'), cloud: this.files.airports },
-      { local: path.join(__dirname, 'audit_log.json'), cloud: this.files.audit_log }
-    ];
+    const emptyDataStructures = {
+      flights: [],
+      users: [],
+      passengers: [],
+      volunteers: [],
+      audit_log: [],
+      registrationStates: {},
+      processedMessages: []
+    };
 
-    let migrated = 0;
-    for (const { local, cloud } of localFiles) {
+    let initialized = 0;
+    for (const [name, emptyData] of Object.entries(emptyDataStructures)) {
       try {
-        const data = await fs.readFile(local, 'utf8');
-        const jsonData = JSON.parse(data);
-        await this.writeToStorage(cloud, jsonData);
-        console.log(`✅ Migrated ${local} → ${cloud}`);
-        migrated++;
-      } catch (error) {
-        if (error.code !== 'ENOENT') {
-          console.error(`❌ Error migrating ${local}:`, error.message);
+        // Check if file already exists
+        const existingData = await this.readFromStorage(this.files[name]);
+        if (existingData === null) {
+          // File doesn't exist, create it with empty structure
+          await this.writeToStorage(this.files[name], emptyData);
+          console.log(`✅ Initialized ${name}: empty ${Array.isArray(emptyData) ? 'array' : 'object'}`);
+          initialized++;
+        } else {
+          console.log(`ℹ️  ${name} already exists in Cloud Storage (${Array.isArray(existingData) ? existingData.length : 'object'} items)`);
         }
+      } catch (error) {
+        console.error(`❌ Error initializing ${name}:`, error.message);
       }
+    }
+
+    // Initialize airports data from static data (only if it doesn't exist)
+    try {
+      const existingAirports = await this.readFromStorage(this.files.airports);
+      if (existingAirports === null) {
+        // Load airports from local data file if available
+        try {
+          const fs = require('fs').promises;
+          const path = require('path');
+          const airportsPath = path.join(__dirname, 'data/airports.json');
+          const airportsData = await fs.readFile(airportsPath, 'utf8');
+          const airports = JSON.parse(airportsData);
+          await this.writeToStorage(this.files.airports, airports);
+          console.log(`✅ Initialized airports: ${airports.length} airports`);
+          initialized++;
+        } catch (error) {
+          // If no local airports file, create empty array
+          await this.writeToStorage(this.files.airports, []);
+          console.log('✅ Initialized airports: empty array (no local data found)');
+          initialized++;
+        }
+      } else {
+        console.log(`ℹ️  Airports already exist in Cloud Storage (${existingAirports.length} airports)`);
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not initialize airports data:', error.message);
+    }
+
+    // Initialize airlines data from static data (only if it doesn't exist)
+    try {
+      const existingAirlines = await this.readFromStorage(this.files.airlines);
+      if (existingAirlines === null) {
+        // Load airlines from local data file if available
+        try {
+          const fs = require('fs').promises;
+          const path = require('path');
+          const airlinesPath = path.join(__dirname, 'data/airlines.json');
+          const airlinesData = await fs.readFile(airlinesPath, 'utf8');
+          const airlines = JSON.parse(airlinesData);
+          await this.writeToStorage(this.files.airlines, airlines);
+          console.log(`✅ Initialized airlines: ${airlines.length} airlines`);
+          initialized++;
+        } catch (error) {
+          // If no local airlines file, create empty array
+          await this.writeToStorage(this.files.airlines, []);
+          console.log('✅ Initialized airlines: empty array (no local data found)');
+          initialized++;
+        }
+      } else {
+        console.log(`ℹ️  Airlines already exist in Cloud Storage (${existingAirlines.length} airlines)`);
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not initialize airlines data:', error.message);
     }
     
-    console.log(`🎉 Migration complete: ${migrated} files migrated to Cloud Storage`);
-    return migrated;
-  }
-
-  // Migration helper - copy Google Sheets data to Cloud Storage
-  async migrateFromGoogleSheets() {
-    try {
-      // We'll need to switch to main branch temporarily to get the Google Sheets helpers
-      console.log('🚀 Starting migration from Google Sheets to Cloud Storage...');
-      console.log('Note: You may need to temporarily install googleapis to run this migration');
-      
-      // For now, return empty arrays and let the application populate them
-      const emptyData = {
-        flights: [],
-        users: [],
-        passengers: [],
-        volunteers: [],
-        audit_log: []
-      };
-
-      let migrated = 0;
-      for (const [name, data] of Object.entries(emptyData)) {
-        await this.writeToStorage(this.files[name], data);
-        console.log(`✅ Initialized ${name}: empty array`);
-        migrated++;
-      }
-
-      // Also initialize airports data from the static file
-      try {
-        const fs = require('fs').promises;
-        const path = require('path');
-        const airportsPath = path.join(__dirname, 'data/airports.json');
-        const airportsData = await fs.readFile(airportsPath, 'utf8');
-        const airports = JSON.parse(airportsData);
-        await this.writeToStorage(this.files.airports, airports);
-        console.log(`✅ Migrated airports: ${airports.length} airports`);
-        migrated++;
-      } catch (error) {
-        console.warn('⚠️  Could not load airports data:', error.message);
-      }
-      
-      console.log(`🎉 Migration complete: ${migrated} datasets initialized in Cloud Storage`);
-      return migrated;
-    } catch (error) {
-      console.error('❌ Migration from Google Sheets failed:', error.message);
-      throw error;
+    if (initialized > 0) {
+      console.log(`🎉 Initialization complete: ${initialized} new data structures created`);
+    } else {
+      console.log('✅ All data structures already exist in Cloud Storage - no initialization needed');
     }
+    
+    return initialized;
   }
 }
 

@@ -33,6 +33,22 @@ async function writeVolunteers(volunteers) {
   await cloudStorage.writeVolunteers(volunteers);
 }
 
+async function readAirports() {
+  return await cloudStorage.readAirports();
+}
+
+async function writeAirports(airports) {
+  await cloudStorage.writeAirports(airports);
+}
+
+async function readAirlines() {
+  return await cloudStorage.readAirlines();
+}
+
+async function writeAirlines(airlines) {
+  await cloudStorage.writeAirlines(airlines);
+}
+
 /**
  * Resolve passenger names from passenger IDs for flight display
  * @param {Array} flightPassengers - Array of passenger objects with passengerId
@@ -219,6 +235,10 @@ module.exports = {
   writePassengers,
   readVolunteers,
   writeVolunteers,
+  readAirports,
+  writeAirports,
+  readAirlines,
+  writeAirlines,
   resolveFlightPassengerNames,
   getFlightsWithResolvedNames,
   findPassengerByName
