@@ -242,26 +242,14 @@ class CloudStorageDataManager {
       }
     }
 
-    // Initialize airports data from static data (only if it doesn't exist)
+    // Initialize airports data (only if it doesn't exist)
     try {
       const existingAirports = await this.readFromStorage(this.files.airports);
       if (existingAirports === null) {
-        // Load airports from local data file if available
-        try {
-          const fs = require('fs').promises;
-          const path = require('path');
-          const airportsPath = path.join(__dirname, 'data/airports.json');
-          const airportsData = await fs.readFile(airportsPath, 'utf8');
-          const airports = JSON.parse(airportsData);
-          await this.writeToStorage(this.files.airports, airports);
-          console.log(`✅ Initialized airports: ${airports.length} airports`);
-          initialized++;
-        } catch (error) {
-          // If no local airports file, create empty array
-          await this.writeToStorage(this.files.airports, []);
-          console.log('✅ Initialized airports: empty array (no local data found)');
-          initialized++;
-        }
+        // Create empty array since we removed local files
+        await this.writeToStorage(this.files.airports, []);
+        console.log('✅ Initialized airports: empty array');
+        initialized++;
       } else {
         console.log(`ℹ️  Airports already exist in Cloud Storage (${existingAirports.length} airports)`);
       }
@@ -269,26 +257,14 @@ class CloudStorageDataManager {
       console.warn('⚠️  Could not initialize airports data:', error.message);
     }
 
-    // Initialize airlines data from static data (only if it doesn't exist)
+    // Initialize airlines data (only if it doesn't exist)
     try {
       const existingAirlines = await this.readFromStorage(this.files.airlines);
       if (existingAirlines === null) {
-        // Load airlines from local data file if available
-        try {
-          const fs = require('fs').promises;
-          const path = require('path');
-          const airlinesPath = path.join(__dirname, 'data/airlines.json');
-          const airlinesData = await fs.readFile(airlinesPath, 'utf8');
-          const airlines = JSON.parse(airlinesData);
-          await this.writeToStorage(this.files.airlines, airlines);
-          console.log(`✅ Initialized airlines: ${airlines.length} airlines`);
-          initialized++;
-        } catch (error) {
-          // If no local airlines file, create empty array
-          await this.writeToStorage(this.files.airlines, []);
-          console.log('✅ Initialized airlines: empty array (no local data found)');
-          initialized++;
-        }
+        // Create empty array since we removed local files
+        await this.writeToStorage(this.files.airlines, []);
+        console.log('✅ Initialized airlines: empty array');
+        initialized++;
       } else {
         console.log(`ℹ️  Airlines already exist in Cloud Storage (${existingAirlines.length} airlines)`);
       }

@@ -10,15 +10,10 @@ const TelegramNotificationService = require('./telegram-bot');
 const BackupService = require('./backup-service');
 const TimezoneService = require('./timezone-service');
 const FlightMonitorService = require('./flight-monitor-service');
-const { getFlightsWithResolvedNames, findPassengerByName } = require('./data-helpers');
+const { getFlightsWithResolvedNames, findPassengerByName, readFlights, writeFlights, readUsers, writeUsers, readPassengers, writePassengers, readVolunteers, writeVolunteers } = require('./data-helpers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const FLIGHTS_FILE = path.join(__dirname, 'flights.json');
-const USERS_FILE = path.join(__dirname, 'users.json');
-const PASSENGERS_FILE = path.join(__dirname, 'passengers.json');
-const VOLUNTEERS_FILE = path.join(__dirname, 'volunteers.json');
-const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'flight-tracker-secret-key';
 
 // Security validation for production
@@ -81,69 +76,6 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
 }
 
-async function readFlights() {
-  try {
-    const data = await fs.readFile(FLIGHTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writeFlights(flights) {
-  await fs.writeFile(FLIGHTS_FILE, JSON.stringify(flights, null, 2));
-}
-
-async function readUsers() {
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writeUsers(users) {
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-async function readPassengers() {
-  try {
-    const data = await fs.readFile(PASSENGERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writePassengers(passengers) {
-  await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
-}
-
-async function readVolunteers() {
-  try {
-    const data = await fs.readFile(VOLUNTEERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writeVolunteers(volunteers) {
-  await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
-}
 
 async function addOrUpdatePassenger(name, telegramChatId = null) {
   try {
@@ -250,21 +182,6 @@ async function addOrUpdateVolunteer(name, phone = null, telegramChatId = null) {
   }
 }
 
-async function readAuditLog() {
-  try {
-    const data = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function writeAuditLog(logs) {
-  await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
-}
 
 async function logAuditEvent(action, entityType, entityId, userId, username, changes = null, oldData = null, newData = null) {
   try {
@@ -831,7 +748,7 @@ app.get('/api/volunteers/search', authenticateToken, async (req, res) => {
 });
 
 // Import data helpers for Cloud Storage operations
-const { readAirlines, writeAirlines, readAirports, writeAirports } = require('./data-helpers');
+const { readAirlines, writeAirlines, readAirports, writeAirports, readAuditLog, writeAuditLog } = require('./data-helpers');
 
 // Data endpoints
 app.get('/api/airlines', async (req, res) => {
@@ -859,7 +776,7 @@ app.get('/api/airports', async (req, res) => {
 // Passengers endpoints
 app.get('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengers = await readPassengers();
     res.json(passengers);
   } catch (error) {
     console.error('Error reading passengers:', error);
@@ -869,7 +786,7 @@ app.get('/api/data-management/passengers', authenticateToken, authorizeRole(['su
 
 app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengers = await readPassengers();
     const newPassenger = {
       id: uuidv4(),
       ...req.body,
@@ -879,7 +796,7 @@ app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['s
     };
     
     passengers.push(newPassenger);
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    await writePassengers(passengers);
     
     // Create automatic backup after passenger creation
     try {
@@ -900,7 +817,7 @@ app.post('/api/data-management/passengers', authenticateToken, authorizeRole(['s
 
 app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengers = await readPassengers();
     const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
     
     if (passengerIndex === -1) {
@@ -913,7 +830,7 @@ app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(
       updatedAt: new Date().toISOString()
     };
     
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    await writePassengers(passengers);
     
     // Create automatic backup after passenger update
     try {
@@ -934,7 +851,7 @@ app.put('/api/data-management/passengers/:id', authenticateToken, authorizeRole(
 
 app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const passengers = JSON.parse(await fs.readFile(PASSENGERS_FILE, 'utf8'));
+    const passengers = await readPassengers();
     const passengerIndex = passengers.findIndex(p => p.id === req.params.id);
     
     if (passengerIndex === -1) {
@@ -944,7 +861,7 @@ app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRo
     const deletedPassenger = passengers[passengerIndex];
     passengers.splice(passengerIndex, 1);
     
-    await fs.writeFile(PASSENGERS_FILE, JSON.stringify(passengers, null, 2));
+    await writePassengers(passengers);
     
     // Log the action
     await logAuditEvent('DELETE', 'PASSENGER', req.params.id, req.user.id, req.user.username, null, null, { passengerId: req.params.id, name: deletedPassenger.name });
@@ -959,7 +876,7 @@ app.delete('/api/data-management/passengers/:id', authenticateToken, authorizeRo
 // Users endpoints
 app.get('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const users = await readUsers();
     // Remove password hashes from response
     const safeUsers = users.map(({ password, ...user }) => user);
     res.json(safeUsers);
@@ -971,7 +888,7 @@ app.get('/api/data-management/users', authenticateToken, authorizeRole(['superad
 
 app.post('/api/data-management/users', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const users = await readUsers();
     
     // Check if username already exists
     if (users.some(u => u.username === req.body.username)) {
@@ -988,7 +905,7 @@ app.post('/api/data-management/users', authenticateToken, authorizeRole(['supera
     };
     
     users.push(newUser);
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     // Create automatic backup after data management user creation
     try {
@@ -1011,7 +928,7 @@ app.post('/api/data-management/users', authenticateToken, authorizeRole(['supera
 
 app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const users = await readUsers();
     const userIndex = users.findIndex(u => u.id === req.params.id);
     
     if (userIndex === -1) {
@@ -1031,7 +948,7 @@ app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['sup
       updatedAt: new Date().toISOString()
     };
     
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     // Create automatic backup after data management user update
     try {
@@ -1054,7 +971,7 @@ app.put('/api/data-management/users/:id', authenticateToken, authorizeRole(['sup
 
 app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const users = JSON.parse(await fs.readFile(USERS_FILE, 'utf8'));
+    const users = await readUsers();
     const userIndex = users.findIndex(u => u.id === req.params.id);
     
     if (userIndex === -1) {
@@ -1072,7 +989,7 @@ app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['
     const deletedUser = users[userIndex];
     users.splice(userIndex, 1);
     
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     // Log the action
     await logAuditEvent('DELETE', 'USER', req.params.id, req.user.id, req.user.username, null, null, { userId: req.params.id, username: deletedUser.username });
@@ -1087,7 +1004,7 @@ app.delete('/api/data-management/users/:id', authenticateToken, authorizeRole(['
 // Volunteers endpoints
 app.get('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteers = await readVolunteers();
     res.json(volunteers);
   } catch (error) {
     console.error('Error reading volunteers:', error);
@@ -1097,7 +1014,7 @@ app.get('/api/data-management/volunteers', authenticateToken, authorizeRole(['su
 
 app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteers = await readVolunteers();
     
     // Check if username already exists
     if (volunteers.some(v => v.username === req.body.username)) {
@@ -1114,7 +1031,7 @@ app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['s
     };
     
     volunteers.push(newVolunteer);
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    await writeVolunteers(volunteers);
     
     // Create automatic backup after volunteer creation
     try {
@@ -1135,7 +1052,7 @@ app.post('/api/data-management/volunteers', authenticateToken, authorizeRole(['s
 
 app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteers = await readVolunteers();
     const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
     
     if (volunteerIndex === -1) {
@@ -1155,7 +1072,7 @@ app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(
       updatedAt: new Date().toISOString()
     };
     
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    await writeVolunteers(volunteers);
     
     // Create automatic backup after volunteer update
     try {
@@ -1176,7 +1093,7 @@ app.put('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(
 
 app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRole(['superadmin']), async (req, res) => {
   try {
-    const volunteers = JSON.parse(await fs.readFile(VOLUNTEERS_FILE, 'utf8'));
+    const volunteers = await readVolunteers();
     const volunteerIndex = volunteers.findIndex(v => v.id === req.params.id);
     
     if (volunteerIndex === -1) {
@@ -1186,7 +1103,7 @@ app.delete('/api/data-management/volunteers/:id', authenticateToken, authorizeRo
     const deletedVolunteer = volunteers[volunteerIndex];
     volunteers.splice(volunteerIndex, 1);
     
-    await fs.writeFile(VOLUNTEERS_FILE, JSON.stringify(volunteers, null, 2));
+    await writeVolunteers(volunteers);
     
     // Log the action
     await logAuditEvent('DELETE', 'VOLUNTEER', req.params.id, req.user.id, req.user.username, null, null, { volunteerId: req.params.id, username: deletedVolunteer.username });

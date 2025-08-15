@@ -49,6 +49,14 @@ async function writeAirlines(airlines) {
   await cloudStorage.writeAirlines(airlines);
 }
 
+async function readAuditLog() {
+  return await cloudStorage.readAuditLog();
+}
+
+async function writeAuditLog(auditLog) {
+  await cloudStorage.writeAuditLog(auditLog);
+}
+
 /**
  * Resolve passenger names from passenger IDs for flight display
  * @param {Array} flightPassengers - Array of passenger objects with passengerId
@@ -239,6 +247,8 @@ module.exports = {
   writeAirports,
   readAirlines,
   writeAirlines,
+  readAuditLog,
+  writeAuditLog,
   resolveFlightPassengerNames,
   getFlightsWithResolvedNames,
   findPassengerByName
