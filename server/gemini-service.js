@@ -143,7 +143,7 @@ CRITICAL INSTRUCTIONS:
 9. Use empty arrays [] for missing array fields, not "missing"
 10. TIMEZONE IMPORTANT: Times on tickets are in the airport's local timezone - keep them as-is, don't convert
 11. Server will generate IDs and handle all other fields automatically
-`;`
+`;
 
       // Send request to Gemini
       const result = await this.model.generateContent([prompt, imageData]);
