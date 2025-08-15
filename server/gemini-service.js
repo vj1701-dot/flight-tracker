@@ -156,7 +156,13 @@ CRITICAL INSTRUCTIONS:
       let extractedData;
       try {
         // Clean the response - remove any markdown formatting
-        const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+        let cleanText = text.trim();
+        if (cleanText.startsWith('```json')) {
+          cleanText = cleanText.replace(/^```json\s*/, '');
+        }
+        if (cleanText.endsWith('```')) {
+          cleanText = cleanText.replace(/\s*```$/, '');
+        }
         extractedData = JSON.parse(cleanText);
         console.log('✅ GEMINI_SERVICE: Successfully parsed JSON response');
       } catch (parseError) {
