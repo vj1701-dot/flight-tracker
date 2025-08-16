@@ -324,6 +324,54 @@ const migrateFlightUserNames = async () => {
   }
 };
 
+/**
+ * Convert date and time to UTC using airport timezone
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} time - Time in HH:MM format (24-hour)
+ * @param {string} airportCode - IATA airport code
+ * @param {Object} timezoneService - TimezoneService instance
+ * @returns {Promise<string|null>} - ISO datetime string in UTC or null if conversion fails
+ */
+async function convertToUTCDateTime(date, time, airportCode, timezoneService) {
+  if (!date || !time || !airportCode) return null;
+  
+  try {
+    // Ensure timezone service is loaded
+    if (!timezoneService.airports) {
+      await timezoneService.loadAirports();
+    }
+    
+    const airportInfo = timezoneService.getAirportInfo(airportCode);
+    if (!airportInfo || !airportInfo.timezone) {
+      console.warn(`No timezone info for airport ${airportCode}, using UTC`);
+      return `${date}T${time}:00.000Z`;
+    }
+    
+    // Parse date and time
+    const [year, month, day] = date.split('-').map(Number);
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Create date in the airport's local timezone
+    const localDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+    
+    // Convert to UTC by calculating timezone offset
+    const utcTime = new Date(localDateTime.toLocaleString("sv-SE", {timeZone: "UTC"}));
+    const airportTime = new Date(localDateTime.toLocaleString("sv-SE", {timeZone: airportInfo.timezone}));
+    
+    // Calculate offset and apply it
+    const offsetMs = utcTime.getTime() - airportTime.getTime();
+    const correctUtcTime = new Date(localDateTime.getTime() + offsetMs);
+    
+    console.log(`🕐 Timezone conversion: ${date} ${time} (${airportCode} ${airportInfo.timezone}) → ${correctUtcTime.toISOString()}`);
+    
+    return correctUtcTime.toISOString();
+    
+  } catch (error) {
+    console.error('Error converting to UTC:', error);
+    return null;
+  }
+}
+
 function validateFlight(flight) {
   const required = ['airline', 'flightNumber', 'from', 'to', 'departureDateTime', 'arrivalDateTime'];
   for (const field of required) {
@@ -1696,6 +1744,48 @@ app.put('/api/flights/:id', authenticateToken, async (req, res) => {
     const validationError = validateFlight(flightData);
     if (validationError) {
       return res.status(400).json({ error: validationError });
+    }
+
+    // Handle timezone conversion for date/time fields if they're being updated
+    if ((flightData.departureDate && flightData.departureTime) || 
+        (flightData.arrivalDate && flightData.arrivalTime)) {
+      
+      const TimezoneService = require('./timezone-service');
+      const timezoneService = new TimezoneService();
+      
+      // Convert departure time to UTC if provided
+      if (flightData.departureDate && flightData.departureTime && flightData.from) {
+        try {
+          const departureDateTime = await convertToUTCDateTime(
+            flightData.departureDate, 
+            flightData.departureTime, 
+            flightData.from,
+            timezoneService
+          );
+          if (departureDateTime) {
+            flightData.departureDateTime = departureDateTime;
+          }
+        } catch (error) {
+          console.warn('Warning: Could not convert departure time to UTC:', error.message);
+        }
+      }
+      
+      // Convert arrival time to UTC if provided
+      if (flightData.arrivalDate && flightData.arrivalTime && flightData.to) {
+        try {
+          const arrivalDateTime = await convertToUTCDateTime(
+            flightData.arrivalDate, 
+            flightData.arrivalTime, 
+            flightData.to,
+            timezoneService
+          );
+          if (arrivalDateTime) {
+            flightData.arrivalDateTime = arrivalDateTime;
+          }
+        } catch (error) {
+          console.warn('Warning: Could not convert arrival time to UTC:', error.message);
+        }
+      }
     }
 
     const flights = await readFlights();
