@@ -1932,7 +1932,7 @@ class TelegramNotificationService {
           
           // Passenger information
           resultMessage += `\n👤 Passenger Information:\n`;
-          if (passengerMatch.passenger) {
+          if (passengerMatch && passengerMatch.passenger) {
             resultMessage += `• Matched: ${passengerMatch.passenger.name}\n`;
             resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
@@ -2134,7 +2134,7 @@ class TelegramNotificationService {
           
           // Passenger information
           resultMessage += `\n👤 Passenger Information:\n`;
-          if (passengerMatch.passenger) {
+          if (passengerMatch && passengerMatch.passenger) {
             resultMessage += `• Matched: ${passengerMatch.passenger.name}\n`;
             resultMessage += `• Extracted Name: ${passengerMatch.extractedName}\n`;
             resultMessage += `• Match Type: ${passengerMatch.matchType.replace('_', ' ')}\n`;
