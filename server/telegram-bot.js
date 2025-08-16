@@ -1928,7 +1928,7 @@ class TelegramNotificationService {
           if (flight.from && flight.to) {
             resultMessage += `• Route: ${flight.from} → ${flight.to}\n`;
           }
-          resultMessage += `• Confidence: ${Math.round((extractedData.confidence.overall || 0) * 100)}%\n`;
+          resultMessage += `• Confidence: ${Math.round((extractedData?.confidence?.overall || 0) * 100)}%\n`;
           
           // Passenger information
           resultMessage += `\n👤 Passenger Information:\n`;
@@ -1939,17 +1939,17 @@ class TelegramNotificationService {
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
+            resultMessage += `• Extracted Name: ${extractedData?.passengerName || 'Unknown'}\n`;
             resultMessage += `• Requires manual passenger assignment\n`;
           }
 
           // What was extracted
           resultMessage += `\n📋 Extracted Information:\n`;
           const extractedFields = [];
-          if (extractedData.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
-          if (extractedData.date) extractedFields.push(`Date: ${extractedData.date}`);
-          if (extractedData.departureTime) extractedFields.push(`Departure: ${extractedData.departureTime}`);
-          if (extractedData.seat) extractedFields.push(`Seat: ${extractedData.seat}`);
+          if (extractedData?.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
+          if (extractedData?.date) extractedFields.push(`Date: ${extractedData.date}`);
+          if (extractedData?.departureTime) extractedFields.push(`Departure: ${extractedData.departureTime}`);
+          if (extractedData?.seat) extractedFields.push(`Seat: ${extractedData.seat}`);
           
           if (extractedFields.length > 0) {
             resultMessage += extractedFields.map(field => `• ${field}`).join('\n');
@@ -1988,7 +1988,7 @@ class TelegramNotificationService {
             const debugMessage = `🔧 Processing Issues:\n` +
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
               `\n\n📊 Technical Details:\n` +
-              `• Parse Strategy: ${extractedData.parseStrategy}\n` +
+              `• Parse Strategy: ${extractedData?.parseStrategy || 'Unknown'}\n` +
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
@@ -2130,7 +2130,7 @@ class TelegramNotificationService {
           if (flight.from && flight.to) {
             resultMessage += `• Route: ${flight.from} → ${flight.to}\n`;
           }
-          resultMessage += `• Confidence: ${Math.round((extractedData.confidence.overall || 0) * 100)}%\n`;
+          resultMessage += `• Confidence: ${Math.round((extractedData?.confidence?.overall || 0) * 100)}%\n`;
           
           // Passenger information
           resultMessage += `\n👤 Passenger Information:\n`;
@@ -2141,17 +2141,17 @@ class TelegramNotificationService {
             resultMessage += `• Match Confidence: ${Math.round(passengerMatch.confidence * 100)}%\n`;
           } else {
             resultMessage += `• ⚠️ No passenger match found\n`;
-            resultMessage += `• Extracted Name: ${extractedData.passengerName}\n`;
+            resultMessage += `• Extracted Name: ${extractedData?.passengerName || 'Unknown'}\n`;
             resultMessage += `• Requires manual passenger assignment\n`;
           }
 
           // What was extracted
           resultMessage += `\n📋 Extracted Information:\n`;
           const extractedFields = [];
-          if (extractedData.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
-          if (extractedData.date) extractedFields.push(`Date: ${extractedData.date}`);
-          if (extractedData.departureTime) extractedFields.push(`Departure: ${extractedData.departureTime}`);
-          if (extractedData.seat) extractedFields.push(`Seat: ${extractedData.seat}`);
+          if (extractedData?.confirmationCode) extractedFields.push(`Confirmation: ${extractedData.confirmationCode}`);
+          if (extractedData?.date) extractedFields.push(`Date: ${extractedData.date}`);
+          if (extractedData?.departureTime) extractedFields.push(`Departure: ${extractedData.departureTime}`);
+          if (extractedData?.seat) extractedFields.push(`Seat: ${extractedData.seat}`);
           
           if (extractedFields.length > 0) {
             resultMessage += extractedFields.map(field => `• ${field}`).join('\n');
@@ -2190,7 +2190,7 @@ class TelegramNotificationService {
             const debugMessage = `🔧 Processing Issues:\n` +
               processingResult.issues.map(issue => `• ${issue}`).join('\n') + 
               `\n\n📊 Technical Details:\n` +
-              `• Parse Strategy: ${extractedData.parseStrategy}\n` +
+              `• Parse Strategy: ${extractedData?.parseStrategy || 'Unknown'}\n` +
               `• OCR Processing: ${processingResult.metadata?.ocrResult?.processingTimeMs || 'N/A'}ms\n` +
               `• Text Blocks Found: ${processingResult.metadata?.ocrResult?.detectionCount || 'N/A'}`;
             
