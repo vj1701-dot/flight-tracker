@@ -54,7 +54,9 @@ const DataManagement = () => {
   const [data, setData] = useState({
     passengers: [],
     users: [],
-    volunteers: []
+    volunteers: [],
+    airports: [],
+    airlines: []
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,24 +85,30 @@ const DataManagement = () => {
         'Authorization': `Bearer ${token}`
       };
 
-      const [passengersRes, usersRes, volunteersRes] = await Promise.all([
+      const [passengersRes, usersRes, volunteersRes, airportsRes, airlinesRes] = await Promise.all([
         fetch('/api/data-management/passengers', { headers }),
         fetch('/api/data-management/users', { headers }),
-        fetch('/api/data-management/volunteers', { headers })
+        fetch('/api/data-management/volunteers', { headers }),
+        fetch('/api/data-management/airports', { headers }),
+        fetch('/api/data-management/airlines', { headers })
       ]);
 
-      if (!passengersRes.ok || !usersRes.ok || !volunteersRes.ok) {
+      if (!passengersRes.ok || !usersRes.ok || !volunteersRes.ok || !airportsRes.ok || !airlinesRes.ok) {
         throw new Error('Failed to load data');
       }
 
       const passengers = await passengersRes.json();
       const users = await usersRes.json();
       const volunteers = await volunteersRes.json();
+      const airports = await airportsRes.json();
+      const airlines = await airlinesRes.json();
 
       setData({
         passengers: passengers || [],
         users: users || [],
-        volunteers: volunteers || []
+        volunteers: volunteers || [],
+        airports: airports || [],
+        airlines: airlines || []
       });
     } catch (error) {
       console.error('Error loading data:', error);
@@ -140,6 +148,14 @@ const DataManagement = () => {
         if (editingItem && !item.password) {
           delete item.password;
         }
+      } else if (type === 'airports') {
+        // Use airport management API
+        url = editingItem ? `/api/data-management/airports/${editingItem.code}` : `/api/data-management/airports`;
+        method = editingItem ? 'PUT' : 'POST';
+      } else if (type === 'airlines') {
+        // Use airline management API
+        url = editingItem ? `/api/data-management/airlines/${editingItem.iata}` : `/api/data-management/airlines`;
+        method = editingItem ? 'PUT' : 'POST';
       } else {
         // Use data management API for passengers and volunteers
         url = editingItem ? `/api/data-management/${type}/${editingItem.id}` : `/api/data-management/${type}`;
@@ -180,7 +196,16 @@ const DataManagement = () => {
     }
 
     try {
-      const response = await fetch(`/api/data-management/${type}/${id}`, {
+      let url;
+      if (type === 'airports') {
+        url = `/api/data-management/airports/${id}`;
+      } else if (type === 'airlines') {
+        url = `/api/data-management/airlines/${id}`;
+      } else {
+        url = `/api/data-management/${type}/${id}`;
+      }
+
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -245,6 +270,22 @@ const DataManagement = () => {
           { name: 'city', label: 'City', type: 'text', required: false },
           { name: 'telegramChatId', label: 'Telegram Chat ID', type: 'number', required: false }
         ];
+      case 'airports':
+        return [
+          { name: 'code', label: 'Airport Code (IATA)', type: 'text', required: true, pattern: '[A-Z]{3}' },
+          { name: 'name', label: 'Airport Name', type: 'text', required: true },
+          { name: 'city', label: 'City', type: 'text', required: true },
+          { name: 'state', label: 'State/Province', type: 'text', required: false },
+          { name: 'country', label: 'Country', type: 'text', required: true },
+          { name: 'timezone', label: 'Timezone', type: 'text', required: false, placeholder: 'e.g., America/New_York' }
+        ];
+      case 'airlines':
+        return [
+          { name: 'iata', label: 'IATA Code', type: 'text', required: true, pattern: '[A-Z]{2}' },
+          { name: 'icao', label: 'ICAO Code', type: 'text', required: false, pattern: '[A-Z]{3}' },
+          { name: 'name', label: 'Airline Name', type: 'text', required: true },
+          { name: 'country', label: 'Country', type: 'text', required: false }
+        ];
       default:
         return [];
     }
@@ -274,25 +315,38 @@ const DataManagement = () => {
           }
         });
 
-        // Add metadata
-        if (editingItem) {
-          itemData.id = editingItem.id;
-          itemData.createdAt = editingItem.createdAt;
-          itemData.updatedAt = new Date().toISOString();
+        // Add metadata based on type
+        if (activeTab === 'airports' || activeTab === 'airlines') {
+          // Airports and airlines don't use standard ID/timestamp fields
+          if (editingItem) {
+            // Keep existing data, just update the modifiable fields
+            Object.keys(itemData).forEach(key => {
+              if (itemData[key] === '') {
+                delete itemData[key];
+              }
+            });
+          }
         } else {
-          itemData.id = crypto.randomUUID();
-          itemData.createdAt = new Date().toISOString();
-          itemData.updatedAt = new Date().toISOString();
-        }
+          // Standard metadata for passengers, users, volunteers
+          if (editingItem) {
+            itemData.id = editingItem.id;
+            itemData.createdAt = editingItem.createdAt;
+            itemData.updatedAt = new Date().toISOString();
+          } else {
+            itemData.id = crypto.randomUUID();
+            itemData.createdAt = new Date().toISOString();
+            itemData.updatedAt = new Date().toISOString();
+          }
 
-        // Add defaults for specific types
-        if (activeTab === 'passengers' && !editingItem) {
-          itemData.flightCount = 0;
-        } else if (activeTab === 'users' && !editingItem) {
-          itemData.allowedAirports = [];
-        } else if (activeTab === 'volunteers' && !editingItem) {
-          itemData.role = 'volunteer';
-          itemData.allowedAirports = [];
+          // Add defaults for specific types
+          if (activeTab === 'passengers' && !editingItem) {
+            itemData.flightCount = 0;
+          } else if (activeTab === 'users' && !editingItem) {
+            itemData.allowedAirports = [];
+          } else if (activeTab === 'volunteers' && !editingItem) {
+            itemData.role = 'volunteer';
+            itemData.allowedAirports = [];
+          }
         }
 
         saveItem(itemData, activeTab);
@@ -343,6 +397,7 @@ const DataManagement = () => {
                 name={field.name}
                 defaultValue={(item && item[field.name]) || ''}
                 required={field.required}
+                pattern={field.pattern}
                 autoComplete={field.type === 'password' ? 'new-password' : field.name}
                 style={{
                   width: '100%',
@@ -351,7 +406,7 @@ const DataManagement = () => {
                   borderRadius: '0.375rem',
                   outline: 'none'
                 }}
-                placeholder={`Enter ${field.label.toLowerCase()}`}
+                placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#3b82f6';
                   e.target.style.boxShadow = '0 0 0 1px #3b82f6';
@@ -677,7 +732,12 @@ const DataManagement = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => deleteItem(item.id, activeTab)}
+                      onClick={() => deleteItem(
+                        activeTab === 'airports' ? item.code : 
+                        activeTab === 'airlines' ? item.iata : 
+                        item.id, 
+                        activeTab
+                      )}
                       style={{
                         color: '#dc2626',
                         background: 'none',
@@ -799,7 +859,7 @@ const DataManagement = () => {
         {/* Tabs */}
         <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '1.5rem' }}>
           <nav style={{ display: 'flex', gap: '2rem', marginBottom: '-1px' }}>
-            {['passengers', 'users', 'volunteers'].map(tab => (
+            {['passengers', 'users', 'volunteers', 'airports', 'airlines'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

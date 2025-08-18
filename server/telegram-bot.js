@@ -2608,7 +2608,7 @@ class TelegramNotificationService {
       const flightDate = new Date(flight.departureDateTime).toISOString().split('T')[0];
       
       try {
-        flightInfo = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate);
+        flightInfo = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate, flight.airline);
       } catch (error) {
         console.log('Could not fetch real-time flight data:', error.message);
       }
@@ -2717,7 +2717,7 @@ class TelegramNotificationService {
       for (const flight of upcomingFlights) {
         try {
           const flightDate = new Date(flight.departureDateTime).toISOString().split('T')[0];
-          const flightInfo = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate);
+          const flightInfo = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate, flight.airline);
           
           if (!flightInfo.error && flightInfo.flightStatus !== 'scheduled') {
             // Flight has status update or delay

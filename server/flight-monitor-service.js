@@ -180,7 +180,7 @@ class FlightMonitorService {
       console.log(`🔍 Checking status for flight ${flight.flightNumber} on ${flightDate}`);
       
       // Get current flight information from FlightAware
-      const currentStatus = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate);
+      const currentStatus = await this.flightInfoService.getFlightInfo(flight.flightNumber, flightDate, flight.airline);
       
       if (currentStatus.error) {
         console.log(`⚠️ Could not get status for flight ${flight.flightNumber}: ${currentStatus.message}`);

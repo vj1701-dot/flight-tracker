@@ -19,31 +19,162 @@ class FlightInfoService {
   }
 
   /**
+   * Format flight number for FlightAware API by combining airline and flight number
+   * @param {string} flightNumber - Flight number (could be "3889" or "WN3889")
+   * @param {string} airlineName - Airline name (e.g., "Southwest Airlines")
+   * @returns {string} Properly formatted flight number for FlightAware API
+   */
+  formatFlightNumber(flightNumber, airlineName) {
+    if (!flightNumber) return '';
+    
+    // Clean the flight number
+    const cleanFlightNumber = flightNumber.toString().trim();
+    
+    // If flight number already has airline code (contains letters), use as-is
+    if (/^[A-Z]{2,3}\d+$/i.test(cleanFlightNumber)) {
+      console.log(`✅ Flight number ${cleanFlightNumber} already properly formatted`);
+      return cleanFlightNumber.toUpperCase();
+    }
+    
+    // If flight number is just digits, we need to add airline code
+    if (/^\d+$/.test(cleanFlightNumber)) {
+      console.log(`🔍 Flight number ${cleanFlightNumber} is numeric only, looking up airline code for: ${airlineName}`);
+      
+      // Get airline IATA code from airline name
+      const airlineCode = this.getAirlineCodeFromName(airlineName);
+      if (airlineCode && airlineCode !== 'Unknown') {
+        const formattedFlightNumber = `${airlineCode}${cleanFlightNumber}`;
+        console.log(`✅ Formatted flight number: ${formattedFlightNumber}`);
+        return formattedFlightNumber;
+      } else {
+        console.warn(`⚠️ Could not find airline code for: ${airlineName}`);
+        return cleanFlightNumber; // Return as-is if we can't find airline code
+      }
+    }
+    
+    // For other formats, return as-is
+    console.log(`⚠️ Flight number ${cleanFlightNumber} has unexpected format, using as-is`);
+    return cleanFlightNumber.toUpperCase();
+  }
+
+  /**
+   * Get airline IATA code from airline name
+   * @param {string} airlineName - Full airline name
+   * @returns {string} IATA code or 'Unknown'
+   */
+  getAirlineCodeFromName(airlineName) {
+    if (!airlineName) return 'Unknown';
+    
+    // Normalize airline name for comparison
+    const normalizedName = airlineName.toLowerCase().trim();
+    
+    // Name to IATA code mapping (reverse of the existing mapping)
+    const nameToIataMapping = {
+      'air india': 'AI',
+      'american airlines': 'AA',
+      'delta air lines': 'DL',
+      'delta': 'DL',
+      'united airlines': 'UA',
+      'united': 'UA',
+      'southwest airlines': 'WN',
+      'southwest': 'WN',
+      'alaska airlines': 'AS',
+      'alaska': 'AS',
+      'jetblue airways': 'B6',
+      'jetblue': 'B6',
+      'spirit airlines': 'NK',
+      'spirit': 'NK',
+      'frontier airlines': 'F9',
+      'frontier': 'F9',
+      'hawaiian airlines': 'HA',
+      'hawaiian': 'HA',
+      'british airways': 'BA',
+      'lufthansa': 'LH',
+      'emirates': 'EK',
+      'qatar airways': 'QR',
+      'singapore airlines': 'SQ',
+      'turkish airlines': 'TK',
+      'klm royal dutch airlines': 'KL',
+      'klm': 'KL',
+      'air france': 'AF',
+      'cathay pacific': 'CX',
+      'japan airlines': 'JL',
+      'all nippon airways': 'NH',
+      'ana': 'NH',
+      'korean air': 'KE',
+      'china eastern airlines': 'MU',
+      'china southern airlines': 'CZ',
+      'etihad airways': 'EY',
+      'virgin atlantic': 'VS',
+      'virgin america': 'VX',
+      'air canada': 'AC',
+      'westjet': 'WS',
+      'ryanair': 'FR',
+      'easyjet': 'U2',
+      'norwegian air': 'DY',
+      'thai airways': 'TG',
+      'malaysia airlines': 'MH',
+      'philippine airlines': 'PR',
+      'vietnam airlines': 'VN',
+      'garuda indonesia': 'GA',
+      'air new zealand': 'NZ',
+      'qantas': 'QF',
+      'jetstar airways': 'JQ',
+      'scoot': 'TR',
+      'indigo': '6E',
+      'spicejet': 'SG',
+      'goair': 'G8',
+      'vistara': 'UK',
+      'airasia': 'AK',
+      'cebu pacific': '5J',
+      'lion air': 'JT'
+    };
+    
+    // Direct name match
+    if (nameToIataMapping[normalizedName]) {
+      console.log(`✅ Found direct airline code match: ${normalizedName} -> ${nameToIataMapping[normalizedName]}`);
+      return nameToIataMapping[normalizedName];
+    }
+    
+    // Partial name match (for cases like "American" instead of "American Airlines")
+    for (const [name, code] of Object.entries(nameToIataMapping)) {
+      if (normalizedName.includes(name) || name.includes(normalizedName)) {
+        console.log(`✅ Found partial airline code match: ${normalizedName} -> ${code} (via ${name})`);
+        return code;
+      }
+    }
+    
+    console.warn(`⚠️ No airline code found for: ${airlineName}`);
+    return 'Unknown';
+  }
+
+  /**
    * Fetch flight information from FlightAware AeroAPI
-   * @param {string} flightNumber - IATA flight number (e.g., "UA100")
+   * @param {string} flightNumber - Flight number (could be "3889" or "WN3889")
    * @param {string} flightDate - Flight date in YYYY-MM-DD format
+   * @param {string} airlineName - Airline name (optional, used for numeric flight numbers)
    * @returns {Promise<Object>} Flight information or error
    */
-  async getFlightInfo(flightNumber, flightDate) {
+  async getFlightInfo(flightNumber, flightDate, airlineName = null) {
     // Validate inputs
     const validation = this.validateInputs(flightNumber, flightDate);
     if (validation.error) {
       return validation;
     }
 
-    // Build URL outside try block so it's available for error logging
-    let flightIdent = flightNumber.toUpperCase();
+    // Format flight number properly for FlightAware API
+    let flightIdent = this.formatFlightNumber(flightNumber, airlineName);
     const url = `${this.baseUrl}/flights/${flightIdent}`;
     
     try {
-      console.log(`🔍 Fetching flight info for ${flightNumber} on ${flightDate}...`);
+      console.log(`🔍 Fetching flight info for ${flightNumber} (formatted as ${flightIdent}) on ${flightDate}...`);
+      if (airlineName) {
+        console.log(`✈️ Airline context: ${airlineName}`);
+      }
       console.log(`🔑 Using API key: ${this.apiKey.substring(0, 8)}...${this.apiKey.substring(-4)}`);
       console.log(`🌐 Base URL: ${this.baseUrl}`);
 
-      // FlightAware AeroAPI endpoint for flight schedules
-      // Note: FlightAware uses flight identifiers in format like "AAL123" not just "123"
-      
-      // Ensure flight number has airline code - if it doesn't appear to have one, try to add it
+      // Ensure flight number is properly formatted for FlightAware API
       if (!/^[A-Z]{2,3}\d+$/.test(flightIdent)) {
         console.log(`⚠️ Flight number ${flightIdent} may not be in correct format for FlightAware API`);
       }
