@@ -452,6 +452,7 @@ async function processSingleFlightData(flightData, extractionMethod, parentProce
   try {
     // Enhanced passenger processing for multi-passenger support
     const passengers = [];
+    const passengerMatches = [];
     const passengerNames = flightData.allPassengerNames || [flightData.passengerName];
     
     console.log(`👥 FLIGHT_PROCESSING: Processing ${passengerNames.length} passenger(s): ${passengerNames.join(', ')}`);
@@ -465,10 +466,33 @@ async function processSingleFlightData(flightData, extractionMethod, parentProce
       if (passengerResult.found) {
         passengers.push({ passengerId: passengerResult.passenger.id });
         await updatePassengerWithExtractedName(passengerResult.passenger, passengerName);
+        
+        // Store passenger match details for Telegram bot
+        passengerMatches.push({
+          passenger: passengerResult.passenger,
+          extractedName: passengerName,
+          matchType: passengerResult.matchType,
+          confidence: passengerResult.confidence
+        });
       } else {
         const newPassenger = await createNewPassengerFromTicket(passengerName);
         if (newPassenger) {
           passengers.push({ passengerId: newPassenger.id });
+          // For new passengers, show as created match
+          passengerMatches.push({
+            passenger: newPassenger,
+            extractedName: passengerName,
+            matchType: 'new_passenger',
+            confidence: 1.0
+          });
+        } else {
+          // No match found and couldn't create new passenger
+          passengerMatches.push({
+            passenger: null,
+            extractedName: passengerName,
+            matchType: 'no_match',
+            confidence: 0
+          });
         }
       }
     }
@@ -510,10 +534,15 @@ async function processSingleFlightData(flightData, extractionMethod, parentProce
     
     result.success = true;
     result.flight = newFlight;
-    result.passengerMatch = {
-      totalPassengers: passengers.length,
-      processedPassengers: passengers.length
+    // For single passenger or first passenger match details (for Telegram bot compatibility)
+    result.passengerMatch = passengerMatches.length > 0 ? passengerMatches[0] : {
+      passenger: null,
+      extractedName: 'Unknown',
+      matchType: 'no_match',
+      confidence: 0
     };
+    // Store all passenger matches for multi-passenger scenarios
+    result.allPassengerMatches = passengerMatches;
 
     return result;
 
